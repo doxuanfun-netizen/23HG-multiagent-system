@@ -38,6 +38,7 @@ import hashlib
 import re
 import datetime
 import csv
+import unicodedata
 from copy import copy
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -294,6 +295,8 @@ def sanitize_workbook_formulas(wb: openpyxl.Workbook, eval_cache: Dict[str, Dict
                             if 0 <= c_idx < len(row_vals):
                                 eval_val = row_vals[c_idx]
                                 if eval_val is not None:
+                                    if isinstance(eval_val, datetime.datetime) and eval_val.tzinfo is not None:
+                                        eval_val = eval_val.replace(tzinfo=None)
                                     cell.value = eval_val
                                     sanitized_cells_count += 1
     return sanitized_cells_count
@@ -319,6 +322,37 @@ def find_missing_sheet_refs(formula: str, sheetnames) -> List[str]:
         if name not in available and name not in missing:
             missing.append(name)
     return missing
+
+
+def normalize_dispatch_key(text: Optional[str]) -> str:
+    """Khóa so khớp tên dự án: bỏ dấu tiếng Việt, hạ chữ thường, gộp mọi ký tự phân cách thành một dấu cách.
+
+    '_norm' của bộ sinh Excel không xử lý gạch dưới, nên tên như 'Cau_Khai_Hoang_2'
+    sẽ không khớp 'cau khai hoang 2' nếu thiếu bước gộp phân cách ở đây.
+    """
+    if not text:
+        return ""
+    s = unicodedata.normalize("NFD", str(text).lower())
+    s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
+    s = s.replace("đ", "d")
+    s = re.sub(r"[^a-z0-9]+", " ", s)
+    return s.strip()
+
+
+def project_name_tokens(project_name: Optional[str], short_name: Optional[str] = None) -> List[str]:
+    """Các mảnh tên dự án đủ dài để nhận diện (>=3 ký tự), dùng cho bộ lọc theo dự án."""
+    key = normalize_dispatch_key(f"{project_name or ''} {short_name or ''}")
+    return [t for t in key.split() if len(t) >= 3]
+
+
+def is_within_dir(path: str, parent_dir: str) -> bool:
+    """True nếu path nằm trong parent_dir (hoặc chính là parent_dir)."""
+    p = os.path.abspath(os.path.normpath(path))
+    q = os.path.abspath(os.path.normpath(parent_dir))
+    try:
+        return os.path.commonpath([p, q]) == q
+    except ValueError:  # khác ổ đĩa trên Windows
+        return False
 
 
 def audit_all_exported_excels(directories: List[str]) -> Tuple[int, int, List[str]]:
@@ -401,250 +435,13 @@ def build_vincons_5_sheets_fleet_workbook(
         except Exception:
             pass
 
-    # Nếu không có template, tự động dựng 5 sheets bằng generator nội bộ
-    wb = openpyxl.Workbook()
-    wb.remove(wb.active)
-
-    start_date = datetime.date(2026, 10, 1)
-    total_days = 90
-    dates = [start_date + datetime.timedelta(days=i) for i in range(total_days)]
-    weekday_vn = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"]
-
-    # 1. Sheet 1: 01_TienDo_CaMay_Master
-    ws1 = wb.create_sheet(title="01_TienDo_CaMay_Master")
-    ws1.views.sheetView[0].showGridLines = True
-    title_block(ws1, f"BẢNG ĐIỀU PHỐI CA MÁY & PHỤ TẢI THI CÔNG — {project_name.upper()}",
-                "Chuẩn quản trị Vincons / 23HG System — 100% Công thức sống động", 15)
-
-    headers_1 = [
-        "STT", "Mã WBS", "Danh mục công tác thi công", "ĐVT", "Khối lượng", "ĐM năng suất",
-        "Tổng ca máy", "Năng suất/ngày", "Thời gian (ngày)", "Ngày BĐ", "Ngày KT", "Số ca/ngày",
-        "Máy huy động/ngày", "MMTB chính áp dụng", "NC bố trí"
-    ]
-    for c_i, h in enumerate(headers_1, 1):
-        cell = ws1.cell(row=5, column=c_i, value=h)
-        cell.font, cell.fill, cell.alignment, cell.border = FONT_HDR, FILL_HDR, ALIGN_CENTER, THIN_BORDER
-
-    # Headers ngày
-    for idx, d in enumerate(dates):
-        c_idx = 16 + idx
-        cell_d = ws1.cell(row=5, column=c_idx, value=d.strftime("%d/%m"))
-        cell_d.font, cell_d.alignment = Font(name=FONT_FAMILY, size=8, bold=True, color="FFFFFF"), ALIGN_CENTER
-        cell_d.fill = PatternFill(start_color="C00000" if d.weekday() == 6 else "244062", fill_type="solid")
-        ws1.column_dimensions[get_column_letter(c_idx)].width = 6.5
-
-    # Tasks mẫu nếu không truyền
-    tasks = tasks_data or [
-        {"stt": 1, "code": "WBS-01", "name": "Đào đất đá hố móng", "unit": "m3", "qty": 1850.0, "prod": 80.0, "dur": 24, "shifts": 2, "mach": "Máy đào 1.25m3", "labor": 8},
-        {"stt": 2, "code": "WBS-02", "name": "Khoan cọc nhồi bê tông", "unit": "cọc", "qty": 26.0, "prod": 0.5, "dur": 52, "shifts": 2, "mach": "Máy khoan cọc nhồi Bauer", "labor": 12},
-        {"stt": 3, "code": "WBS-03", "name": "Bê tông bệ móng & mố trụ", "unit": "m3", "qty": 1200.0, "prod": 45.0, "dur": 30, "shifts": 1, "mach": "Xe bơm bê tông cần 42m", "labor": 14},
-        {"stt": 4, "code": "WBS-04", "name": "Gia công & đúc dầm", "unit": "phiến", "qty": 15.0, "prod": 0.5, "dur": 30, "shifts": 2, "mach": "Cần cẩu bánh xích 50T", "labor": 16},
-        {"stt": 5, "code": "WBS-05", "name": "Lao lắp dầm & hoàn thiện", "unit": "nhịp", "qty": 3.0, "prod": 0.2, "dur": 15, "shifts": 1, "mach": "Giá lao dầm ray P43", "labor": 10},
-    ]
-
-    r1 = 6
-    for t in tasks:
-        ws1.cell(row=r1, column=1, value=t["stt"])
-        ws1.cell(row=r1, column=2, value=t["code"])
-        ws1.cell(row=r1, column=3, value=t["name"])
-        ws1.cell(row=r1, column=4, value=t["unit"])
-        ws1.cell(row=r1, column=5, value=t["qty"])
-        ws1.cell(row=r1, column=6, value=t["prod"])
-        ws1.cell(row=r1, column=7, value=f"=E{r1}/F{r1}")
-        ws1.cell(row=r1, column=8, value=f"=E{r1}/I{r1}")
-        ws1.cell(row=r1, column=9, value=t["dur"])
-        ws1.cell(row=r1, column=10, value=(start_date + datetime.timedelta(days=(r1-6)*10)).strftime("%d/%m/%Y"))
-        ws1.cell(row=r1, column=11, value=(start_date + datetime.timedelta(days=(r1-6)*10 + t["dur"])).strftime("%d/%m/%Y"))
-        ws1.cell(row=r1, column=12, value=t["shifts"])
-        ws1.cell(row=r1, column=13, value=f"=G{r1}/(I{r1}*L{r1})")
-        ws1.cell(row=r1, column=14, value=t["mach"])
-        ws1.cell(row=r1, column=15, value=t["labor"])
-
-        for c in range(1, 16):
-            cell = ws1.cell(row=r1, column=c)
-            cell.font, cell.border = FONT_REG, THIN_BORDER
-            if c in [1, 2, 4, 10, 11, 12]:
-                cell.alignment = ALIGN_CENTER
-            elif c in [5, 6, 7, 8, 9, 13, 15]:
-                cell.alignment = ALIGN_RIGHT
-                cell.number_format = "#,##0.0" if c in [5, 6, 7, 8, 13] else "#,##0"
-
-        # Timeline Gantt
-        task_st = start_date + datetime.timedelta(days=(r1-6)*10)
-        task_fn = task_st + datetime.timedelta(days=t["dur"]-1)
-        for idx, d in enumerate(dates):
-            c_idx = 16 + idx
-            cell_g = ws1.cell(row=r1, column=c_idx)
-            cell_g.border = THIN_BORDER
-            if task_st <= d <= task_fn:
-                cell_g.value = 1
-                cell_g.fill = FILL_SEC
-                cell_g.alignment = ALIGN_CENTER
-                cell_g.font = FONT_BOLD
-            else:
-                cell_g.value = 0
-                cell_g.font = Font(name=FONT_FAMILY, size=7, color="D9D9D9")
-                cell_g.alignment = ALIGN_CENTER
-        r1 += 1
-
-    # Footers Summary
-    # Summary 1: NC
-    ws1.cell(row=r1, column=3, value="TỔNG NHÂN CÔNG HUY ĐỘNG (Người/ngày)").font = FONT_BOLD
-    for c_i, d in enumerate(dates):
-        c_let = get_column_letter(16 + c_i)
-        ws1.cell(row=r1, column=16 + c_i, value=f"=SUM({c_let}6:{c_let}{r1-1})*10").font = FONT_BOLD
-        ws1.cell(row=r1, column=16 + c_i).fill = FILL_TOT
-        ws1.cell(row=r1, column=16 + c_i).alignment = ALIGN_RIGHT
-    r1 += 1
-
-    # Summary 3: Fuel
-    ws1.cell(row=r1, column=3, value="TỔNG LƯỢNG DẦU DIEZEL TIÊU THỤ (Lít/ngày)").font = FONT_BOLD
-    for c_i, d in enumerate(dates):
-        c_let = get_column_letter(16 + c_i)
-        ws1.cell(row=r1, column=16 + c_i, value=f"=SUM({c_let}6:{c_let}{r1-2})*45").font = FONT_BOLD
-        ws1.cell(row=r1, column=16 + c_i).fill = FILL_TOT
-        ws1.cell(row=r1, column=16 + c_i).alignment = ALIGN_RIGHT
-        ws1.cell(row=r1, column=16 + c_i).number_format = "#,##0"
-
-    # Widths
-    for col_c, w in enumerate([6, 12, 38, 8, 14, 14, 14, 14, 12, 12, 12, 10, 14, 30, 10], 1):
-        ws1.column_dimensions[get_column_letter(col_c)].width = w
-
-    # 2. Sheet 2: 02_TongHop_CaXe_CaMay_MMTB
-    ws2 = wb.create_sheet(title="02_TongHop_CaXe_CaMay_MMTB")
-    ws2.views.sheetView[0].showGridLines = True
-    title_block(ws2, f"BẢNG TỔNG HỢP CA XE, CA MÁY MMTB & NHIÊN LIỆU — {project_name.upper()}",
-                "Định mức Vincons / TT 38/2026/TT-BXD", 8)
-    headers_2 = ["STT", "Mã thiết bị", "Tên chủng loại máy thi công", "ĐVT", "Định mức dầu (l/ca)", "Tổng số ca máy", "Số máy Max", "Tổng dầu tiêu thụ (Lít)"]
-    header_row(ws2, 5, headers_2, [6, 14, 38, 8, 18, 18, 14, 22])
-
-    machines = [
-        (1, "MK-01", "Máy khoan cọc nhồi Bauer BG25", "ca", 145.0, 52.0, 2, "=E6*F6"),
-        (2, "CX-01", "Cần cẩu bánh xích 50T Kobelco", "ca", 62.0, 60.0, 1, "=E7*F7"),
-        (3, "MD-01", "Máy đào gầu nghịch 1.25m3 PC200", "ca", 68.0, 48.0, 2, "=E8*F8"),
-        (4, "BM-01", "Xe bơm bê tông cần 42m Putzmeister", "ca", 46.0, 30.0, 1, "=E9*F9"),
-        (5, "OT-01", "Ô tô tự đổ 15 tấn Howo", "ca", 52.0, 72.0, 4, "=E10*F10"),
-        (6, "GL-01", "Giá lao dầm ray P43 tời kéo điện", "ca", 35.0, 15.0, 1, "=E11*F11"),
-    ]
-    r2 = 6
-    for m in machines:
-        put(ws2, r2, 1, m[0], align=ALIGN_CENTER)
-        put(ws2, r2, 2, m[1], font=FONT_BOLD, align=ALIGN_CENTER)
-        put(ws2, r2, 3, m[2])
-        put(ws2, r2, 4, m[3], align=ALIGN_CENTER)
-        put(ws2, r2, 5, m[4], "#,##0.0")
-        put(ws2, r2, 6, m[5], "#,##0.0")
-        put(ws2, r2, 7, m[6], "#,##0", align=ALIGN_CENTER)
-        put(ws2, r2, 8, m[7], "#,##0", font=FONT_BOLD)
-        r2 += 1
-
-    put(ws2, r2, 3, "TỔNG CỘNG TOÀN DỰ ÁN", font=FONT_BOLD)
-    put(ws2, r2, 6, f"=SUM(F6:F{r2-1})", "#,##0.0", font=FONT_BOLD, fill=FILL_TOT)
-    put(ws2, r2, 7, f"=SUM(G6:G{r2-1})", "#,##0", font=FONT_BOLD, fill=FILL_TOT, align=ALIGN_CENTER)
-    put(ws2, r2, 8, f"=SUM(H6:H{r2-1})", "#,##0", font=FONT_BOLD, fill=FILL_TOT, border=DOUBLE_BOTTOM_BORDER)
-
-    # 3. Sheet 3: 03_KeHoach_Dau_Diezel
-    ws3 = wb.create_sheet(title="03_KeHoach_Dau_Diezel")
-    ws3.views.sheetView[0].showGridLines = True
-    title_block(ws3, f"KẾ HOẠCH CẤP DẦU DIEZEL PHÂN BỔ 4 KỲ — {project_name.upper()}",
-                "Đảm bảo duy trì nguồn nhiên liệu thi công liên tục", 9)
-    headers_3 = [
-        "STT", "Chủng loại thiết bị", "Định mức (l/ca)", "Tổng số ca", "Tổng nhu cầu (Lít)",
-        "Kỳ 1: Chuẩn bị & Móng", "Kỳ 2: Cọc & Bệ móng", "Kỳ 3: Thân & Đúc dầm", "Kỳ 4: Lao dầm & Hoàn thiện"
-    ]
-    header_row(ws3, 5, headers_3, [6, 36, 16, 16, 20, 22, 22, 22, 24])
-
-    r3 = 6
-    for idx, m in enumerate(machines, 1):
-        ws3.cell(row=r3, column=1, value=idx)
-        ws3.cell(row=r3, column=2, value=m[2])
-        ws3.cell(row=r3, column=3, value=m[4])
-        ws3.cell(row=r3, column=4, value=m[5])
-        ws3.cell(row=r3, column=5, value=f"=C{r3}*D{r3}")
-        ws3.cell(row=r3, column=6, value=f"=E{r3}*0.30")
-        ws3.cell(row=r3, column=7, value=f"=E{r3}*0.35")
-        ws3.cell(row=r3, column=8, value=f"=E{r3}*0.25")
-        ws3.cell(row=r3, column=9, value=f"=E{r3}*0.10")
-        for c in range(1, 10):
-            cell = ws3.cell(row=r3, column=c)
-            cell.font, cell.border = FONT_REG, THIN_BORDER
-            if c == 1: cell.alignment = ALIGN_CENTER
-            elif c in [3, 4, 5, 6, 7, 8, 9]:
-                cell.number_format = "#,##0.0" if c in [3, 4] else "#,##0"
-                cell.alignment = ALIGN_RIGHT
-        r3 += 1
-
-    ws3.cell(row=r3, column=2, value="TỔNG SỐ LÍT DẦU DIEZEL CẦN CẤP (LÍT)").font = FONT_BOLD
-    for c in [4, 5, 6, 7, 8, 9]:
-        c_let = get_column_letter(c)
-        ws3.cell(row=r3, column=c, value=f"=SUM({c_let}6:{c_let}{r3-1})").font = FONT_BOLD
-        ws3.cell(row=r3, column=c).fill = FILL_TOT
-        ws3.cell(row=r3, column=c).number_format = "#,##0.0" if c == 4 else "#,##0"
-        ws3.cell(row=r3, column=c).alignment = ALIGN_RIGHT
-
-    # 4. Sheet 4: 04_KeHoach_NhanLuc
-    ws4 = wb.create_sheet(title="04_KeHoach_NhanLuc")
-    ws4.views.sheetView[0].showGridLines = True
-    title_block(ws4, f"BẢNG PHÂN BỔ NHÂN LỰC THI CÔNG THEO TỔ ĐỘI — {project_name.upper()}",
-                "Mô hình điều phối tổ đội chuyên trách hiện trường", 8)
-    headers_4 = [
-        "STT", "Tổ đội / Bộ phận chức năng", "Nhân lực bình quân (người)", "Huy động cao điểm (người)",
-        "Chế độ ca kíp", "Nhiệm vụ chính", "Đội trưởng phụ trách", "Ghi chú an toàn"
-    ]
-    header_row(ws4, 5, headers_4, [6, 36, 22, 22, 18, 38, 22, 28])
-
-    labor_data = [
-        (1, "Tổ Cơ giới & Lái máy", 12, 18, "2 ca/ngày", "Vận hành máy đào, cẩu, khoan cọc", "Nguyễn Văn Hùng", "ATLĐ ca đêm"),
-        (2, "Tổ Cốt thép & Gia công", 14, 20, "1-2 ca/ngày", "Cắt uốn thép 11.7m RebarCut, hàn lồng", "Trần Bá Thắng", "Mối hàn TCVN 5574"),
-        (3, "Tổ Ván khuôn & Đà giáo", 12, 16, "1 ca/ngày", "Lắp dựng & tháo dỡ ván khuôn tấm lớn", "Lê Đình Long", "Độ võng & chuyển vị"),
-        (4, "Tổ Bê tông & Bảo dưỡng", 10, 15, "Theo đợt đổ", "Đổ, đầm dùi & dưỡng hộ bê tông", "Phạm Quốc Tuấn", "Đo độ sụt & đúc mẫu"),
-        (5, "Tổ Kỹ thuật & QA/QC", 6, 8, "Thường trực", "Nghiệm thu Hold Points & lập BBNT", "Kỹ sư Trưởng Hiện trường", "Theo NĐ 207"),
-    ]
-    r4 = 6
-    for lb in labor_data:
-        put(ws4, r4, 1, lb[0], align=ALIGN_CENTER)
-        put(ws4, r4, 2, lb[1], font=FONT_BOLD)
-        put(ws4, r4, 3, lb[2], "#,##0", align=ALIGN_RIGHT)
-        put(ws4, r4, 4, lb[3], "#,##0", align=ALIGN_RIGHT)
-        put(ws4, r4, 5, lb[4], align=ALIGN_CENTER)
-        put(ws4, r4, 6, lb[5])
-        put(ws4, r4, 7, lb[6])
-        put(ws4, r4, 8, lb[7])
-        r4 += 1
-
-    put(ws4, r4, 2, "TỔNG CỘNG NHÂN LỰC THI CÔNG", font=FONT_BOLD)
-    put(ws4, r4, 3, f"=SUM(C6:C{r4-1})", "#,##0", font=FONT_BOLD, fill=FILL_TOT, align=ALIGN_RIGHT)
-    put(ws4, r4, 4, f"=SUM(D6:D{r4-1})", "#,##0", font=FONT_BOLD, fill=FILL_TOT, align=ALIGN_RIGHT)
-
-    # 5. Sheet 5: 05_DoiChieu_BocTach
-    ws5 = wb.create_sheet(title="05_DoiChieu_BocTach")
-    ws5.views.sheetView[0].showGridLines = True
-    title_block(ws5, f"BẢNG ĐỐI CHIẾU KHỐI LƯỢNG THỰC TẾ HỒ SƠ BÓC TÁCH — {project_name.upper()}",
-                "Đối soát thiết kế vs thực tế thi công", 8)
-    headers_5 = [
-        "STT", "Mã WBS", "Danh mục công tác thi công", "ĐVT",
-        "Khối lượng thiết kế", "Tổng số ca máy yêu cầu", "Số ca/ngày", "MMTB chính áp dụng"
-    ]
-    header_row(ws5, 5, headers_5, [6, 14, 40, 8, 18, 22, 12, 34])
-
-    r5 = 6
-    for t in tasks:
-        put(ws5, r5, 1, t["stt"], align=ALIGN_CENTER)
-        put(ws5, r5, 2, t["code"], font=FONT_BOLD, align=ALIGN_CENTER)
-        put(ws5, r5, 3, t["name"])
-        put(ws5, r5, 4, t["unit"], align=ALIGN_CENTER)
-        put(ws5, r5, 5, t["qty"], "#,##0.0", align=ALIGN_RIGHT)
-        put(ws5, r5, 6, round(t["qty"] / max(0.01, t["prod"]), 1), "#,##0.0", align=ALIGN_RIGHT)
-        put(ws5, r5, 7, t["shifts"], align=ALIGN_CENTER)
-        put(ws5, r5, 8, t["mach"])
-        r5 += 1
-
-    put(ws5, r5, 3, "TỔNG CỘNG SỐ CA MÁY YÊU CẦU TOÀN CÔNG TRÌNH", font=FONT_BOLD)
-    put(ws5, r5, 6, f"=SUM(F6:F{r5-1})", "#,##0.0", font=FONT_BOLD, fill=FILL_TOT, align=ALIGN_RIGHT)
-
-    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-    wb.save(dest_path)
-    wb.close()
+    # Nếu không có template, tự động dựng 5 sheets bằng module chuẩn 3 tầng Vincons (Single Source of Truth)
+    from tools.generate_bep_an_3tier_schedule import build_bep_an_3tier_fleet_workbook
+    build_bep_an_3tier_fleet_workbook(
+        output_path=dest_path,
+        project_name=project_name,
+        custom_tasks=tasks_data
+    )
     return dest_path
 
 
@@ -758,6 +555,11 @@ class AECPackageDispatcher:
         """
         Đóng gói theo mô hình thực chiến công trường (Hub & Spoke - Phân quyền vai trò).
         Giữ nguyên 100% tính tương thích ngược cho các unit tests và workflows cũ.
+
+        Chốt chặn chống lẫn hồ sơ dự án khác:
+        - Chỉ nhận tệp nằm TRONG chính thư mục dự án (artifacts_source_dir), không quét
+          các thư mục cha/anh em mà người dùng vô tình trỏ vào.
+        - Bỏ qua mọi tệp mang tên dự án khác (khớp theo tên dự án hiện tại hoặc alias).
         """
         sub = custom_subfolder or f"GOI_THI_CONG_THUC_CHIEN_{project_name.upper().replace(' ', '_')}"
         target_root = os.path.join(self.base_output_dir, sub)
@@ -777,9 +579,31 @@ class AECPackageDispatcher:
         packages_created = list(folders.keys())
         pkgs_stats = {k: 0 for k in folders.keys()}
 
+        # Tên nhận diện dự án hiện tại (dùng cả tên thư mục đích làm nguồn phụ).
+        own_tokens = set()
+        for alias in [project_name, custom_subfolder]:
+            own_tokens.update(project_name_tokens(alias))
+
         target_root_norm = os.path.normpath(target_root)
+        effective_src = artifacts_source_dir
+
         if os.path.exists(artifacts_source_dir):
-            for root, _, files in os.walk(artifacts_source_dir):
+            # Nếu người dùng trỏ vào thư mục mẹ chứa nhiều dự án, chỉ đi vào đúng thư mục
+            # con mang tên dự án này; không có thư mục con nào khớp thì quét tại chỗ như cũ.
+            matched_children = [
+                d for d in os.listdir(artifacts_source_dir)
+                if os.path.isdir(os.path.join(artifacts_source_dir, d))
+                and set(normalize_dispatch_key(d).split()) & own_tokens
+            ]
+            if matched_children:
+                effective_src = os.path.join(artifacts_source_dir, matched_children[0])
+                print(f"  [i] Nguồn chứa nhiều dự án — chỉ đóng gói thư mục: {matched_children[0]}")
+
+        if os.path.exists(effective_src):
+            for root, _, files in os.walk(effective_src):
+                # Chốt chặn: không bao giờ quét ngược ra ngoài thư mục nguồn hiệu lực.
+                if not is_within_dir(root, effective_src):
+                    continue
                 if os.path.normpath(root).startswith(target_root_norm):
                     continue
                 for f in files:
@@ -823,6 +647,7 @@ class AECPackageDispatcher:
                 "packages": packages_created,
                 "packages_stats": pkgs_stats,
                 "total_files": copied_count,
+                "source_dir": effective_src,
                 "timestamp": str(os.path.getmtime(target_root))
             }, mf, ensure_ascii=False, indent=2)
 
@@ -874,14 +699,17 @@ class AECPackageDispatcher:
         # 1. ĐÓNG GÓI TẦNG 1: MACRO MASTER
         # ---------------------------------------------------------------------
         print("  [1/4] Đang đóng gói TẦNG 1 (Macro Master)...")
+        macro_files: List[str] = []
         master_dest = os.path.join(dir_macro, os.path.basename(master_excel_path))
         shutil.copyfile(master_excel_path, master_dest)
+        macro_files.append(os.path.basename(master_excel_path))
 
         # Copy các companion files nếu có (XML, MPP, DOCX, MD)
         for k, src_f in companion.items():
             if src_f and os.path.exists(src_f):
                 dst_f = os.path.join(dir_macro, os.path.basename(src_f))
                 shutil.copyfile(src_f, dst_f)
+                macro_files.append(os.path.basename(src_f))
 
         # ---------------------------------------------------------------------
         # 2. TRÍCH XUẤT EVAL CACHE SẠCH TỪ MASTER
@@ -986,13 +814,26 @@ class AECPackageDispatcher:
             os.makedirs(p, exist_ok=True)
 
         # 4.1. Gói A: Chuẩn hóa bắt buộc 5 sheets Vincons / 23HG System
-        file_camay_name = f"TDTC_CaXe_CaMay_DauDiezel_{project_name.replace(' ', '_')}.xlsx"
+        if companion.get("fleet_template"):
+            file_camay_name = os.path.basename(companion["fleet_template"])
+        else:
+            safe_proj = re.sub(r'[\/:*?"<>|]', '_', project_name).replace(' ', '_')
+            file_camay_name = f"TDTC_CaXe_CaMay_DauDiezel_{safe_proj}.xlsx"
         path_camay = os.path.join(pkg_dirs["A"], file_camay_name)
-        build_vincons_5_sheets_fleet_workbook(
-            dest_path=path_camay,
-            project_name=project_name,
-            master_template_path=companion.get("fleet_template")
-        )
+        # Chỉ xuất Gói A khi có dữ liệu ca máy THẬT của dự án (fleet_template).
+        if companion.get("fleet_template") and os.path.exists(companion["fleet_template"]):
+            build_vincons_5_sheets_fleet_workbook(
+                dest_path=path_camay,
+                project_name=project_name,
+                master_template_path=companion.get("fleet_template")
+            )
+        else:
+            with open(os.path.join(pkg_dirs["A"], "CHUA_CO_DU_LIEU_CA_MAY.md"), "w", encoding="utf-8") as fh:
+                fh.write(f"# Gói A chưa có dữ liệu — {project_name}\n\n"
+                         "Chưa có danh sách ca máy / thiết bị / dầu diesel THẬT của dự án này, nên hệ thống "
+                         "KHÔNG dựng bảng mẫu (tránh lẫn máy móc của dự án khác, ví dụ máy khoan cọc nhồi của cầu).\n"
+                         "Cung cấp tệp ca máy (5 sheet chuẩn) qua companion `fleet_template` rồi xuất lại.\n")
+
         # XML MS Project cho Gói A
         if companion.get("fleet_xml") and os.path.exists(companion["fleet_xml"]):
             shutil.copyfile(companion["fleet_xml"], os.path.join(pkg_dirs["A"], os.path.basename(companion["fleet_xml"])))
@@ -1030,11 +871,13 @@ class AECPackageDispatcher:
             if os.path.exists(src_f):
                 shutil.copy2(src_f, os.path.join(pkg_dirs["D"], f))
 
-        # 4.5. Gói E: Executive Control Hub
-        for f in os.listdir(dir_macro):
-            src_f = os.path.join(dir_macro, f)
+        # 4.5. Gói E: Executive Control Hub — chỉ chép ĐÚNG các tệp thân chủ do
+        # chính dự án này sinh ra ở Tầng 1 (không quét cả thư mục, tránh mang theo
+        # tệp lạ nếu thư mục xuất từng được dùng chung).
+        for f_name in macro_files:
+            src_f = os.path.join(dir_macro, f_name)
             if os.path.isfile(src_f):
-                shutil.copy2(src_f, os.path.join(pkg_dirs["E"], f))
+                shutil.copy2(src_f, os.path.join(pkg_dirs["E"], f_name))
 
         # 4.6. Bảng phân quyền & bàn giao (Excel + MD)
         build_permission_and_handover_workbooks(dir_hub, project_name)
@@ -1097,14 +940,30 @@ class AECPackageDispatcher:
         # ---------------------------------------------------------------------
         if sync_nested_dirs:
             for n_dir in sync_nested_dirs:
-                if os.path.exists(n_dir) and os.path.abspath(n_dir) != os.path.abspath(root_dir):
-                    print(f"  [*] Đang đồng bộ sang thư mục con: {n_dir}...")
-                    for sub_name in ["BO_HO_SO_01_MACRO_MASTER_14_SHEET", "BO_HO_SO_02_VI_MO_CHUYEN_SAU_14_BO", "03_HO_SO_THUC_CHIEN_HUB_AND_SPOKE_5_GOI_VE_TINH"]:
-                        src_s = os.path.join(root_dir, sub_name)
-                        dst_s = os.path.join(n_dir, sub_name)
-                        if os.path.exists(dst_s):
-                            shutil.rmtree(dst_s)
-                        shutil.copytree(src_s, dst_s)
+                # Chốt chặn an toàn: tuyệt đối không đồng bộ khi thư mục đích là
+                # chính thư mục xuất, là thư mục CHA của nó, hoặc nằm ngoài nó.
+                if not os.path.exists(n_dir):
+                    print(f"  [!] Bỏ qua '{n_dir}': thư mục không tồn tại.")
+                    continue
+                if os.path.abspath(n_dir) == os.path.abspath(root_dir):
+                    continue
+                if is_within_dir(root_dir, n_dir):
+                    print(f"  [!] TỪ CHỐI đồng bộ vào '{n_dir}': đây là thư mục cha của thư mục xuất — thao tác sẽ ghi đè chính hồ sơ vừa tạo.")
+                    continue
+                print(f"  [*] Đang đồng bộ sang thư mục con: {n_dir}...")
+                for sub_name in ["BO_HO_SO_01_MACRO_MASTER_14_SHEET", "BO_HO_SO_02_VI_MO_CHUYEN_SAU_14_BO", "03_HO_SO_THUC_CHIEN_HUB_AND_SPOKE_5_GOI_VE_TINH"]:
+                    src_s = os.path.join(root_dir, sub_name)
+                    if not os.path.isdir(src_s):
+                        continue
+                    dst_s = os.path.join(n_dir, sub_name)
+                    # Đích phải nằm trong thư mục đích đã khai báo, và phải đúng
+                    # tên thư mục con của bộ hồ sơ — không xóa gì khác.
+                    if os.path.basename(dst_s) != sub_name or not is_within_dir(dst_s, n_dir):
+                        print(f"  [!] Bỏ qua đích bất thường: {dst_s}")
+                        continue
+                    if os.path.exists(dst_s):
+                        shutil.rmtree(dst_s)
+                    shutil.copytree(src_s, dst_s)
 
         summary_msg = (
             f"Đã hoàn thành xuất xưởng trọn vẹn 3 Tầng hồ sơ công nghiệp cho dự án '{project_name}':\n"

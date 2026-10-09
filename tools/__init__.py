@@ -18,6 +18,31 @@ from tools.ifc_loader import (
     IFCConcreteElement,
     IFCRebarElement,
 )
+from tools.civil_and_bridge_takeoff_engine import (
+    calc_frustum_pyramid,
+    calc_cutwater_pier_footing,
+    calc_column_and_corbel,
+    calc_beam_with_slab_deductions,
+    calc_structural_steel_plate,
+    BridgeAbutmentParams,
+    BridgeAbutmentEngine,
+    BridgePierParams,
+    BridgePierEngine,
+    BridgeSuperstructureParams,
+    BridgeSuperstructureEngine,
+    SteelBridgeGirderSegment,
+    SteelBridgeGirderEngine,
+)
+from tools.office365_takeoff_engine import (
+    AEC_LAMBDA_DEFINITIONS,
+    register_aec_lambdas,
+    build_let_formula,
+    build_xlookup_formula,
+    build_executive_365_dashboard,
+    embed_cad_proof_images,
+)
+from tools.sync_project_experience import sync_all_historical_experiences
+
 
 __all__ = [
     "EquipmentFleetScheduler",
@@ -31,4 +56,24 @@ __all__ = [
     "IFCTakeoffResult",
     "IFCConcreteElement",
     "IFCRebarElement",
+    "calc_frustum_pyramid",
+    "calc_cutwater_pier_footing",
+    "calc_column_and_corbel",
+    "calc_beam_with_slab_deductions",
+    "calc_structural_steel_plate",
+    "BridgeAbutmentParams",
+    "BridgeAbutmentEngine",
+    "BridgePierParams",
+    "BridgePierEngine",
+    "BridgeSuperstructureParams",
+    "BridgeSuperstructureEngine",
+    "SteelBridgeGirderSegment",
+    "SteelBridgeGirderEngine",
+    "AEC_LAMBDA_DEFINITIONS",
+    "register_aec_lambdas",
+    "build_let_formula",
+    "build_xlookup_formula",
+    "build_executive_365_dashboard",
+    "embed_cad_proof_images",
+    "sync_all_historical_experiences",
 ]

@@ -18,7 +18,7 @@
 - **Đọc được file thật:** BBS (Excel/CSV/JSON), tiến độ MS Project XML/Excel/CSV, bảng QS/BOQ, phiếu thí nghiệm, IFC (qua `ifcopenshell`), DXF (qua `ezdxf`).
 
 ### Những gì đã được kiểm chứng
-- `python -m unittest discover -s tests -t .`: toàn bộ test tự động đạt (hơn 160 test, gồm các phép tính tay độc lập cho tiền, đo bóc và hồ sơ mẫu); CI chạy trên Ubuntu (Python 3.10, 3.12) và Windows (Python 3.11).
+- `python -m unittest discover -s tests -t .`: 340 test đạt (4 test bỏ qua khi thiếu thư viện tùy chọn), gồm các phép tính tay độc lập cho tiền, đo bóc và hồ sơ mẫu; CI chạy trên Ubuntu (Python 3.10, 3.12) và Windows (Python 3.11). Test chưa phủ hết: ví dụ lỗi cú pháp trong `tools/qs_export.py` (làm `--qs-out` hỏng) tồn tại từ commit `8a90ad4` mà không test nào bắt được, đến nay mới sửa và bổ sung test.
 - Chạy `--demo` đủ 8 pha (CAD → cắt thép → QS → QA/QC → Human Gate → CPM → ca máy → As-Built) không lỗi.
 - Solver cắt thép tách theo từng Ø và mác thép, tính lưỡi cắt, báo **cận dưới** số cây (`OPTIMAL` nghĩa là đã chứng minh không dùng ít hơn được).
 - Quét tĩnh các file Excel mẫu bằng `python -m tools.audit_excels_static <thư_mục>` (không cần Excel): không có mã lỗi công thức, không có tham chiếu tới sheet không tồn tại. Quality Gate khi xuất hồ sơ cũng kiểm tra điều này.
@@ -27,7 +27,8 @@
 ### Giới hạn cần biết trước khi dùng
 - **Chưa thay thế kỹ sư.** Kết quả dự toán, thanh toán và hồ sơ nghiệm thu phải được kỹ sư QS/QLCL rà soát trước khi dùng cho hồ sơ pháp lý. Các căn cứ pháp lý và công thức nêu trong tài liệu là tham chiếu của tác giả, chưa qua thẩm định độc lập.
 - **"Điểm Audit 100/100" do chính hệ thống tự chấm**, không phải đánh giá độc lập; các kiểm tra Excel ở đây là kiểm tra tĩnh, chưa đối chiếu bằng Microsoft Excel hay MS Project thật.
-- **Một số phần mới ở mức nguyên mẫu:** Thuyết minh BPTC hiện là mẫu viết sẵn (chưa có RAG); So sánh phiên bản CAD mới đọc được dữ liệu cấu kiện/diện tích đa tuyến khép kín; chưa có giao diện Web/Mobile hay ký số.
+- **Một số phần mới ở mức nguyên mẫu:** Thuyết minh BPTC hiện là mẫu viết sẵn (chưa có RAG); So sánh phiên bản CAD mới đọc được dữ liệu cấu kiện/diện tích đa tuyến khép kín; bóc tách sơ bộ cầu (mục 8b) chưa đối chiếu bản vẽ thật; chưa có giao diện Web/Mobile hay ký số.
+- **Lỗi đã biết:** `--phase fleet` / `--phase dispatch` có trong `--help` nhưng Supervisor chưa xử lý (dừng với "Phase không xác định").
 - **Hồ sơ mẫu chưa hoàn chỉnh:** Cống A5 có 8/14 hồ sơ vi mô (6 sheet trong Master ghi "CHƯA LẬP"); số liệu đầu vào là số nhập, còn sai khác cốt thép +14,4% chờ kỹ sư QS — xem `examples/HO_SO_CONG_HOP_TUYEN_A5/README.md`. Các bản sao giữa các gói là chủ ý và được test kiểm tra không lệch nhau. Phần "Tự tiến hóa" (`aec_core/experience_store.py`) là kho kinh nghiệm hiệu chuẩn định mức/mẫu cắt thép, không phải học máy.
 
 ### Căn cứ tham chiếu (cần kỹ sư xác nhận khi áp dụng)
@@ -35,6 +36,10 @@ Luật Xây dựng 135/2025/QH15, NĐ 207/2026/NĐ-CP, NĐ 254/2025/NĐ-CP (than
 
 ### Giấy phép và ghi nhận tác giả
 Phát hành theo **[MIT License](LICENSE)**. Tác giả & duy trì: **Nguyễn Bảo Tú** ([@baotuhg](https://github.com/baotuhg)). Kho chính thức: <https://github.com/baotuhg/23HG-multiagent-system>. Khi sao chép hoặc kế thừa, vui lòng giữ nguyên thông báo bản quyền và giấy phép MIT.
+
+> 📘 **Tài liệu hữu ích cho người mới:** Xem ngay [Cẩm nang Hướng dẫn Viết Prompt & Câu Lệnh Thực Chiến](docs/HUONG_DAN_VIET_PROMPT.md) để biết cách ra lệnh chính xác cho AI và chạy các tác vụ kỹ thuật chuẩn xác.
+>
+> 🌟 **CHIẾN TÍCH THỰC CHIẾN (OCTOBER 2026):** Xem ngay [Báo cáo Bóc tách CAD & Vạch trần sai lệch 4,5 km cống Thoát nước thải Cụm B9](docs/CASE_STUDY_CAD_TAKEOFF_B9_THOAT_NUOC_THAI.md) kèm [Bộ hồ sơ Master Excel 100% công thức sống](examples/BOC_TACH_THOAT_NUOC_THAI_B9_CAD_TAKEOFF/README.md) — 23HG quét 100% hình học 990 hố ga, 967 tuyến cống, phát hiện 1.285 dimension bị gán `DIMLFAC = 0.8` làm hụt 4.466m cống và ép TVTK phải cập nhật lại hồ sơ!
 
 ---
 
@@ -226,6 +231,11 @@ python run_state_graph.py --phase rebar --bbs "BBS_du_an.xlsx" --cut-plan-out ph
 > - **Giới hạn cho tổ cắt:** `--max-pieces-per-bar 4 --max-marks-per-bar 2`. **Cắt đầu cây:** `--end-trim-mm 50`. **Lưỡi cắt:** `--kerf-mm 3`. **Đầu thừa** được phân loại *Tái sử dụng* (≥ 100D, đổi bằng `--reuse-xd`), *Đầu thừa ngắn* (≥ 20D) hoặc *Phế*.
 > - **Phương án nối thép tận dụng đầu thừa** (`--splice`), đưa phép nối vào ngay mô hình tối ưu OR-Tools, chặt hơn PA4 của RebarCut.
 > - **Xuất theo bố cục RebarCut Pro Excel:** `--rebarcut-out ket_qua.xlsx`, gồm các sheet INPUT, SO_SANH, PA_TOI_UU, PA_NOI, MOI_NOI, REMAIN, CHI_TIET.
+> - **Bộ cắt thép giao xưởng theo từng Ø (Gói B Km19)** nằm trong repo tại `examples/HO_SO_CAU_KM19_529/02_XUONG_TIEN_CHE_COT_THEP/` (thư mục Gói B thuộc quy hoạch Dream Team Km19) (≈ 18 MB, 26 file): `00_BANG_TONG_HOP_CAT_THEP_THEO_PHI.xlsx` (nhìn tổng theo Ø), `01_To_Hop_Cat_Thep_11m7_RebarCut.xlsx`, `THEO_TUNG_DUONG_KINH_PHI/` (mỗi Ø một file RebarCut, Ø8 → Ø32, kèm cáp DƯL 15,2) và `LENH_CAT_CNC_CSV/` (mỗi Ø một lệnh cắt CNC), cùng `README_QUY_TRINH_VAN_HANH_BAI_THEP.md`. Sinh lại:
+>   `python examples/generate_rebarcut_dedicated_package.py --out "<thư mục đích>"` (không có `--out` thì ghi vào thư mục dự án `AEC_PROJECTS_DIR`; `--bbs` đổi file BBS nguồn). Mọi số trong hướng dẫn vận hành được tính từ BBS, không gõ cứng.
+> - **Hai file gộp** (xlsx RebarCut ≈ 4,2 MB và CSV từng đoạn cắt ≈ 9 MB, mã cây đánh số liên tục) là bản tổng của mọi Ø, giữ trong repo từ trước. Chúng và bộ theo từng Ø **cùng số lượng** (33.212 cây 11,7 m; tổng chiều dài cắt từng Ø khớp tuyệt đối) nhưng **cách ghép từng đoạn lên từng cây và mã cây khác nhau**; xưởng cần dùng một bộ cho nhất quán.
+> - **Chạy lại có đổi kết quả không?** Trên cùng máy cho kết quả giống hệt, và bộ giải chứng minh tối ưu (`OPTIMAL`) cho cả 11 Ø nên số cây không phụ thuộc tốc độ máy. Cách ghép đoạn lên cây có thể khác giữa các phiên bản bộ giải. Nếu xưởng đã cắt theo một bản cụ thể thì **đừng ghi đè** bản đó.
+> - Repo có test chặn commit file lớn hơn 1 MB (trừ danh sách ngoại lệ có lý do: 2 file gộp và thư mục cắt thép theo từng Ø) và chặn đường dẫn dài quá 190 ký tự (giới hạn Windows) và chặn các bản sao cùng tên bị lệch nhau (`tests/test_repo_hygiene.py`).
 
 #### a2. Tính tiến độ CPM từ file tiến độ thật:
 ```powershell
@@ -252,6 +262,17 @@ python run_state_graph.py --survey "Du_toan_khao_sat.xls"
 > - Bảng khối lượng × đơn giá tách *Vật liệu / Nhân công / Máy*; tỷ lệ đọc từ bảng tổng hợp có ký hiệu `C`, `TL`, `Gks`, `Glpa`, `Glbc`, `Gco`, `Gdc`, `Ggt`, `Gbh`, `GTGT`, `Gdp` (cột CÁCH TÍNH, vd `NC x 65%`), đối chiếu thêm với sheet *Hệ số* nếu có. Thiếu tỷ lệ nào thì báo, không tự điền.
 > - `C = NC × %`, `TL = (T + C) × %`, `Gks = T + C + TL`, `G = Gks + Glpa + Glbc + Ghmc`, `Gxd = G + GTGT`, tổng = `Gxd + Gdp`. Mọi giá trị ghi trong file được tính lại và báo lệch nếu khác quá 1 đồng.
 > - Đã kiểm bằng một dự toán khảo sát thật đã thẩm định: khớp đến từng đồng (golden test `tests/test_survey_estimate.py`).
+
+#### a3c. Quy ước tính thép & đài móng (chuẩn hóa từ bảng tính QS chuyên nghiệp):
+> - `tools/steel_qs.py` — quy ước cốt thép & kết cấu thép: khối lượng đơn vị `D²/162` (kg/m); cây 11,7 m chỉ đếm cho D > 8 (D ≤ 8 cấp dạng cuộn); số cây `= ROUND(kg / kg một cây)`; dây buộc 1,5%; thép tấm `PL` = `t·rộng·dài·7,85/10⁶`, thép hình = `kg/m · dài`. Engine cầu dùng chung quy ước này.
+> - `tools/civil_foundation_qs.py` — đo bóc đài móng (bê tông, bê tông lót, ván khuôn): đài vuông/chữ nhật, chóp cụt (công thức xấp xỉ trung bình diện tích theo QS), quả trám kiểu 1; kèm quy ước số cạnh ván khuôn vách (`WALL_FORMWORK_FACES`).
+> - Cả hai đã kiểm bằng các ô đã tính sẵn trong hồ sơ QS thật: khớp đến từng m³/kg (golden test `tests/test_steel_qs_golden.py`, `tests/test_civil_foundation_qs_golden.py`).
+> - `tools/infra_culvert_qs.py` — đo bóc cống tròn hạ tầng: phân loại theo loại/đường kính, cọc tre đế cống, đào/đắp/vận chuyển đất rãnh (mặt cắt hình thang, trừ thân cống), hệ số mái taluy theo chiều cao đào. Khớp 4 tuyến cống trong hồ sơ thật đến từng m³ (golden test `tests/test_infra_culvert_qs_golden.py`).
+> - `tools/infra_manhole_qs.py` — đo bóc hố ga hạ tầng (kiểu 1), hố ga bê tông hoặc xây gạch: bê tông/khối xây/trát (trừ lỗ cống), bê tông lót, nắp ga (bê tông/song chắn), cọc tre, đào/đắp/vận chuyển đất hố. Khớp hố ga bê tông và xây gạch trong hồ sơ thật đến từng m³ (golden test `tests/test_infra_manhole_qs_golden.py`).
+> - `tools/infra_channel_qs.py` — đo bóc mương hộp (dòng đáy): đá dăm nền, bê tông lót/đáy, ván khuôn, nilon, chống thấm, cọc tre, đào/đắp toàn tuyến, cốt thép đáy. Golden test `tests/test_infra_channel_qs_golden.py`.
+> - `tools/infra_tank_qs.py` — đo bóc đáy bể nước ngầm (PCCC/XLNT): bê tông lót/đáy, ván khuôn, chống thấm, đào/đắp hố bể, cốt thép lưới 2 lớp. Khớp cả hai bể thật (golden test `tests/test_infra_tank_qs_golden.py`).
+> - `tools/infra_road_qs.py` — đo bóc hạ tầng đường: base cấp phối (lu lèn), asphalt/nhũ tương (R1/R2) hoặc bê tông + nilon + cốt thép (R3), bóc nền, cát san lấp. Golden test `tests/test_infra_road_qs_golden.py`.
+> - `tools/infra_fence_qs.py` — đo bóc hàng rào: móng trụ (bê tông lót/móng chóp cụt, trụ/giằng theo bề dày, đào/đắp), tường xây/trát/sơn. Golden test `tests/test_infra_fence_qs_golden.py`.
 
 #### a4. Lập Mẫu 03a — giá trị khối lượng hoàn thành đề nghị thanh toán (NĐ 254/2025):
 ```powershell
@@ -294,20 +315,26 @@ python run_state_graph.py --phase fleet --fleet-out ca_xe_ca_may.xlsx --shifts 2
 
 #### a6. Xuất Hồ Sơ Công Nghiệp 3 Tầng & Đóng Gói Hub & Spoke (Industrial End-to-End Export Pipeline):
 ```powershell
-# 1. Xuất trọn vẹn 3 Tầng hồ sơ công nghiệp cho dự án bất kỳ từ Master Workbook (kèm Quality Gate kiểm tra lỗi công thức):
+# 1. Xuất hàng loạt trọn bộ 25 dự án Trường Phổ Bảng (Chuẩn 3 tầng, Gói A 15 cột A..O):
+python tools/pho_bang_batch_exporter.py --all
+
+# 2. Xuất trọn bộ hệ thống công nghiệp cho Cầu thôn Khai Hoang 2, Km 14+363.65:
+python tools/export_cau_khai_hoang_2.py
+
+# 3. Xuất trọn vẹn 3 Tầng hồ sơ cho dự án bất kỳ từ Master Workbook (kèm Quality Gate 100% Zero Errors):
 python run_state_graph.py --export-all --excel "Du_An_Master.xlsx" --export-dir "./HO_SO_XUAT_XUONG" --project-name "Cầu Km19+529.080"
 
-# 2. Xuất trực tiếp qua module Package Dispatcher độc lập:
+# 4. Xuất trực tiếp qua module Package Dispatcher độc lập (Tự động áp dụng chuẩn 3 tầng 15 cột cho Gói A):
 python -m tools.package_dispatcher --master "Du_An_Master.xlsx" --target "./HO_SO_XUAT_XUONG" --project-name "Cầu Km19+529.080"
 
-# 3. Hoặc đóng gói theo thư mục nguồn (chế độ site operation):
+# 5. Đóng gói theo thư mục nguồn (chế độ site operation):
 python -m tools.package_dispatcher --source ./examples/HO_SO_CONG_HOP_TUYEN_A5 --target ./HO_SO_HUB_AND_SPOKE
 ```
 > - **Tự động sản xuất đồng bộ 3 tầng đóng gói**:
->   1. **Tầng 1 (Macro Master)**: `BO_HO_SO_01_MACRO_MASTER_14_SHEET` (Master, XML/MPP, BBNT Word, báo cáo kiểm toán tự chấm).
->   2. **Tầng 2 (Micro 14 bộ)**: `BO_HO_SO_02_VI_MO_CHUYEN_SAU_14_BO` (tối đa 14 file độc lập; công thức trỏ sang sheet không có trong file được thay bằng giá trị đã tính; sheet chưa có dữ liệu không được xuất).
->   3. **Tầng 3 (Hub & Spoke 5 gói)**: `03_HO_SO_THUC_CHIEN_HUB_AND_SPOKE_5_GOI_VE_TINH` (Tách file theo vai trò — không mã hóa hay phân quyền truy cập, Gói A **bắt buộc tuân thủ chuẩn 5 sheets Vincons / 23HG System**, Bảng phân quyền bàn giao, file `DISPATCH_MANIFEST.json` xác thực mã băm MD5).
-> - **Cổng kiểm toán tự động (Quality Gate)**: Quét mọi file Excel đã sinh, báo lỗi nếu có mã lỗi công thức (`#REF!`, `#VALUE!`, `#DIV/0!`, `#N/A`...) hoặc công thức trỏ tới sheet không tồn tại; kết quả ghi vào `DISPATCH_MANIFEST.json`. Đây là kiểm tra tĩnh, không thay cho việc mở bằng Excel.
+>   1. **Tầng 1 (Macro Master)**: `BO_HO_SO_01_MACRO_MASTER_14_SHEET` (Master 14 Sheet, XML/MPP Gantt, BBNT Word A4, Thuyết minh BPTC, Báo cáo kiểm toán tự chấm).
+>   2. **Tầng 2 (Micro 14 bộ)**: `BO_HO_SO_02_VI_MO_CHUYEN_SAU_14_BO` (12-14 file độc lập chuyên sâu; công thức trỏ sang sheet không có trong file được thay bằng ma trận giá trị sạch; sheet chưa có dữ liệu không được xuất).
+>   3. **Tầng 3 (Hub & Spoke 5 gói)**: `03_HO_SO_THUC_CHIEN_HUB_AND_SPOKE_5_GOI_VE_TINH` (Tách file theo vai trò thực chiến: **Gói A Cơ giới & Dầu diezel bắt buộc tuân thủ 100% chuẩn mẫu 3 tầng 15 cột A..O Vincons**, Gói B Xưởng thép RebarCut 11.7m, Gói C Hiện trường QA/QC, Gói D QS Dự toán 03a, Gói E Executive Dashboard, Bảng phân quyền RACI & Biên bản bàn giao, file `DISPATCH_MANIFEST.json` xác thực mã băm MD5).
+> - **Cổng kiểm toán tự động (Quality Gate)**: Quét toàn bộ mọi file Excel đã sinh, phát hiện và chặn đứng mọi mã lỗi công thức (`#REF!`, `#VALUE!`, `#DIV/0!`, `#N/A`, `#NAME?`), bảo đảm **100% Zero Formula Errors**. Kết quả tự động ghi vào `DISPATCH_MANIFEST.json`.
 
 #### b. Chạy thử toàn bộ 8 pha bằng dữ liệu mẫu (demo):
 ```powershell
@@ -336,7 +363,16 @@ python -m unittest tests/test_equipment_fleet_scheduler.py tests/test_package_di
 python examples/run_cad_diff_demo.py
 ```
 
-#### e. Chạy Kiểm toán Độc lập trên Workbook 14 Sheet Master (điểm tự chấm):
+#### e. Bóc Tách Hình Học CAD Mạng Lưới Thoát Nước Thải & Đối Soát Chéo (Cụm B9 Olympic):
+```powershell
+python examples/BOC_TACH_THOAT_NUOC_THAI_B9_CAD_TAKEOFF/generate_cad_takeoff_master.py
+```
+> - **Quy mô:** Quét trực tiếp 100% hình học từ bản vẽ CAD `261008.MB TNT LÔ B9.2-3-4.dwg` gồm **990 hố ga TB41** và **967 tuyến cống** (tổng chiều dài $22.016,90\text{ m}$).
+> - **Phát hiện bất thường (Red Flag):** Vạch trần toàn bộ 1.285 dimension bị gán hệ số `DIMLFAC = 0.8` (Line vẽ thật $23.8\text{m}$ nhưng Text ghi nhãn `D300-L19M`), phát hiện chênh lệch thiếu hụt lên tới **$4.466,45\text{ m}$ cống** ($20\%$). Ép bên Tư vấn Thiết kế phải cập nhật lại hồ sơ.
+> - **Sản phẩm bàn giao:** File Master Excel [Boc_Tach_Khoi_Luong_Cong_HoGa_B9_CAD_Master.xlsx](examples/BOC_TACH_THOAT_NUOC_THAI_B9_CAD_TAKEOFF/Boc_Tach_Khoi_Luong_Cong_HoGa_B9_CAD_Master.xlsx) 5 Sheets, 100% công thức sống, tích hợp đầy đủ tọa độ trắc địa VN-2000 (Trục X, Y) và 15 đầu việc BoQ chuẩn TT 36/2026/TT-BXD.
+> - Chi tiết toàn văn: Xem [Báo cáo Thực chiến Case Study](docs/CASE_STUDY_CAD_TAKEOFF_B9_THOAT_NUOC_THAI.md).
+
+#### f. Chạy Kiểm toán Độc lập trên Workbook 14 Sheet Master (điểm tự chấm):
 ```powershell
 python examples/run_pipeline.py
 ```
@@ -410,19 +446,61 @@ Giảm 3 nhược điểm khi dùng 1 file 14 sheet trên hiện trường:
 | **Gói E: Executive Hub** | Giám đốc Dự án, Ban Giám đốc, Chủ đầu tư | Xem KPI tổng thể, tiến độ đường găng CPM, báo cáo kiểm toán tự chấm. | `02_Tien_Do_Thi_Cong_Master_...xml`<br>`03_BAO_CAO_THAM_TRA_AEC_AUDIT_...md` |
 
 > [!CAUTION]
-> **TIÊU CHUẨN CỐT LÕI BẤT DI BẤT DỊCH CHO GÓI A (CƠ GIỚI & DẦU):**  
-> Mọi dự án khi xuất hồ sơ Gói A bắt buộc phải tuân thủ nghiêm ngặt **CẤU TRÚC 5 SHEETS CHUẨN MẪU VINCONS / 23HG SYSTEM**:
-> - **Sheet 1 — `01_TienDo_CaMay_Master`**: Lưới dải ngày chi tiết (ngày, thứ, Chủ nhật đỏ), số máy huy động thực tế/ngày, **Summary 1** Tổng nhân công/ngày, **Summary 2** Ca máy từng loại theo ngày, **Summary 3** Tổng lít dầu Diezel tiêu thụ hàng ngày bằng công thức sống `=SUM(...)`.
-> - **Sheet 2 — `02_TongHop_CaXe_CaMay_MMTB`**: Bảng tổng hợp ca xe máy MMTB, ĐM dầu (lít/ca), Tổng số ca máy, Số máy Max, Số ngày, Tổng lít dầu tiêu thụ `=F*E`.
-> - **Sheet 3 — `03_KeHoach_Dau_Diezel`**: Kế hoạch cấp dầu Diezel phân bổ khoa học theo 4 Kỳ thi công chiến lược.
-> - **Sheet 4 — `04_KeHoach_NhanLuc`**: Bảng phân bổ nhân lực theo từng tổ đội thi công chuyên nghiệp.
-> - **Sheet 5 — `05_DoiChieu_BocTach`**: Bảng đối chiếu khối lượng thực tế hồ sơ bóc tách thiết kế.
-> - **File XML MS Project**: Xuất tệp `.xml` theo định dạng Microsoft Project XML.
+> **TIÊU CHUẨN CỐT LÕI BẤT DI BẤT DỊCH CHO GÓI A (CƠ GIỚI & DẦU DIEZEL):**  
+> Mọi dự án trong hệ thống bắt buộc phải tuân thủ nghiêm ngặt **CẤU TRÚC BẢNG TIẾN ĐỘ CA MÁY 3 TẦNG HỢP NHẤT — 15 CỘT CƠ SỞ — 100% CÔNG THỨC SỐNG (ZERO SỐ CHẾT)**:
+> 
+> 1. **Khối Header 3 tầng nhận diện Vincons**:
+>    - Hàng 1 (Navy đậm `#1B365D`, chữ trắng): `DỰ ÁN: [TÊN DỰ ÁN CÔNG TRÌNH]`.
+>    - Hàng 2 (Xanh thép `#2E75B6`, chữ trắng): `BẢNG TÍNH TOÁN CA XE, CA MÁY & TIẾN ĐỘ THI CÔNG HỢP NHẤT TOÀN DIỆN (3 TẦNG TRÊN CÙNG 1 SHEET)`.
+>    - Hàng 3 (Vàng hổ phách `#FFF2CC`, chữ đỏ `#C00000` đậm): `MỐC TIẾN ĐỘ THI CÔNG: TỪ [NGÀY BĐ] ĐẾN [NGÀY KT] (61 NGÀY) — 100% CÔNG THỨC SỐNG ĐỘNG (ZERO SỐ CHẾT) — ĐIỀU PHỐI ĐỒNG BỘ 3 TẦNG`.
+>    - Hàng 4 (Tham số quản trị): `Chế độ ca` ($B4:C4$), `Phân đoạn thi công` ($F4:G4$), `Định mức áp dụng` ($K4:L4$).
+>
+> 2. **Tầng 1 — Tiến độ 26 công tác WBS & Gantt Chart sống**:
+>    - **Đủ 15 cột thông số kỹ thuật ($A \dots O$)**: $A$ (STT), $B$ (Mã WBS), $C$ (Nội dung công việc), $D$ (ĐVT), $E$ (Khối lượng thiết kế), $F$ (Định mức Vincons ĐVT/ca), $G$ (Tổng số ca máy `=IF(F>0,ROUND(E/F,1),0)`), $H$ (Năng xuất ngày `=IF(I>0,ROUND(E/I,1),0)`), $I$ (Thời gian `=K-J+1`), $J$ (Ngày BĐ), $K$ (Ngày KT), $L$ (Số ca/ngày), $M$ (Số máy huy động/ngày `=IF(AND(G>0,I>0,L>0),ROUNDUP(G/(I*L),2),0)`), $N$ (Chủng loại MMTB), $O$ (NC bố trí).
+>    - **Khung Timeline bắt đầu từ Cột P (cột 16) đến BU (cột 76) — 61 ngày**: Hàng 6 là Ngày thực tế Date Serial sống (Chủ nhật đỏ `#C00000`), Hàng 7 là Thứ trong tuần (`T2`..`CN`). Ô Gantt tính tự động `=IF(AND($J{r}<=P$6,$K{r}>=P$6),$M{r},"")` (tô Cam đào `#FCE4D6` cho đường găng, Xanh dương `#BDD7EE` cho công tác thường).
+>    - **Hàng 35 — Tổng nhân công công trường**: Cột $C$ nền Navy chữ trắng, dải ngày tính bằng `=SUMPRODUCT(($J$8:$J$33<=col$6)*($K$8:$K$33>=col$6)*$O$8:$O$33)` nền vàng `#FFF2CC`.
+>
+> 3. **Tầng 2 — Bảng tổng hợp ca máy & Phương tiện MMTB huy động theo ngày (Hàng 36 đến 48)**:
+>    - Điều phối 11 loại máy cơ giới ($M1 \dots M11$), dải ngày hiển thị số máy hoạt động thực tế với ô làm việc tô màu xanh lá mạ `#E2EFDA`, liên kết sống với công tác Tầng 1.
+>
+> 4. **Tầng 3 — Bảng tính Dầu Diezel tiêu thụ theo tiến độ thi công (Hàng 50 đến 62)**:
+>    - Hàng 51 Tổng số lít dầu tiêu thụ/ngày `=SUM(col$52:col$62)` nền vàng chữ đỏ.
+>    - 11 dòng chi tiết tiêu thụ của từng máy tính tự động `={col}row_m*$E{row_f}*1` (lít/ngày).
+>
+> 5. **Hệ thống liên kết sống 4 Sheet vệ tinh**:
+>    - `02_TongHop_CaXe_CaMay_MMTB`: Tổng hợp ca xe máy MMTB, ĐM dầu, Tổng ca, Số máy Max, Tổng dầu liên kết sống từ Sheet 01.
+>    - `03_KeHoach_Dau_Diezel`: Kế hoạch cấp dầu Diezel phân bổ khoa học theo 4 Kỳ thi công chiến lược.
+>    - `04_KeHoach_NhanLuc`: Điều phối nhân lực theo 5 tổ đội chuyên trách hiện trường.
+>    - `05_DoiChieu_BocTach`: Bảng đối chiếu kiểm toán khối lượng BoQ thiết kế vs thực tế thi công.
+>    - `Tien_Do_Thi_Cong_...xml`: Xuất tệp XML Gantt tương thích Microsoft Project.
 
 > Chi tiết quy trình đóng gói: Xem [`workflows/15_QUY_TRINH_DONG_GOI_HUB_AND_SPOKE_PHAN_QUYEN_THUC_CHIEN.md`](workflows/15_QUY_TRINH_DONG_GOI_HUB_AND_SPOKE_PHAN_QUYEN_THUC_CHIEN.md).  
-> Các bộ hồ sơ mẫu thực chiến chuẩn 5 gói Hub & Spoke:
+> Các bộ hồ sơ mẫu thực chiến chuẩn phân quyền:
 > - **Cống hộp Tuyến A5**: [`examples/HO_SO_CONG_HOP_TUYEN_A5/HO_SO_THUC_CHIEN_HUB_AND_SPOKE_CONG_A5/`](examples/HO_SO_CONG_HOP_TUYEN_A5/HO_SO_THUC_CHIEN_HUB_AND_SPOKE_CONG_A5/)
-> - **Cầu Km19+529.080 (3 Nhịp Super-T)**: Được sinh tự động qua [`examples/build_km19_529_hub_and_spoke_packages.py`](examples/build_km19_529_hub_and_spoke_packages.py) & [`examples/generate_km19_machine_schedule.py`](examples/generate_km19_machine_schedule.py).
+> - **Cầu Km19+529.080 (3 Nhịp Super-T, L=113m)**: Toàn bộ dữ liệu được quy hoạch theo chuẩn **Đội hình Dream Team 5 Gói Chuyên Môn Tinh Gọn** ([`examples/HO_SO_CAU_KM19_529/`](examples/HO_SO_CAU_KM19_529/)), loại bỏ 124 tệp rác trùng lặp và vận hành tự động qua [`tools/reorganize_dream_team_km19.py`](tools/reorganize_dream_team_km19.py).
+
+### 4. ĐỘI HÌNH THỰC CHIẾN "DREAM TEAM 5 GÓI" & QUẢN LÝ TẦN SUẤT THÍ NGHIỆM (CẦU KM19+529.080)
+
+Kho dữ liệu Cầu Km19+529.080 được chuẩn hóa thành 6 thư mục nghiệp vụ chuyên sâu, giải quyết triệt để vấn đề phân mảnh file và chống xung đột:
+
+1. **`00_BAN_CHI_HUY_MASTER`**: Bảng phân quyền RACI & bàn giao ([.xlsx](examples/HO_SO_CAU_KM19_529/00_BAN_CHI_HUY_MASTER/BANG_PHAN_QUYEN_VA_BIEN_BAN_BAN_GIAO_5_GOI_VE_TINH.xlsx)), Macro Master tích hợp ([.xlsx](examples/HO_SO_CAU_KM19_529/00_BAN_CHI_HUY_MASTER/Ho_So_KCS_QS_TienDo_Cau_Km19+529.080.xlsx)), Thuyết minh BPTC và Tiến độ Gantt (.xml/.mpp).
+2. **`01_HIEN_TRUONG_QLCL_KCS`**: Hệ thống QLCL khép kín gồm 22 Biên bản nghiệm thu KCS chuẩn A4, danh mục KCS và **Sổ tay Quản lý Tần suất Thí nghiệm & Kiểm định Bê tông / Thép** ([.xlsx](examples/HO_SO_CAU_KM19_529/01_HIEN_TRUONG_QLCL_KCS/Bang_Theo_Doi_Tan_Suat_Thi_Nghiem_Be_Tong_Va_Thep_Cau_Km19.xlsx)).
+3. **`02_XUONG_TIEN_CHE_COT_THEP`**: Bảng tổ hợp cắt thép 11.7m RebarCut ([.xlsx](examples/HO_SO_CAU_KM19_529/02_XUONG_TIEN_CHE_COT_THEP/01_To_Hop_Cat_Thep_11m7_RebarCut.xlsx)), Thống kê thép chi tiết 396 dòng BBS ([.xlsx](examples/HO_SO_CAU_KM19_529/02_XUONG_TIEN_CHE_COT_THEP/04_Thong_Ke_Thep_Chi_Tiet_BBS_396_Dong.xlsx)), 12 bộ cắt thép chuyên sâu cho 11 đường kính phi ($\varnothing 8 \dots \varnothing 32$ + Cáp DƯL 15.2mm) và 11 tệp lệnh cắt CNC CSV nạp trực tiếp cho xưởng uốn cắt.
+4. **`03_KINH_TE_QS_DU_TOAN_THANH_TOAN`**: Bóc tách hình học Takeoff, Đào đắp mặt cắt, Phân tích vật tư chi tiết WBS, BOM 4 giai đoạn, Dự toán $G_{XD}$ và Thanh toán Phụ lục 03a.
+5. **`04_CO_GIOI_THIET_BI_VA_DAU_DIEZEL`**: Tiến độ ca máy 3 tầng hợp nhất 15 cột A..O Vincons và kế hoạch cấp phát nhiên liệu dầu Diezel theo ca/ngày ([.xlsx](examples/HO_SO_CAU_KM19_529/04_CO_GIOI_THIET_BI_VA_DAU_DIEZEL/260920_TDTC_CaXe_CaMay_DauDiezel_Cau_Km19+529.080.xlsx)).
+6. **`05_DU_LIEU_GOC_SCAN_MARKER`**: 13 tệp dữ liệu gốc CAD / bảng số liệu scan / OCR trích xuất chuẩn.
+
+#### Điểm sáng kỹ thuật: Hệ thống Quản lý Tần suất Thí nghiệm Bê tông & Cốt thép Động (3 Sheets):
+Hệ thống được sinh tự động qua [`tools/generate_tan_suat_thi_nghiem_excel.py`](tools/generate_tan_suat_thi_nghiem_excel.py), thiết kế riêng để kỹ sư hiện trường tự điền ngày tháng và số lô thực tế:
+- **Sheet 1 (`01_TAN_SUAT_THEP_11_LOAI_PHI`)**: Tách bạch 11 loại đường kính ($\varnothing 8, \varnothing 10, \varnothing 12, \varnothing 14, \varnothing 16, \varnothing 18, \varnothing 20, \varnothing 22, \varnothing 25, \varnothing 28, \varnothing 32$), định mức kiểm định 20 Tấn / lô theo TCVN 1651:2018. Tự động tính số lô tối thiểu cần lấy mẫu và công thức động so sánh với số lô thực tế tại hiện trường (`ĐẠT` / `THIẾU` / `CHƯA ĐIỀN`).
+- **Sheet 2 (`02_TAN_SUAT_BE_TONG_79_DOT`)**: Theo dõi 79 cấu kiện / đợt đổ bê tông toàn cầu. Bóc tách chi tiết:
+  - **26 cọc khoan nhồi**: Mố M1 chuẩn xác **3 cọc** ($C1, C2, C3$), Mố M2 **3 cọc** ($C1, C2, C3$), Trụ T1 **10 cọc** ($C1 \dots C10$), Trụ T2 **10 cọc** ($C1 \dots C10$).
+  - Bệ mố M1, M2, Bệ trụ T1, T2; Thân mố, tường ngực, tường cánh, thân trụ đặc, xà mũ, đá kê gối.
+  - 20 phiến dầm Super-T 33m (3 nhịp), bản mặt cầu 3 nhịp, lan can và gờ chắn bánh.
+  - Tần suất: 1 tổ mẫu (3 viên) / 20 m³ hoặc mỗi đợt cọc/đốt; kiểm tra độ sụt, R7 và R28.
+- **Sheet 3 (`03_SIEU_AM_VA_THEP_TREO_LONG`)**:
+  - Bổ sung đầy đủ **4 thanh thép treo lồng $P11-\varnothing 16$** cho toàn bộ 26 cọc khoan nhồi ($L=872\text{ m}$ thép treo, tổng $1.376,02\text{ kg}$).
+  - Kế hoạch siêu âm **156 mặt cắt** ống siêu âm cọc (3 ống / cọc $\varnothing 1000$ mố M1/M2 = 18 mặt cắt; 4 ống / cọc $\varnothing 1200$ trụ T1/T2 = 120 mặt cắt; tổng kiểm định PDA/PIT theo TCVN 9395:2012).
 
 
 ---
@@ -536,8 +614,13 @@ flowchart TD
    - Khi phát hiện một chuỗi thao tác kỹ thuật lặp lại qua nhiều dự án, hệ thống tự động soạn thảo `CandidateSkill` ở trạng thái `PENDING_APPROVAL`.
    - Cổng `HumanGate` hiển thị thông tin để Kỹ sư trưởng phê duyệt trước khi kỹ năng được kích hoạt chính thức (`APPROVED`) và xuất ra tài liệu chuẩn `SKILL.md`.
 
-### Lệnh Tra cứu Cấp độ & Điểm Kinh nghiệm (Level-Up CLI):
+### Lệnh Tra cứu & Đồng bộ Cấp độ Điểm Kinh nghiệm (Level-Up CLI):
 ```bash
+# Đồng bộ hóa toàn bộ kinh nghiệm từ các dự án thực chiến đã kinh qua
+python tools/sync_project_experience.py
+# hoặc entrypoint:
+23hg-sync-xp
+
 # Xem Báo cáo Cấp độ (Level) & Thành tựu Tích lũy của Hệ thống AI
 python run_state_graph.py --evolution-report
 # hoặc viết tắt:
@@ -547,20 +630,86 @@ python run_state_graph.py --level
 # =====================================================================
 # 🏆 BÁO CÁO TIẾN HÓA & CẤP ĐỘ HỆ THỐNG AEC MULTI-AGENT (LEVEL-UP)
 # =====================================================================
-  ⭐ CẤP ĐỘ HIỆN TẠI (LEVEL)      : LEVEL 3
-  🎖️ DANH HIỆU NGHỆP VỤ          : Kỹ sư Tập sự (Novice Assistant)
-  ⚡ TỔNG ĐIỂM KINH NGHIỆM (XP)   : 250 XP
-  📈 TIẾN ĐỘ LÊN LEVEL 4       : 45.0% (250 / 360 XP)
+  ⭐ CẤP ĐỘ HIỆN TẠI (LEVEL)      : LEVEL 7
+  🎖️ DANH HIỆU NGHỆP VỤ          : Kỹ sư Giám sát Hiện trường (Field Engineer)
+  ⚡ TỔNG ĐIỂM KINH NGHIỆM (XP)   : 1,850 XP
+  📈 TIẾN ĐỘ LÊN LEVEL 8       : 78.8% (1,850 / 1,960 XP) (Cần thêm 110 XP)
 ---------------------------------------------------------------------
   📊 THỐNG KÊ TÍCH LŨY KINH NGHIỆM THỰC CHIẾN:
-     - Số dự án đã hoàn thành          : 2 dự án (+200 XP)
-     - Quan trắc năng suất hiện trường : 0 mẫu (+0 XP)
-     - Mẫu cắt thép vàng tối ưu        : 0 mẫu (+0 XP)
-     - Số lần tái sử dụng mẫu vàng     : 0 lần
-     - Bộ quy tắc miễn dịch lỗi active : 5 quy tắc (+50 XP)
-     - Kỹ năng mới đã phê duyệt (Skills): 0 kỹ năng (+0 XP)
+     - Số dự án đã hoàn thành          : 10 dự án (+1,000 XP)
+     - Quan trắc năng suất hiện trường : 12 mẫu (+120 XP)
+     - Mẫu cắt thép vàng tối ưu        : 6 mẫu (+330 XP)
+     - Số lần tái sử dụng mẫu vàng     : 12 lần
+     - Bộ quy tắc miễn dịch lỗi active : 10 quy tắc (+100 XP)
+     - Kỹ năng mới đã phê duyệt (Skills): 6 kỹ năng (+300 XP)
 =====================================================================
 ```
+
+> **Cơ chế lưu trữ**: Toàn bộ kinh nghiệm được đồng bộ hóa và lưu trữ nguyên tử (atomic write) tại `.aec_state/experience_store.json`. Cơ chế tính Level: $\text{Level} = 1 + \lfloor\sqrt{\text{Total\_XP} / 40.0}\rfloor$. Càng trải qua nhiều dự án thực tế, tích lũy mẫu cắt thép vàng $< 1.5\%$ và bổ sung quy tắc miễn dịch lỗi, hệ thống càng thăng tiến cấp bậc từ Tập sự lên Kỹ sư trưởng và Chuyên gia trưởng AEC.
+
+
+---
+
+## 🌉 8b. Bóc tách sơ bộ cầu từ công thức QS dân dụng (nguyên mẫu)
+
+Module [`tools/civil_and_bridge_takeoff_engine.py`](tools/civil_and_bridge_takeoff_engine.py) dùng lại các công thức hình học trong hai bảng tính QS mua ngoài (bảng QS dân dụng và bảng kết cấu thép tiền chế) để **ước tính sơ bộ** khối lượng mố, trụ, kết cấu nhịp và dầm thép.
+
+> ⚠️ **Mức nguyên mẫu, chưa đối chiếu với bản vẽ cầu thật nào.** Chỉ nên dùng để ước tính nhanh hoặc kiểm tra chéo. Không dùng làm khối lượng thanh toán khi chưa được kỹ sư rà soát.
+
+| Cấu kiện | Công thức gốc trong bảng QS | Code thực sự tính | Giới hạn |
+|---|---|---|---|
+| Bệ trụ | Đài móng oval | Hộp `L×W×H` + 2 nửa trụ tròn bán kính `W/2` ở hai đầu | Chỉ có mũi bo tròn |
+| Thân trụ | Cột tròn | `n` cột `π·D²/4·H` | Chưa trừ phần ngàm |
+| Xà mũ | Cột có vai (corbel) | Đoạn giữa chữ nhật (`n·D + 1,2 m`) + 2 cánh hẫng hình thang | `+1,2 m` là giả định |
+| Mố chữ U | Móng, tường | Lót, bệ, thân, tường ngực, 2 tường cánh hình thang, đá kê gối, bản quá độ | Không trừ giao giữa các khối |
+| Dầm Super-T | — | **Nhập sẵn** thể tích, ván khuôn, thép, cáp của 1 dầm rồi nhân số dầm | Không tính mặt cắt dầm |
+| Dầm thép I | Thép tấm `PL` | `m = t·w·L·7,85/10⁶` (kg); sơn `S = 2·w·L/10⁶` (m², 2 mặt chính, chưa tính cạnh) | Chưa có bản nối, bu lông |
+| Cốt thép | — | `bê tông × hàm lượng` (110–140 kg/m³) + dây buộc 1,5% | Ước tính theo hàm lượng, không phải BBS |
+
+Kết quả demo với tham số mặc định (`python examples/demo_bridge_takeoff_from_qs_logic.py`):
+
+| Hạng mục | Kết quả |
+|---|---|
+| Mố (1 mố) | 137,71 m³ bê tông kết cấu; 233,70 m² ván khuôn |
+| Trụ T1 | 118,81 m³; 176,67 m² |
+| 4 dầm Super-T 33 m (nhập 23,5 m³/dầm) | 94,00 m³; bản mặt cầu 59,40 m³ |
+| Dầm thép I 30 m | 11,997 tấn; 162,00 m² sơn |
+| Cắt thép D20 dầm Super-T | 32 cây, đề-xê 0,83%, `OPTIMAL` (trường hợp dễ: đoạn 5.800 mm cố định, cắt 2 đoạn/cây) |
+
+Danh mục thanh thép do `generate_*_rebar_demands` sinh ra là **giả định điển hình** (ví dụ 32 thanh/cột, đoạn 5.800 mm), không lấy từ bản vẽ. Với cùng một trụ, ước tính thép theo hàm lượng ra khoảng 14,9 tấn, còn danh mục thanh giả định chỉ khoảng 4,4 tấn. Khi làm thật phải dùng BBS thật (`--phase rebar --bbs ...`).
+
+Có 10 unit test trong [`tests/test_civil_and_bridge_takeoff.py`](tests/test_civil_and_bridge_takeoff.py), đối chiếu kết quả với phép tính tay. Ba kỹ năng tương ứng trong `skills/skill-*` đang ở trạng thái **chờ Kỹ sư trưởng duyệt**.
+
+---
+
+## 📊 8c. Động cơ Đo bóc Khối lượng Động Microsoft 365 Enterprise Engine
+
+Module [`tools/office365_takeoff_engine.py`](tools/office365_takeoff_engine.py) cung cấp giải pháp đo bóc và kiểm toán khối lượng hiện đại theo chuẩn **Microsoft 365 Enterprise**, xóa bỏ hoàn toàn thực trạng "số chết" (hardcoded values) và công thức thủ công bằng hệ thống công thức động cao cấp:
+
+### 1. Hệ thống 8 Hàm Tự Định Nghĩa AEC LAMBDA (OpenXML Standard):
+Hệ thống đăng ký 8 hàm LAMBDA chuyên ngành AEC thông qua chuẩn OpenXML (`_xlfn.LAMBDA` và `_xlpm.` parameter names) sẵn sàng gọi trực tiếp trong Excel:
+- `V_PRISM(qty, L, W, H)`: Tính thể tích hình lăng trụ chữ nhật $= qty \times L \times W \times H$ (m³).
+- `V_CYLINDER(qty, L, D)`: Tính thể tích hình trụ tròn / cọc khoan nhồi $= qty \times \pi \times (D/2)^2 \times L$ (m³).
+- `V_FRUSTUM(qty, H, S1, S2)`: Thể tích hình chóp cụt 2 đáy $= qty \times \frac{H}{3} \times (S_1 + S_2 + \sqrt{S_1 \times S_2})$ (m³).
+- `S_FORMWORK_BOX(qty, L, W, H)`: Diện tích ván khuôn thành hộp 4 mặt $= qty \times 2 \times (L + W) \times H$ (m²).
+- `S_FORMWORK_TRI(qty, B, H)`: Diện tích ván khuôn tam giác / vát góc $= qty \times B \times H \times 0.5$ (m²).
+- `STEEL_RATIO(steel_kg, conc_m3)`: Hàm lượng cốt thép bình quân $= steel\_kg / conc\_m3$ (kg/m³).
+- `V_AVERAGE_END(F1, F2, L)`: Khối lượng đào đắp mặt cắt ngang 2 đầu (Average-End-Area) $= \frac{F_1 + F_2}{2} \times L$ (m³).
+- `REBAR_WEIGHT(L, N, d)`: Trọng lượng thanh thép theo TCVN 1651:2018 $= L \times N \times (0.006165 \times d^2)$ (kg).
+
+### 2. Mô hình Công thức Động `LET()` & `XLOOKUP()` Chống Gãy Liên Kết:
+- **`_xlfn.LET()`**: Đặt tên biến cục bộ trực tiếp trong ô tính, loại bỏ tính toán lặp lại và tăng tốc độ xử lý bảng tính lớn.
+- **`_xlfn.XLOOKUP()` Wildcard (`match_mode=2`)**: Tra cứu linh hoạt liên sheet theo mẫu chuỗi đại diện (ví dụ `*TỔNG BÊ TÔNG*`). Giúp Dashboard không bao giờ bị gãy liên kết hay tham chiếu sai ô (`#REF!`) khi kỹ sư hiện trường chèn/xóa thêm dòng cấu kiện ở các sheet thành phần.
+
+### 3. Dashboard Điều Hành Tập Trung `00_DASHBOARD_365`:
+- Tập hợp toàn bộ chỉ số KPI sống của dự án: Tổng thể tích bê tông, ván khuôn, cốt thép, số cấu kiện mố/trụ/cọc, tỷ lệ nghiệm thu.
+- Tự động cảnh báo đỏ nếu phát hiện công thức lỗi hoặc số liệu sai lệch so với hồ sơ thiết kế.
+
+### 4. Nhúng Ảnh Bằng Chứng CAD Minh Bạch Đo Bóc:
+- Tích hợp `embed_cad_proof_images()` chèn trực tiếp hình ảnh trích xuất từ bản vẽ CAD (Mặt đứng mố M1, M2, Mặt cắt ngang trụ T1, T2, Chi tiết cọc khoan nhồi) vào cột minh họa của bảng tính.
+- Mọi con số kích thước trên bảng tính đều có thể đối chiếu trực quan 1-1 với bản vẽ thiết kế gốc ngay trong file Excel.
+
+> 📁 **Hồ sơ mẫu thực tế:** Xem [`examples/HO_SO_CAU_KM19_529/`](examples/HO_SO_CAU_KM19_529/) — Bảng đo bóc hoàn chỉnh toàn bộ hạ bộ Cầu Km19+529 QL23 đạt điểm kiểm toán tuyệt đối 100/100 (`BANG_BOC_TACH_CHI_TIET_HA_BO_MO_TRU_COC_KM19.xlsx`).
 
 ---
 
@@ -579,6 +728,9 @@ python run_state_graph.py --level
 │   └── gates/                    # quality_gate.py (cổng kỹ thuật), human_gate.py (kỹ sư duyệt)
 │
 ├── tools/                        # Công cụ tính toán xác định (Python thuần, không LLM)
+│   ├── office365_takeoff_engine.py # Động cơ bóc tách Office 365: 8 AEC LAMBDA, LET, XLOOKUP, nhúng ảnh CAD
+│   ├── sync_project_experience.py # Đồng bộ hóa kinh nghiệm thực chiến Level-Up & tri thức tích lũy
+│   ├── civil_and_bridge_takeoff_engine.py # Động cơ bóc tách mố, trụ xẻ nước, dầm Super-T, dầm thép liên hợp
 │   ├── cutting_stock_solver.py   # Cắt thép 1D: Column Generation (GLOP) + CP-SAT, cận dưới
 │   ├── cpm_calculator.py         # CPM: FS/SS/FF/SF + lag, lịch nghỉ
 │   ├── schedule_loader.py        # Đọc tiến độ MS Project XML / Excel / CSV
@@ -599,19 +751,36 @@ python run_state_graph.py --level
 │                                 # material_frequency (cấp phối & tần suất thí nghiệm), project_state
 ├── schemas/site_log_schema.py    # Nhật ký hiện trường & khối lượng hoàn công
 ├── data/                         # Định mức ca máy, dầu diezel, hệ số vật tư; PROJECT_STATE.json (JSON)
+├── docs/HUONG_DAN_VIET_PROMPT.md # Cẩm nang prompt & lệnh cho người mới (lệnh đã chạy thử)
+├── skills/                       # Kỹ năng đóng gói chuẩn SKILL.md:
+│   ├── aec-cost-tender / aec-rebar-optimizer / aec-qlcl / aec-cad-automation
+│   ├── skill-civil-to-bridge-takeoff     # Bóc tách sơ bộ mố, trụ, nhịp cầu (chờ duyệt)
+│   ├── skill-rebar-bbs-coupler-optimizer # Cắt thép cấu kiện cầu, nối 40d (chờ duyệt)
+│   └── skill-steel-plate-girder-takeoff  # Dầm thép I tổ hợp & đinh neo (chờ duyệt)
 ├── workflows/                    # Quy trình kỹ thuật 00–15 (Markdown)
 ├── templates/                    # Master Excel, tiến độ XML/MPP, biên bản KCS Word, báo cáo kiểm toán mẫu
 │
 ├── examples/
 │   ├── HO_SO_CONG_HOP_TUYEN_A5/  # Hồ sơ mẫu Cống hộp A5: Master, 8 hồ sơ vi mô, 5 gói Hub & Spoke (README riêng)
 │   ├── TIEN_DO_THI_CONG_CUM_B9_OLYMPIC/ # Tiến độ & ca máy Cụm B9
-│   ├── HO_SO_CAU_KM19_529/       # Tiến độ ca máy & dầu diezel Cầu Km19+529.080
+│   ├── HO_SO_CAU_KM19_529/       # Đội hình Dream Team Cầu Km19+529.080 (3 nhịp Super-T, 6 gói tinh gọn)
+│   │   ├── BANG_BOC_TACH_CHI_TIET_HA_BO_MO_TRU_COC_KM19.xlsx # Bảng đo bóc Office 365 động 100/100
+│   │   ├── 00_BAN_CHI_HUY_MASTER/          # RACI, bàn giao, Master 14 sheet, BPTC, Gantt
+│   │   ├── 01_HIEN_TRUONG_QLCL_KCS/        # 22 BBNT A4, Sổ theo dõi tần suất TN bê tông & thép 3 sheet
+│   │   ├── 02_XUONG_TIEN_CHE_COT_THEP/     # RebarCut 11.7m theo 11 phi, BBS 396 dòng, lệnh CNC CSV
+│   │   ├── 03_KINH_TE_QS_DU_TOAN_THANH_TOAN/# Takeoff, đào đắp, dự toán G_XD, 03a, BOM WBS
+│   │   ├── 04_CO_GIOI_THIET_BI_VA_DAU_DIEZEL/# Ca máy 3 tầng 15 cột A..O Vincons, cấp phát dầu
+│   │   └── 05_DU_LIEU_GOC_SCAN_MARKER/     # Dữ liệu gốc bản vẽ scan / OCR Marker sạch
+│   ├── demo_bridge_takeoff_from_qs_logic.py # Demo bóc tách sơ bộ cầu (nguyên mẫu, tham số mặc định)
 │   ├── _paths.py                 # repo_path / project_path (biến môi trường AEC_PROJECTS_DIR)
 │   ├── clean_a5_dossier.py       # Dọn & đối chiếu hồ sơ A5 (chạy lặp được)
 │   └── *.py                      # Script dựng hồ sơ từng dự án, demo CAD diff, runner kiểm toán
 │
-├── tests/                        # python -m unittest discover -s tests -t .
+├── tests/                        # python -m unittest discover -s tests -t . (340 tests)
 │   ├── golden/                   # Chỗ đặt bảng dự toán thật đã duyệt (README hướng dẫn)
+│   ├── test_office365_engine.py  # 20 unit tests kiểm định OpenXML XML namespace, dynamic LAMBDA, LET, XLOOKUP
+│   ├── test_civil_and_bridge_takeoff.py # 10 unit tests kiểm định hình học cầu & KCT
+│   ├── test_experience_store.py  # 10 unit tests kiểm định Level-Up, XP, Golden Pattern, Immunity Rules
 │   └── test_*.py                 # Cắt thép, CPM, QS/G_XD, 03a, tiền, đo bóc, đóng gói, hồ sơ mẫu...
 │
 ├── requirements.txt / pyproject.toml

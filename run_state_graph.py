@@ -24,6 +24,7 @@ Backward compatibility:
 
 import argparse
 import os
+import re
 import sys
 from datetime import date, timedelta
 
@@ -357,6 +358,10 @@ def build_parser() -> "argparse.ArgumentParser":
                      help="File phiếu thí nghiệm thật (.xlsx/.csv/.json): nén R7/R28, kéo thép, siêu âm, PDA...")
     lab.add_argument("--lab-sheet", default=None, help="Tên sheet phiếu thí nghiệm (mặc định: tự tìm)")
     lab.add_argument("--lab-out", default=None, help="Xuất báo cáo đánh giá thí nghiệm & Hold Point (.xlsx)")
+    lab.add_argument("--audit-kcs", default=None,
+                     help="Kiểm tra 6 Bất biến Lõi Hồ sơ QLCL / KCS (.xlsx/.xlsm) theo TCVN & Nghiên cứu Kè")
+    lab.add_argument("--audit-kcs-sheet", default=None, help="Tên sheet Danh mục công việc (mặc định: tự tìm)")
+
     fleet = parser.add_argument_group("Điều phối Ca xe, Ca máy & Nhiên liệu Dầu (phase fleet / dispatch)")
     fleet.add_argument("--fleet-out", default=None, help="Xuất file Master Ca máy Excel (.xlsx)")
     fleet.add_argument("--dispatch-out", default=None, help="Thư mục xuất các gói Hub & Spoke")
@@ -441,6 +446,28 @@ def main():
     if args.survey:
         sys.exit(run_survey(args))
 
+    if args.audit_kcs:
+        from tools.kcs_invariants_verifier import verify_kcs_workbook
+        report = verify_kcs_workbook(args.audit_kcs, dmcv_sheet=args.audit_kcs_sheet)
+        print("\n" + "═" * 70)
+        print("  KCS INVARIANTS VERIFIER — KIỂM TRA 6 BẤT BIẾN LÕI HỒ SƠ QLCL")
+        print(f"  File: {args.audit_kcs}")
+        print("═" * 70)
+        print(f"\n  [KẾT QUẢ ĐÁNH GIÁ]")
+        print(f"  Điểm chất lượng: {report.total_score}/100")
+        print(f"  Trạng thái: {'✅ ĐẠT CHUẨN KCS' if report.passed and report.total_score >= 80 else '❌ KHÔNG ĐẠT (CẦN ĐIỀU CHỈNH)'}")
+        print(f"  Tổng số công tác quét: {report.details.get('total_tasks_scanned', 0)}")
+        if report.critical_errors:
+            print(f"\n  [LỖI NGHIÊM TRỌNG BỊ CHẶN] ({len(report.critical_errors)} lỗi):")
+            for err in report.critical_errors:
+                print(f"    ❌ {err}")
+        if report.warnings:
+            print(f"\n  [CẢNH BÁO KỸ THUẬT] ({len(report.warnings)} cảnh báo):")
+            for w in report.warnings:
+                print(f"    ⚠ {w}")
+        print("\n" + "═" * 70 + "\n")
+        sys.exit(0 if report.passed and report.total_score >= 80 else 1)
+
     # --takeoff một mình: đo bóc độc lập. Kèm --phase / --demo: bảng cấu kiện đi vào Supervisor (pha CAD_TAKEOFF).
     if args.takeoff and not (args.phase or args.demo):
         sys.exit(run_takeoff(args))
@@ -463,16 +490,65 @@ def main():
         dispatcher = AECPackageDispatcher(base_output_dir=target_export)
         companion_dict = {}
         templates_dir = os.path.join(ROOT, "templates")
+
+        def _norm(s):
+            return re.sub(r"[^a-z0-9]", "", str(s).lower())
+
+        proj_key = _norm(args.project_name or "")
+        # Tên dự án thường không có tiền tố "Cau": so khớp cả khi bỏ tiền tố "cau"/"du an"
+        proj_keys = {k for k in (proj_key, proj_key[3:] if proj_key.startswith("cau") else "") if len(k) >= 4}
         if os.path.exists(templates_dir):
-            for fn in os.listdir(templates_dir):
+            for fn in sorted(os.listdir(templates_dir)):
                 fp = os.path.join(templates_dir, fn)
+                matched = any(k in _norm(fn) for k in proj_keys)
+                is_generic_audit = fn == "BAO_CAO_THAM_TRA_AEC_AUDIT.md"
+                if not (matched or is_generic_audit):
+                    continue  # KHÔNG trộn tệp của dự án khác vào hồ sơ này
                 if fn.endswith(".xml") and "fleet_xml" not in companion_dict: companion_dict["fleet_xml"] = fp
                 elif fn.endswith(".mpp") and "mpp" not in companion_dict: companion_dict["mpp"] = fp
                 elif fn.endswith(".docx") and "docx" not in companion_dict: companion_dict["docx"] = fp
-                elif "AUDIT" in fn.upper() and fn.endswith(".md"): companion_dict["audit"] = fp
+                elif "AUDIT" in fn.upper() and fn.endswith(".md") and ("audit" not in companion_dict or matched): companion_dict["audit"] = fp
                 elif "BIEN_PHAP" in fn.upper() and fn.endswith(".md"): companion_dict["bptc"] = fp
+            if not any(k in companion_dict for k in ("fleet_xml", "mpp", "docx")):
+                print(f"  ⚠ Không có tệp XML/MPP/DOCX nào khớp tên dự án '{args.project_name}' trong templates/ — bỏ qua (không dùng hồ sơ dự án khác).")
 
         sync_list = [args.sync_dir] if args.sync_dir else []
+
+        # Gói A: Tìm tệp ca máy chuẩn hóa có sẵn của dự án hoặc suy luận từ định mức đã học
+        if "fleet_template" not in companion_dict:
+            found_fleet = None
+            proj_tokens = [t.lower() for t in re.split(r'[\s_+-]+', args.project_name or "") if len(t) >= 2]
+            for search_dir in [os.path.dirname(master_wb_path), os.path.dirname(os.path.dirname(master_wb_path)), os.path.join(ROOT, "examples")]:
+                if not os.path.exists(search_dir):
+                    continue
+                for r, _, files in os.walk(search_dir):
+                    if any(skip in r for skip in [".git", "BO_HO_SO_01", "BO_HO_SO_02", os.sep + "HUB" + os.sep]):
+                        continue
+                    for f in files:
+                        if f.endswith(".xlsx") and any(k in f.lower() for k in ["tdtc_caxe", "caxe_camay", "ca_xe", "tdtc_ca_may"]) and not f.startswith("~$"):
+                            fn_lower = f.lower()
+                            if proj_tokens and all(tok in fn_lower for tok in proj_tokens):
+                                found_fleet = os.path.join(r, f)
+                                break
+                    if found_fleet:
+                        break
+                if found_fleet:
+                    break
+
+            if found_fleet:
+                companion_dict["fleet_template"] = found_fleet
+                print(f"  ℹ Gói A: Sử dụng tệp ca máy & tiến độ thực chiến chuẩn: {os.path.basename(found_fleet)}")
+            else:
+                try:
+                    import tempfile
+                    from tools.fleet_learning import infer_fleet_workbook_from_master
+                    tmp_fleet = os.path.join(tempfile.mkdtemp(prefix="fleet_"), "CaMay_SuyLuan.xlsx")
+                    inferred = infer_fleet_workbook_from_master(master_wb_path, tmp_fleet, args.project_name or "Du an")
+                    if inferred:
+                        companion_dict["fleet_template"] = inferred
+                        print("  ℹ Gói A: SUY LUẬN ca máy từ định mức đã học (knowledge/fleet_norms.json) — chờ kỹ sư xác nhận.")
+                except Exception as exc:  # không để lỗi suy luận chặn việc xuất hồ sơ
+                    print(f"  ⚠ Bỏ qua suy luận ca máy: {exc}")
         manifest = dispatcher.dispatch_full_industrial_dossier(
             master_excel_path=master_wb_path,
             project_name=args.project_name or "Du_An_AEC",
