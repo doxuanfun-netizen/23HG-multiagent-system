@@ -49,6 +49,7 @@ PT_UNIT_WEIGHT_KG_M = 1.102
 
 # Mô tả công năng cấu kiện theo từng đường kính để đặt tên file trực quan
 DIA_CONFIG = {
+    6: {"code": "00", "name": "D06_Dai_Nho", "desc": "Thép Ø6 (theo bản vẽ thẩm định: gờ lan can, khe co giãn...)", "station": "Trạm máy uốn đai CNC nhỏ"},
     8: {"code": "01", "name": "D08_Dai_Gia_Cuong", "desc": "Thép đai tăng cường, cấu tạo bản mặt cầu", "station": "Trạm máy uốn đai CNC nhỏ"},
     10: {"code": "02", "name": "D10_Thep_Cuon_Dai_Xoan", "desc": "Thép cuộn, đai xoắn cọc khoan nhồi, bản mặt cầu", "station": "Trạm máy duỗi uốn tự động CNC"},
     12: {"code": "03", "name": "D12_Thanh_Van_Cau_Tao", "desc": "Thép thanh vằn cấu tạo, lưới phân bố", "station": "Trạm máy cắt đa thanh Shearline"},
