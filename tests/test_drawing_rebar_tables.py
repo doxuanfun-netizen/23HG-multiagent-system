@@ -249,6 +249,20 @@ class RealDossierPagesTest(unittest.TestCase):
         zero = [r.mark for r in page_rebar_table(self.pages[40]).rows if r.ban_ve_ghi_0]
         self.assertEqual(zero, ["W6(T)", "W7(T)", "W9(T)"])
 
+    def test_pile_hanging_bars_p11_side_table(self):
+        """Thép treo lồng P11-D16 (4 thanh/cọc) ở bảng phụ, không trong tổng thép chính. Có P11, tổng 4 loại
+        cọc = 108.884,23 kg = bảng tổng hợp tr.175 (108,884 t); thiếu P11 thì lệch 0,42 t."""
+        from tools.drawing_rebar_tables import hanging_bar_rows
+        total = 0.0
+        for page, elev, n in ((64, 63, 3), (66, 65, 7), (68, 67, 8), (70, 69, 8)):
+            (r,) = hanging_bar_rows(self.pages[page], self.pages[elev])
+            self.assertEqual((r.mark, r.diameter_mm, r.quantity), ("P11", 16, 4), f"tr.{page}")
+            self.assertTrue(r.ok, r.issues)
+            total += (page_rebar_table(self.pages[page]).stated_total_kg + r.total_kg) * n
+        self.assertAlmostEqual(total, 108884.23, places=1)
+        (t2,) = hanging_bar_rows(self.pages[70], self.pages[69])
+        self.assertTrue(any("tr.69" in n for n in t2.notes))         # ô trống: lấy '4-P11-D16' ở mặt đứng
+
     def test_link_slab_table_on_page_112(self):
         from tools.drawing_rebar_tables import page_tables
         ltn = [t for t in page_tables(self.pages[112]) if any(r.mark == "L2" for r in t.rows)]

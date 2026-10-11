@@ -7,6 +7,7 @@ Số liệu bản vẽ lấy tự động từ dữ liệu OCR (du_lieu.json) th
   {"trang": 175, "sau": "BAN MAT CAU", "nhan": "..."}      → chỉ tìm sau dòng chứa nhãn 'sau'
   {"trang": 31, "thep": true}                              → tổng khối lượng thép ghi trên bảng thép của trang (tấn)
   {"trang": 40, "thep_ghi_0": true}                        → các thanh bản vẽ ghi 0 kg, tính dài × SL × kg/m (tấn)
+  {"trang": 64, "thep_treo_long": 63}                      → bảng phụ thép treo lồng cọc (trang mặt đứng 63) (tấn)
   {"tong": [{"he_so": 3, ...}, ...]}                       → tổng có hệ số, ghi thành công thức Excel để soát được
 So nhãn sau khi bỏ dấu, viết hoa và bỏ khoảng trắng (OCR hay dính chữ: 'Cốt thepD<=10').
 
@@ -23,7 +24,7 @@ from typing import Dict, List, Optional
 
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
-from tools.drawing_rebar_tables import norm, page_rebar_table, zero_weight_rows_kg
+from tools.drawing_rebar_tables import hanging_bar_rows, norm, page_rebar_table, zero_weight_rows_kg
 
 FILL_SUA = PatternFill("solid", fgColor="FFF2CC")       # vàng: đã sửa theo bản vẽ
 FILL_NGHI_VAN = PatternFill("solid", fgColor="F8CBAD")  # cam: nghi vấn cần soát
@@ -79,6 +80,11 @@ def ocr_value(page: dict, nhan: str, sau: Optional[str] = None) -> float:
 
 def drawing_value(spec: dict, pages: Dict[int, dict]) -> float:
     page = pages[spec["trang"]]
+    if spec.get("thep_treo_long"):                  # bảng phụ thép treo lồng cọc, kèm trang mặt đứng
+        rows = hanging_bar_rows(page, pages.get(spec["thep_treo_long"]))
+        if not rows:
+            raise ValueError(f"tr.{spec['trang']}: không đọc được bảng thép treo lồng")
+        return round(sum(r.total_kg for r in rows) / 1000.0, 5)
     if spec.get("thep") or spec.get("thep_ghi_0"):
         t = page_rebar_table(page)
         if t is None or t.stated_total_kg is None:

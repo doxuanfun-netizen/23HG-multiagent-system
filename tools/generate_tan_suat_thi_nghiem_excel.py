@@ -394,6 +394,33 @@ DIA_LIST = [
     (15.2, 26, 37, "Cáp 15.2", "Cáp DƯL 15.2\n(ASTM A416)", "ASTM A416 Gr270"),
 ]
 
+# Trang bảng thép cọc và trang mặt đứng (có ghi '4-P11-D16') trong HSTK đã OCR
+_P11_PAGES = {"Mố M1": (64, 63), "Mố M2": (66, 65), "Trụ T1": (68, 67), "Trụ T2": (70, 69)}
+
+
+def _p11_from_drawing(loc):
+    """Thép treo lồng P11 của một cọc theo bảng phụ trên bản vẽ (tools.drawing_rebar_tables.hanging_bar_rows).
+    Không đọc được thì không thêm (và không đoán chiều dài)."""
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
+    from tools.drawing_rebar_tables import hanging_bar_rows
+    path = os.path.join(repo_root, "examples", "HO_SO_CAU_KM19_529", "05_DU_LIEU_GOC_SCAN_MARKER", "du_lieu.json")
+    if loc not in _P11_PAGES or not os.path.exists(path):
+        print(f"[CẢNH BÁO] Không có dữ liệu bản vẽ cho thép treo lồng P11 ({loc}) — chưa đưa vào bảng")
+        return []
+    with open(path, encoding="utf-8") as f:
+        pages = {p["page"]: p for p in json.load(f)["pages"]}
+    page, elev = _P11_PAGES[loc]
+    out = []
+    for r in hanging_bar_rows(pages[page], pages.get(elev)):
+        out.append((r.mark, "Thanh thép treo lồng cọc", r.diameter_mm, "CB400-V", "Thanh treo lồng (bảng phụ tr.%d)" % page,
+                    round(r.length_mm / 1000.0, 3), int(r.quantity), r.unit_kg_m))
+    if not out:
+        print(f"[CẢNH BÁO] Không đọc được bảng thép treo lồng tr.{page} ({loc}) — chưa đưa vào bảng")
+    return out
+
+
 def build_sheet_rebar(ws, bsl_path, thep_cat_path, tmpl_path):
     """Xây dựng Sheet 2: Theo dõi tần suất Cốt thép bóc tách chi tiết từng thanh và riêng từng loại Ø"""
     ws.title = "Theo_Doi_Tan_Suat_Cot_Thep"
@@ -501,33 +528,13 @@ def build_sheet_rebar(ws, bsl_path, thep_cat_path, tmpl_path):
                 sub = "Thép đai xoắn lồng cọc" if "P1" in mark else ("Cốt thép chủ chịu lực cọc" if dia >= 25 else "Đai tăng cường / Con kê bảo vệ")
                 bars_1_pile.append((mark, sub, dia, grade, shape, length_m, qty, unit_w))
 
-                # Bổ sung thanh thép treo lồng cọc P11-D16 ngay sau P10 (4 thanh/cọc, L = cọc + 1.2m neo bệ)
+                # Thanh thép treo lồng P11-D16 ngay sau P10: lấy từ bảng phụ trên bản vẽ cọc (chiều dài 2,604 m /
+                # 2,484 m, 4 thanh/cọc) — trước đây tự đặt L = chiều dài cọc + 1,2 m, sai so với bản vẽ.
                 if mark == "P10":
-                    hanging_len = round(length + 1.2, 3)
-                    bars_1_pile.append((
-                        "P11",
-                        "Thanh thép treo lồng cọc",
-                        16,
-                        "CB400-V",
-                        "Thanh thẳng uốn móc treo neo vào bệ",
-                        hanging_len,
-                        4,
-                        1.578
-                    ))
+                    bars_1_pile.extend(_p11_from_drawing(loc))
 
-        # Đảm bảo P11 luôn có mặt nếu bảng số liệu thiếu P10
         if not any(b[0] == "P11" for b in bars_1_pile):
-            hanging_len = round(length + 1.2, 3)
-            bars_1_pile.append((
-                "P11",
-                "Thanh thép treo lồng cọc",
-                16,
-                "CB400-V",
-                "Thanh thẳng uốn móc treo neo vào bệ",
-                hanging_len,
-                4,
-                1.578
-            ))
+            bars_1_pile.extend(_p11_from_drawing(loc))
 
         for p_num in range(1, count + 1):
             pile_title = f"Cọc khoan nhồi C{p_num} {loc} (D1.2m, L={length}m)"
