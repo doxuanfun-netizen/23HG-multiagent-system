@@ -29,3 +29,5 @@ Thư mục này chứa các bảng QS **thật, đã được duyệt**, cùng c
 - `status: pending`: chưa có dữ liệu duyệt. Báo "CHƯA ĐỐI CHIẾU", không bao giờ tính là đạt. Bắt buộc ghi `reason`.
 
 Thêm ca mới bằng cách thêm một mục vào `cases`. Ca active cần `producer` dạng `module:ham` và danh sách `checks` với `args`, `expected`, `tol`.
+
+So theo bảng: đặt `"kind": "table"`, `producer` trả `{khóa: {cột: số}}`, `expected_csv` là file CSV (cột đầu là khóa) lấy từ hồ sơ, `tol` là dung sai từng cột. Khóa thiếu hoặc thừa đều tính là lệch. Hàm producer nằm trong `harness/producers.py` và phải gọi đúng code hệ thống đang dùng.
