@@ -1,0 +1,44 @@
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui">
+  <ribbon>
+    <tabs>
+      <tab id="tab_23hg_assistant" label="23HG SCHEDULE ASSISTANT" insertAfterMso="TabHome">
+        <group id="grp_tiendo" label="TIẾN ĐỘ">
+          <button id="btn_run_cpm" label="Cập Nhật Tiến Độ" size="large" onAction="CapNhatTienDo" imageMso="RecalculatePage" screentip="Cập nhật tiến độ" supertip="Tính lại CPM (forward/backward pass) và vẽ lại Gantt. Bấm sau mỗi lần đổi thời gian hoặc tiền nhiệm." />
+          <button id="btn_crit" label="Đường Găng" size="large" onAction="ToDuongGang" imageMso="ReviewShowMarkupMenu" screentip="Tô đường găng" supertip="Làm nổi bật các công tác có dự trữ TF = 0." />
+          <button id="btn_open" label="Mở Bảng Tiến Độ" size="large" onAction="MoBangTienDo" imageMso="Folder" screentip="Mở bảng tiến độ" supertip="Mở sheet TIEN_DO – bảng Gantt chính của dự án." />
+        </group>
+        <group id="grp_time" label="THANG THỜI GIAN">
+          <button id="btn_scale_day" label="Theo Ngày" size="normal" onAction="ChuyenThangTG_Ngay" imageMso="ViewDayView" screentip="Xem theo ngày" />
+          <button id="btn_scale_month" label="Theo Tháng" size="normal" onAction="ChuyenThangTG_Thang" imageMso="ViewMonthView" screentip="Xem theo tháng" />
+          <button id="btn_scale_quarter" label="Theo Quý" size="normal" onAction="ChuyenThangTG_Quy" imageMso="ViewQuarterView" screentip="Xem theo quý" />
+          <button id="btn_scale_year" label="Theo Năm" size="normal" onAction="ChuyenThangTG_Nam" imageMso="ViewYearView" screentip="Xem theo năm" />
+        </group>
+        <group id="grp_qlda" label="QUẢN LÝ DỰ ÁN">
+          <button id="btn_boq" label="Tiên Lượng BoQ" size="large" onAction="BoQTienDo" imageMso="AccountingFormat" screentip="Bảng khối lượng BoQ" supertip="Bóc tách khối lượng và dự toán chi phí trực tiếp." />
+          <button id="btn_cashflow" label="Tiến Độ Giải Ngân" size="large" onAction="TienDoGiaiNgan" imageMso="ChartInsert" screentip="Giải ngân và dòng tiền" supertip="Kế hoạch tạm ứng, thu hồi tạm ứng và giữ bảo hành." />
+          <button id="btn_equip" label="Huy Động XMTB" size="normal" onAction="HuyDongXMTB" imageMso="GroupDeliveryReports" screentip="Ma trận xe máy thiết bị" />
+          <button id="btn_qlcl" label="Kế Hoạch QLCL" size="normal" onAction="KeHoachQLCL" imageMso="TaskComplete" screentip="Kế hoạch quản lý chất lượng" />
+        </group>
+        <group id="grp_5d" label="QUẢN TRỊ 5D">
+          <button id="btn_baseline" label="Lưu Baseline" size="large" onAction="LuuBaseline" imageMso="Lock" screentip="Đóng băng tiến độ gốc" supertip="Lưu giá trị tĩnh để so sánh sai lệch tiến độ và chi phí sau này." />
+          <button id="btn_evm" label="Quản Trị EVM 5D" size="large" onAction="PhanTichEVM" imageMso="ChartInsert" screentip="Earned Value Management" supertip="Báo cáo PV, EV, AC, SV, SPI, CPI." />
+          <button id="btn_res" label="Cân Bằng XMTB" size="large" onAction="CanBangTaiNguyenXMTB" imageMso="AutoSum" screentip="Cân bằng máy móc thiết bị" supertip="Kiểm soát đỉnh tải xe máy thiết bị." />
+        </group>
+        <group id="grp_interop" label="CẦU NỐI TIẾN ĐỘ">
+          <button id="btn_export_mspdi" label="Xuất MS Project (XML)" size="large" onAction="XuatMSProjectXML" imageMso="FileSaveAsOtherCodes" screentip="Xuất Microsoft Project XML (MSPDI)" supertip="Xuất toàn bộ 37 công tác, quan hệ FS/SS/FF và WBS sang file XML chuẩn quốc tế mở trực tiếp trên MS Project." />
+          <button id="btn_import_mspdi" label="Nhập MS Project (XML)" size="large" onAction="NhapMSProjectXML" imageMso="FileOpenDatabase" screentip="Nhập tiến độ từ MS Project XML" supertip="Đọc file MSPDI XML, chuyển đổi mạng CPM và vẽ lại Gantt tự động." />
+          <button id="btn_export_p6" label="Xuất Primavera (XER)" size="normal" onAction="XuatPrimaveraXER" imageMso="FileSaveAsExcelXlsx" screentip="Xuất file Primavera P6 (.xer)" supertip="Xuất dữ liệu theo định dạng text chuẩn Primavera P6 XER." />
+          <button id="btn_import_p6" label="Nhập Primavera (XER)" size="normal" onAction="NhapPrimaveraXER" imageMso="FileOpenDatabase" screentip="Nhập file Primavera P6 (.xer)" />
+          <button id="btn_info_mpp" label="Cầu Nối File .MPP" size="normal" onAction="HuongDanFileMPP" imageMso="Help" screentip="Hướng dẫn xử lý file .mpp" supertip="Chiến lược 2 bước: chuyển đổi .mpp sang XML không phụ thuộc Java." />
+        </group>
+        <group id="grp_export" label="XUẤT BẢN">
+          <button id="btn_export_clean" label="Xuất XLSX Sạch" size="large" onAction="XuatXlsxClean" imageMso="FileSaveAsExcelXlsx" screentip="Xuất bản nộp CĐT / TVGS" supertip="Bản .xlsx sạch 100%, không chứa macro." />
+          <button id="btn_export_pdf" label="Xuất PDF A3 Ngang" size="large" onAction="XuatPdfA3BaoCao" imageMso="FileSaveAsPdfOrXps" screentip="Xuất bản in A3 ngang" supertip="Bố cục A3 ngang để trình ký." />
+        </group>
+        <group id="grp_system" label="HỆ THỐNG">
+          <button id="btn_license" label="Bản Quyền NBT" size="normal" onAction="QuanLyBanQuyen" imageMso="SignatureLineInsert" screentip="Bản quyền 23HG SYSTEM" supertip="Thông tin bản quyền tác giả NBT (Nguyễn Bảo Tú)." />
+        </group>
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>

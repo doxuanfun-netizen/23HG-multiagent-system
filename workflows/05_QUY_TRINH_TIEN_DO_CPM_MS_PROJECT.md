@@ -36,3 +36,11 @@
   + Thẻ `<PredecessorLink>`: Khai báo quan hệ liên kết trước sau `FS` (Finish-to-Start), `SS` (Start-to-Start) có độ trễ Lag.
   + Thẻ `<Critical>`: Gán giá trị `1` cho các tác vụ nằm trên đường găng đỏ.
 - Người dùng chỉ cần mở Microsoft Project $\rightarrow$ Open file `.xml` $\rightarrow$ Save As thành `.mpp`.
+
+### IV. PHÂN HỆ ỨNG DỤNG NGƯỜI DÙNG CUỐI: 23HG SCHEDULE ASSISTANT PRO (EXCEL MASTER & ADD-IN)
+Hệ thống cung cấp trọn bộ giao diện điều hành tương tác trực tiếp trên Microsoft Excel tại thư mục `apps/23hg_schedule_assistant_pro/`:
+1. **Sổ tính Master Điều hành (`23HG_DU_AN_MAU_TIEN_DO_CHUAN_G1_PRO.xlsm`):** 9 sheet nghiệp vụ chuyên sâu (Tiến độ CPM, BoQ, EVM 5D, Giải ngân, Huy động XMTB, Kế hoạch QLCL NĐ 207/2026, Lịch mùa mưa TCVN 8819:2011).
+2. **Trợ lý Add-in Ribbon (`23HG_Schedule_Assistant_Pro.xlam`):** Thanh công cụ 34 lệnh phân bổ 6 nhóm, hỗ trợ Freeze Panes `D6`, Zoom 85%, Gridlines, thụt lề WBS tự động và nhóm Xuất bản 2 nút lớn tối giản (`Xuất XLSX Sạch` & `Xuất PDF A3 Ngang`).
+3. **Cầu nối 2 Chiều Quốc tế (`vba_mspdi_xer_bridge.bas`):** Xuất/nhập trực tiếp tệp MSPDI XML và Primavera P6 XER thuần VBA không phụ thuộc Java hay phần mềm bên thứ ba.
+4. **Cài đặt 1 Chạm:** Tệp `CAI_DAT_23HG_ENTERPRISE_PRO.bat` tự động triển khai vào `%APPDATA%\Microsoft\AddIns` và cấu hình Trusted Location.
+5. **Hồ sơ Nghiệm thu Doanh nghiệp:** Toàn bộ căn cứ pháp lý, ma trận đối soát 10 điểm nghẽn kỹ thuật và biên bản bàn giao tại [BAN_GIAO_DANH_GIA_DU_AN.md](apps/23hg_schedule_assistant_pro/BAN_GIAO_DANH_GIA_DU_AN.md).

@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+~$*.xlsm
+~$*.xlam
+~$*.xlsx
+*.log
+_tmp/
+# Bản sao lưu và file thử nghiệm cục bộ
+3_LuuTru_PhienBanCu/_BACKUP_*/
+3_LuuTru_PhienBanCu/_truoc_sua_ribbon_*/
+3_LuuTru_PhienBanCu/TRUOC_TAO_LAI_*/
+2_BaoCao_XuatBan/_archive/
+1_Scripts_TuDongHoa/_archive/_scratch_cpm/
+1_Scripts_TuDongHoa/_archive/_pycache_cu/

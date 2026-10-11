@@ -1,0 +1,83 @@
+ERMHDR	20.12	2026-10-11	NBT	23HG_SYSTEM	PRO
+%T	PROJECT
+%F	proj_id	acct_id	orig_proj_id	src_proj_id	base_type	clndr_id	sum_base_proj_id	last_recalc_date	plan_end_date	scd_end_date	add_date	last_checksum	guid	plan_start_date	batch_sum_flag	name_sep_char	def_complete_pct_type	def_cost_qty_recalc_flag	allow_neg_act_flag	sum_only_flag	critical_path_type	proj_short_name	proj_name
+%R	1	1	1	1	WA_PROJECT	1	1	2023-12-01 07:00	2025-11-22 17:00	2025-11-22 17:00	2023-12-01 07:00	0	{23HG-G1-PROJECT}	2023-12-01 07:00	Y	.	CP_PHYS	Y	N	N	CP_LONGEST_PATH	23HG_G1	GÓI THẦU SỐ 01: XÂY LẮP ĐƯỜNG GIAO THÔNG (Km 0+000 – Km 5+500)
+%T	PROJWBS
+%F	wbs_id	proj_id	ob_id	seq_num	est_wt	proj_node_flag	sum_only_flag	wbs_short_name	wbs_name
+%R	1	1	1	1	1.00	Y	N	1	GÓI THẦU SỐ 01: XÂY LẮP ĐƯỜNG GIAO THÔNG (Km 0+000 – Km 5+500)
+%R	2	1	1	2	1.00	Y	N	1.1	Công tác chuẩn bị & phụ trợ thi công công trường
+%R	7	1	1	7	1.00	Y	N	1.2	Tuyến chính Phân đoạn A1 (Km 0+000 – Km 2+750, L = 2.75 km)
+%R	20	1	1	20	1.00	Y	N	1.3	Tuyến chính Phân đoạn A2 (Km 2+750 – Km 5+500, L = 2.75 km)
+%R	33	1	1	33	1.00	Y	N	1.4	Công tác hoàn thiện, nghiệm thu bàn giao & hoàn công
+%T	TASK
+%F	task_id	proj_id	wbs_id	clndr_id	phys_complete_pct	task_type	duration_type	status_code	task_code	task_name	target_drtn_hr_cnt	target_start_date	target_end_date
+%R	1	1	1	1	32.0	TT_Task	DT_DUR	TK_Active	1	GÓI THẦU SỐ 01: XÂY LẮP ĐƯỜNG GIAO THÔNG (Km 0+000 – Km 5+500)	5840	2023-12-01 07:00	2025-11-22 17:00
+%R	2	1	1	1	100.0	TT_Task	DT_DUR	TK_Complete	1.1	Công tác chuẩn bị & phụ trợ thi công công trường	680	2023-12-01 07:00	2024-03-16 17:00
+%R	3	1	1	1	100.0	TT_Task	DT_DUR	TK_Complete	1.1.1	Huy động nhân lực, thiết bị & mặt bằng công trường A	200	2023-12-01 07:00	2023-12-29 17:00
+%R	4	1	1	1	100.0	TT_Task	DT_DUR	TK_Complete	1.1.2	Đường công vụ, lán trại, bãi tập kết vật liệu công trường A	480	2023-12-30 07:00	2024-03-16 17:00
+%R	5	1	1	1	100.0	TT_Task	DT_DUR	TK_Complete	1.1.3	Huy động nhân lực, thiết bị & mặt bằng công trường B	200	2023-12-01 07:00	2023-12-29 17:00
+%R	6	1	1	1	100.0	TT_Task	DT_DUR	TK_Complete	1.1.4	Đường công vụ, lán trại, bãi tập kết vật liệu công trường B	480	2023-12-30 07:00	2024-03-16 17:00
+%R	7	1	1	1	45.0	TT_Task	DT_DUR	TK_Active	1.2	Tuyến chính Phân đoạn A1 (Km 0+000 – Km 2+750, L = 2.75 km)	4880	2023-12-30 07:00	2025-06-02 17:00
+%R	8	1	1	1	100.0	TT_Task	DT_DUR	TK_Complete	1.2.1.1	Dọn dẹp mặt bằng, phát quang & bóc đất hữu cơ (27.000 m3)	480	2023-12-30 07:00	2024-03-16 17:00
+%R	9	1	1	1	100.0	TT_Task	DT_DUR	TK_Complete	1.2.1.2	Đào đất nền đường & vận chuyển điều phối (145.000 m3)	864	2024-01-24 07:00	2024-06-07 17:00
+%R	10	1	1	1	85.0	TT_Task	DT_DUR	TK_Active	1.2.1.3	Đào phá đá nền đường bằng búa đập thủy lực (38.000 m3)	1168	2024-02-17 07:00	2024-08-08 17:00
+%R	11	1	1	1	65.0	TT_Task	DT_DUR	TK_Active	1.2.1.4	Thi công đắp đất nền đường độ chặt K95 (95.000 m3)	920	2024-03-23 07:00	2024-09-23 17:00
+%R	12	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.2.1.5	Thi công đắp đất bao & hoàn thiện nền K98 (18.000 m3)	448	2024-09-24 07:00	2024-11-27 17:00
+%R	13	1	1	1	100.0	TT_Task	DT_DUR	TK_Complete	1.2.1.6	Xây dựng cống tròn thoát nước ngang D1000/D1500 (360m)	240	2024-03-06 07:00	2024-04-09 17:00
+%R	14	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.2.1.7	Xây dựng rãnh biên hình thang & gia cố mái taluy (2.400m)	480	2024-10-05 07:00	2024-12-13 17:00
+%R	15	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.2.1.8	Thi công móng Cấp phối đá dăm loại 2 (36.000 m2)	160	2024-11-28 07:00	2024-12-20 17:00
+%R	16	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.2.1.9	Thi công móng Cấp phối đá dăm loại 1 (34.000 m2)	160	2024-12-23 07:00	2025-01-15 17:00
+%R	17	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.2.1.10	Thi công móng CPĐD gia cố xi măng (CTB - Mùa khô T1/25)	120	2025-01-17 07:00	2025-02-10 17:00
+%R	18	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.2.1.11	Mặt đường BTN C19 (7cm) & BTN C12.5 (5cm) (Mùa khô T2-4/25)	400	2025-02-22 07:00	2025-04-22 17:00
+%R	19	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.2.1.12	Lắp đặt hệ thống ATGT: Sơn đường, biển báo, hộ lan Phân đoạn A1	224	2025-04-29 07:00	2025-06-02 17:00
+%R	20	1	1	1	35.0	TT_Task	DT_DUR	TK_Active	1.3	Tuyến chính Phân đoạn A2 (Km 2+750 – Km 5+500, L = 2.75 km)	5040	2024-01-18 07:00	2025-07-25 17:00
+%R	21	1	1	1	100.0	TT_Task	DT_DUR	TK_Complete	1.3.1.1	Dọn dẹp mặt bằng, phát quang & bóc đất hữu cơ (20.000 m3)	360	2024-01-18 07:00	2024-03-16 17:00
+%R	22	1	1	1	100.0	TT_Task	DT_DUR	TK_Complete	1.3.1.2	Đào đất nền đường & vận chuyển điều phối (130.000 m3)	768	2024-02-05 07:00	2024-06-05 17:00
+%R	23	1	1	1	78.0	TT_Task	DT_DUR	TK_Active	1.3.1.3	Đào phá đá nền đường bằng búa đập thủy lực (42.000 m3)	1296	2024-02-29 07:00	2024-09-10 17:00
+%R	24	1	1	1	55.0	TT_Task	DT_DUR	TK_Active	1.3.1.4	Thi công đắp đất nền đường độ chặt K95 (110.000 m3)	1064	2024-03-29 07:00	2024-10-26 17:00
+%R	25	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.3.1.5	Thi công đắp đất bao & hoàn thiện nền K98 (22.000 m3)	544	2024-10-28 07:00	2025-01-15 17:00
+%R	26	1	1	1	100.0	TT_Task	DT_DUR	TK_Complete	1.3.1.6	Xây dựng cống tròn thoát nước ngang D1000/D1500 (420m)	280	2024-03-12 07:00	2024-04-22 17:00
+%R	27	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.3.1.7	Xây dựng rãnh biên hình thang & gia cố mái taluy (2.600m)	520	2024-11-08 07:00	2025-01-23 17:00
+%R	28	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.3.1.8	Thi công móng Cấp phối đá dăm loại 2 (38.000 m2)	168	2025-01-16 07:00	2025-02-15 17:00
+%R	29	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.3.1.9	Thi công móng Cấp phối đá dăm loại 1 (36.000 m2)	168	2025-02-18 07:00	2025-03-13 17:00
+%R	30	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.3.1.10	Thi công móng CPĐD gia cố xi măng (CTB - Mùa khô T3/25)	128	2025-03-15 07:00	2025-04-02 17:00
+%R	31	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.3.1.11	Mặt đường BTN C19 (7cm) & BTN C12.5 (5cm) (Mùa khô T3-5/25)	416	2025-04-16 07:00	2025-06-17 17:00
+%R	32	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.3.1.12	Lắp đặt hệ thống ATGT: Sơn đường, biển báo, hộ lan Phân đoạn A2	224	2025-06-24 07:00	2025-07-25 17:00
+%R	33	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.4	Công tác hoàn thiện, nghiệm thu bàn giao & hoàn công	960	2025-08-01 07:00	2025-11-22 17:00
+%R	34	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.4.1	Thí nghiệm kiểm tra độ bằng phẳng thước 3m, độ nhám, Benkelman	160	2025-08-01 07:00	2025-08-23 17:00
+%R	35	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.4.2	Dọn dẹp mặt bằng, hoàn trả đường công vụ & vệ sinh môi trường	200	2025-08-25 07:00	2025-09-24 17:00
+%R	36	1	1	1	0.0	TT_Task	DT_DUR	TK_NotStart	1.4.3	Lập trọn bộ hồ sơ hoàn công & hồ sơ QLCL (NĐ 207/2026/NĐ-CP)	360	2025-09-25 07:00	2025-11-15 17:00
+%R	37	1	1	1	0.0	TT_Mile	DT_DUR	TK_NotStart	1.4.4	NGHIỆM THU HOÀN THÀNH CÔNG TRÌNH BÀN GIAO ĐƯA VÀO SỬ DỤNG	0	2025-11-22 07:00	2025-11-22 17:00
+%T	TASKPRED
+%F	task_pred_id	task_id	pred_task_id	proj_id	pred_proj_id	pred_type	lag_hr_cnt
+%R	1	4	3	1	1	PR_FS	0
+%R	2	6	5	1	1	PR_FS	0
+%R	3	8	3	1	1	PR_FS	0
+%R	4	9	8	1	1	PR_SS	160
+%R	5	10	9	1	1	PR_SS	120
+%R	6	11	9	1	1	PR_SS	360
+%R	7	12	11	1	1	PR_FS	0
+%R	8	13	9	1	1	PR_SS	240
+%R	9	14	12	1	1	PR_SS	80
+%R	10	15	12	1	1	PR_FS	0
+%R	11	16	15	1	1	PR_FS	8
+%R	12	17	16	1	1	PR_FS	8
+%R	13	18	17	1	1	PR_FS	80
+%R	14	19	18	1	1	PR_FS	40
+%R	15	21	5	1	1	PR_FS	120
+%R	16	22	21	1	1	PR_SS	120
+%R	17	23	22	1	1	PR_SS	120
+%R	18	24	22	1	1	PR_SS	320
+%R	19	25	24	1	1	PR_FS	0
+%R	20	26	22	1	1	PR_SS	200
+%R	21	27	25	1	1	PR_SS	80
+%R	22	28	25	1	1	PR_FS	0
+%R	23	29	28	1	1	PR_FS	8
+%R	24	30	29	1	1	PR_FS	8
+%R	25	31	30	1	1	PR_FS	80
+%R	26	32	31	1	1	PR_FS	40
+%R	27	34	32	1	1	PR_FS	40
+%R	28	35	34	1	1	PR_FS	0
+%R	29	36	35	1	1	PR_FS	0
+%R	30	37	36	1	1	PR_FS	40
+%E
