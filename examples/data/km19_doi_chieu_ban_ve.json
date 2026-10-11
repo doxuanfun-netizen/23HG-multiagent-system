@@ -1,0 +1,32 @@
+{
+  "_ghi_chu": "Ánh xạ hạng mục BBS Cầu Km19+529.080 sang trang bản vẽ thẩm định (số trang theo HSTK đã OCR trong 05_DU_LIEU_GOC_SCAN_MARKER/du_lieu.json). he_so = số cấu kiện áp cho bảng của trang (bảng ghi khối lượng cho 1 cấu kiện); null = chưa biết. Quy tắc theo chủ dự án 11/10/2026: có dấu thẩm định thì lấy theo thẩm định; sai khác thì đánh dấu NGHI VẤN.",
+  "du_lieu_ban_ve": "examples/HO_SO_CAU_KM19_529/05_DU_LIEU_GOC_SCAN_MARKER/du_lieu.json",
+  "khop": {"tuong_doi": 0.003, "tuyet_doi_kg": 5.0},
+  "hang_muc": [
+    {"ten": "Mố M1", "trang": [{"so": 31, "he_so": 1, "bo_phan": "Mố M1"}]},
+    {"ten": "Mố M2", "trang": [{"so": 40, "he_so": 1, "bo_phan": "Mố M2"}]},
+    {"ten": "Trụ T1, T2 (Bệ móng)", "trang": [{"so": 44, "he_so": 1, "bo_phan": "Bệ trụ T1"},
+                                              {"so": 55, "he_so": 1, "bo_phan": "Bệ trụ T2"}]},
+    {"ten": "Trụ T1 (Thân trụ)", "trang": [{"so": 48, "he_so": 1, "bo_phan": "Thân trụ T1"}]},
+    {"ten": "Trụ T2 (Thân trụ)", "trang": [{"so": 59, "he_so": 1, "bo_phan": "Thân trụ T2"}]},
+    {"ten": "Trụ T1, T2 (Xà mũ trụ)", "trang": [{"so": 51, "he_so": 1, "bo_phan": "Xà mũ trụ T1"},
+                                                {"so": 62, "he_so": 1, "bo_phan": "Xà mũ trụ T2"}]},
+    {"ten": "Dầm chủ Super-T (15 phiến L=38.2m)",
+     "trang": [{"so": 88, "he_so": null, "bo_phan": "Dầm S1B1"}, {"so": 91, "he_so": null, "bo_phan": "Dầm S1B2"}],
+     "ghi_chu_he_so": "Chưa biết số phiến loại S1B1 / S1B2 trong 15 phiến; bảng bản vẽ ghi khối lượng cho 1 phiến."},
+    {"ten": "Dầm ngang (Diaphragm)", "trang": [{"so": 96, "he_so": 1, "bo_phan": "Dầm ngang"}]},
+    {"ten": "Bản mặt cầu (Deck Slab)", "tong_ban_ve_kg": 76676.45, "trang_tham_chieu": [112],
+     "ghi_chu": "Tr.112: loại 1 = 25.691,33 kg, loại 2 = 25.293,79 kg; 2 × loại 1 + 1 × loại 2 = 76.676,45 kg (số nhịp mỗi loại suy ra vì khớp BBS — xem PDF tr.112 để xác nhận)."},
+    {"ten": "Bản liên tục nhiệt (Link Slab)", "tong_ban_ve_kg": 8917.94, "trang_tham_chieu": [112],
+     "ghi_chu": "Tr.112: 4.458,97 kg × 2 = 8.917,94 kg. OCR chưa tách được từng thanh của bảng này — cần nhập theo PDF."},
+    {"ten": "Bản quá độ Mố M1", "trang": [{"so": 126, "he_so": 1, "bo_phan": "Bản quá độ A1"}]},
+    {"ten": "Bản quá độ Mố M2", "trang": [{"so": 128, "he_so": 1, "bo_phan": "Bản quá độ A2"}]},
+    {"ten": "Gờ lan can BTCT", "trang": [{"so": 119, "he_so": 1, "bo_phan": "Gờ lan can"}]},
+    {"ten": "Khe co giãn", "moi": true, "chen_sau": "Gờ lan can BTCT",
+     "trang": [{"so": 121, "he_so": 1, "bo_phan": "Khe co giãn"}]},
+    {"ten": "Cọc khoan nhồi D1200 (26 cọc L=872m)",
+     "trang": [{"so": 64, "he_so": 3, "bo_phan": "Cọc mố M1 L=20m"}, {"so": 66, "he_so": 7, "bo_phan": "Cọc mố M2 L=36m"},
+               {"so": 68, "he_so": 8, "bo_phan": "Cọc trụ T1 L=40m"}, {"so": 70, "he_so": 8, "bo_phan": "Cọc trụ T2 L=30m"}],
+     "ghi_chu_he_so": "Số cọc 3/7/8/8 lấy theo dự toán QS (tổng dài 3×20+7×36+8×40+8×30 = 872 m khớp BBS) — chưa đối chiếu bản vẽ bố trí chung."}
+  ]
+}

@@ -63,7 +63,7 @@ DIA_CONFIG = {
 }
 
 
-def create_master_dashboard(path: str, summary_rows: List[Dict], pt: Dict, bbs_errors=()) -> None:
+def create_master_dashboard(path: str, summary_rows: List[Dict], pt: Dict, bbs_errors=(), splice_rule: str = "") -> None:
     """pt: {'strands', 'len_m', 'kg'} của cáp DƯL, tính từ hằng số thiết kế (không gõ cứng trong bảng).
     bbs_errors: các dòng BBS bị loại khi đọc (sai đường kính, chiều dài...) — phải hiện trong bảng, không bỏ im lặng."""
     wb = openpyxl.Workbook()
@@ -77,6 +77,9 @@ def create_master_dashboard(path: str, summary_rows: List[Dict], pt: Dict, bbs_e
     ws["B3"].font = Font(name="Times New Roman", size=13, bold=True, color="000000")
     ws["B4"] = "Tối ưu hóa theo thuật toán OR-Tools Gilmore-Gomory CP-SAT | Cây thép chuẩn L = 11.7m | Bãi gia công cốt thép tiền chế"
     ws["B4"].font = Font(name="Times New Roman", size=10, italic=True)
+    if splice_rule:
+        ws["B5"] = splice_rule
+        ws["B5"].font = Font(name="Times New Roman", size=10, bold=True, color="1F3A5E")
 
     headers = [
         "TT", "Đường kính (Ø)", "Mô tả hạng mục kết cấu chính",
@@ -240,8 +243,11 @@ def export_cnc_csv(path: str, sol, dia: int) -> None:
                 writer.writerow([bar_name, dia, mark, length / 1000.0, a["waste_mm"] / 1000.0, 11.7])
 
 
+LAP_XD_THIET_KE = 40      # nối chồng 40d theo thiết kế — ĐÃ GỒM trong chiều dài thanh BBS (chủ dự án xác nhận 11/10/2026)
+
+
 def run(out_dir=None, sync_micro=None, bbs_path=TEMPLATE_BBS, bbs_sheet="THONG_KE_THEP_CHI_TIET",
-        time_limit_s=10.0, quiet=False):
+        time_limit_s=10.0, quiet=False, noi_trong_chieu_dai=True, lap_xd=LAP_XD_THIET_KE):
     """
     Sinh bộ cắt thép theo từng đường kính Ø: một file RebarCut + một lệnh cắt CNC cho mỗi Ø, file Master toàn cầu,
     bảng tổng hợp theo Ø và hướng dẫn vận hành bãi thép.
@@ -250,6 +256,9 @@ def run(out_dir=None, sync_micro=None, bbs_path=TEMPLATE_BBS, bbs_sheet="THONG_K
                 (AEC_PROJECTS_DIR/HSTK Cầu Km19+529.080_Marker/01_HE_THONG_CAT_THEP_REBARCUT).
     sync_micro  chép Master sang BO_HO_SO_02_VI_MO_CHUYEN_SAU_14_BO của thư mục dự án. Mặc định: có khi dùng thư mục
                 dự án, không khi truyền out_dir (không ghi ra ngoài out_dir).
+    noi_trong_chieu_dai  True (mặc định): thanh dài hơn cây đã gồm sẵn đoạn nối lap_xd·d trong chiều dài BBS →
+                tách thành số đoạn tối thiểu, tổng các đoạn ĐÚNG BẰNG chiều dài BBS (không cộng thêm đoạn nối),
+                mỗi đoạn ≥ lap_xd·d. False: không tách — các thanh này hiện ở cột "CHƯA lập kế hoạch".
     Trả dict: target_folder, dias, bars_by_dia, total_bars_master, summary_rows.
     """
     target_folder = out_dir or TARGET_FOLDER
@@ -281,7 +290,20 @@ def run(out_dir=None, sync_micro=None, bbs_path=TEMPLATE_BBS, bbs_sheet="THONG_K
             log(f"    - {e}")
 
     # 3. Khởi tạo solver RebarCut Pro
-    solver = CuttingStockSolver(bar_length_mm=11700, kerf_mm=5, end_trim_mm=0, time_limit_s=time_limit_s)
+    solver = CuttingStockSolver(bar_length_mm=11700, kerf_mm=5, end_trim_mm=0, time_limit_s=time_limit_s,
+                                min_splice_segment_xd=lap_xd, long_bar_min_segments_only=noi_trong_chieu_dai)
+    if noi_trong_chieu_dai:
+        n_long = 0
+        for d in res.demands:
+            if d.length_mm > solver.usable_length_mm:
+                d.splice_allowed = True
+                d.splice_kind = f"Nối chồng {lap_xd:g}d (đã gồm trong chiều dài BBS)"
+                d.lap_xd = 0.0                      # đoạn nối đã nằm trong chiều dài → không cộng thêm
+                d.splice_zones = [(0.0, 1.0)]
+                n_long += d.quantity
+        if n_long:
+            log(f"  + {n_long:,} thanh dài hơn cây {solver.usable_length_mm}mm: tách số đoạn tối thiểu, "
+                f"nối {lap_xd:g}d đã gồm trong chiều dài BBS")
 
     # Lấy danh sách đường kính từ bé đến lớn
     dias = sorted(list(set(d.diameter_mm for d in res.demands)))
@@ -385,7 +407,11 @@ def run(out_dir=None, sync_micro=None, bbs_path=TEMPLATE_BBS, bbs_sheet="THONG_K
     log(f"\n[4/5] Đang tạo Dashboard Tổng Hợp và File Master Toàn Cầu 5 Sheet...")
     dashboard_path = os.path.join(target_folder, "00_BANG_TONG_HOP_CAT_THEP_THEO_PHI.xlsx")
     create_master_dashboard(dashboard_path, summary_rows,
-                            {"strands": n_strands, "len_m": pt_total_len_m, "kg": pt_weight_kg}, res.errors)
+                            {"strands": n_strands, "len_m": pt_total_len_m, "kg": pt_weight_kg}, res.errors,
+                            (f"Thanh dài hơn 11.7m: tách thành số đoạn tối thiểu, mỗi đoạn ≥ {lap_xd:g}d; nối chồng "
+                             f"{lap_xd:g}d ĐÃ GỒM trong chiều dài BBS nên tổng các đoạn = chiều dài BBS (không cộng thêm)."
+                             if noi_trong_chieu_dai else
+                             "Thanh dài hơn 11.7m: KHÔNG tách đoạn trong lần chạy này (xem cột CHƯA lập kế hoạch)."))
     log(f"  + Dashboard: {dashboard_path}")
 
     master_path = os.path.join(target_folder, "00_RebarCut_MASTER_TOAN_CAU_11M7.xlsx")
@@ -463,6 +489,8 @@ Hệ thống tổ hợp cắt thép được lập bằng công nghệ **Pure Py
 def main(argv=None):
     import argparse
     ap = argparse.ArgumentParser(description="Sinh bộ cắt thép RebarCut theo từng đường kính Ø (Cầu Km19+529.080)")
+    ap.add_argument("--khong-tach-thanh-dai", action="store_true",
+                    help="không tách thanh dài hơn cây (mặc định: tách, nối 40d đã gồm trong chiều dài BBS)")
     ap.add_argument("--out", default=None, help="Thư mục đầu ra (mặc định: thư mục dự án trong AEC_PROJECTS_DIR)")
     ap.add_argument("--bbs", default=TEMPLATE_BBS, help="File BBS nguồn (mặc định: template Km19)")
     ap.add_argument("--bbs-sheet", default="THONG_KE_THEP_CHI_TIET")
@@ -470,7 +498,8 @@ def main(argv=None):
                     help="Chép Master sang bộ vi mô 14 file của thư mục dự án")
     ap.add_argument("--no-sync-micro", dest="sync_micro", action="store_false")
     a = ap.parse_args(argv)
-    run(out_dir=a.out, sync_micro=a.sync_micro, bbs_path=a.bbs, bbs_sheet=a.bbs_sheet)
+    run(out_dir=a.out, sync_micro=a.sync_micro, bbs_path=a.bbs, bbs_sheet=a.bbs_sheet,
+        noi_trong_chieu_dai=not a.khong_tach_thanh_dai)
 
 
 if __name__ == "__main__":
