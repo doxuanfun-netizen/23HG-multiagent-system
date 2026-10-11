@@ -1,0 +1,136 @@
+{
+  "_ghi_chu": "Ca hand_formula chỉ kiểm tra công thức. Ca approved_dossier chỉ đạt khi có file đã duyệt và kỳ vọng được điền từ file đó (ghi approved_ref). Ca pending chưa có dữ liệu, không bao giờ được tính là đạt.",
+  "cases": [
+    {
+      "id": "steel_rebar_unit_mass",
+      "title": "Khối lượng đơn vị cốt thép D²/162",
+      "source_type": "hand_formula",
+      "status": "active",
+      "producer": "tools.steel_qs:rebar_unit_mass",
+      "checks": [
+        {
+          "args": [
+            16
+          ],
+          "expected": 1.580247,
+          "tol": 1e-06
+        },
+        {
+          "args": [
+            10
+          ],
+          "expected": 0.617284,
+          "tol": 1e-06
+        }
+      ]
+    },
+    {
+      "id": "bbs_don_vi_khoi_luong_thep",
+      "title": "Khối lượng đơn vị theo Ø (D²/162) so với cột 'Trọng lượng 1m' của BBS đã duyệt",
+      "source_type": "approved_dossier",
+      "status": "active",
+      "approved_ref": "examples/HO_SO_CAU_KM19_529/02_XUONG_TIEN_CHE_COT_THEP/04_Thong_Ke_Thep_Chi_Tiet_BBS_396_Dong.xlsx, sheet THONG_KE_THEP_CHI_TIET, cột 'Trọng lượng 1m (kg/m)'. Chủ dự án cho biết đã duyệt; số văn bản và ngày duyệt: chưa cung cấp.",
+      "producer": "tools.steel_qs:rebar_unit_mass",
+      "checks": [
+        {
+          "args": [
+            8
+          ],
+          "expected": 0.395,
+          "tol": 0.0005
+        },
+        {
+          "args": [
+            10
+          ],
+          "expected": 0.617,
+          "tol": 0.0005
+        },
+        {
+          "args": [
+            12
+          ],
+          "expected": 0.888,
+          "tol": 0.0005
+        },
+        {
+          "args": [
+            14
+          ],
+          "expected": 1.21,
+          "tol": 0.005
+        },
+        {
+          "args": [
+            16
+          ],
+          "expected": 1.58,
+          "tol": 0.005
+        },
+        {
+          "args": [
+            18
+          ],
+          "expected": 2.0,
+          "tol": 0.005
+        },
+        {
+          "args": [
+            20
+          ],
+          "expected": 2.47,
+          "tol": 0.005
+        },
+        {
+          "args": [
+            22
+          ],
+          "expected": 2.98,
+          "tol": 0.005
+        },
+        {
+          "args": [
+            25
+          ],
+          "expected": 3.85,
+          "tol": 0.005
+        },
+        {
+          "args": [
+            28
+          ],
+          "expected": 4.83,
+          "tol": 0.005
+        },
+        {
+          "args": [
+            32
+          ],
+          "expected": 6.31,
+          "tol": 0.005
+        }
+      ]
+    },
+    {
+      "id": "bbs_10_dong_bat_thuong",
+      "title": "10 dòng BBS có Ø không phải thép thanh và chiều dài 2–4 mm",
+      "source_type": "approved_dossier",
+      "status": "pending",
+      "reason": "Dầm ngang và Bản liên tục nhiệt: Ø 54–260 mm, chiều dài 1 thanh 0,001–0,004 m, tổng khoảng 81.890 kg (~9% tổng BBS). Sheet tổng hợp không có các dòng này và không có Ø8 (~215 kg), nên tổng 801.796 kg khác tổng chi tiết 883.902 kg. Chờ chủ dự án xác nhận sửa dữ liệu hay loại bỏ."
+    },
+    {
+      "id": "payment_03a_vs_approved",
+      "title": "Mẫu 03a so với bảng khối lượng thực hiện đã ký",
+      "source_type": "approved_dossier",
+      "status": "pending",
+      "reason": "Chưa có Mẫu 03a đã ký. Hiện chênh lệch so với BBS +14,4% chưa được giải thích."
+    },
+    {
+      "id": "bridge_estimate_vs_approved",
+      "title": "Dự toán cầu G_XD so với bản đã duyệt",
+      "source_type": "approved_dossier",
+      "status": "pending",
+      "reason": "Chưa có dự toán cầu đã duyệt. Bộ kiểm thử hiện chỉ kiểm tra tự nhất quán."
+    }
+  ]
+}
