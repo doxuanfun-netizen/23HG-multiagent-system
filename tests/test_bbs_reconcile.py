@@ -13,7 +13,7 @@ import openpyxl
 
 from tests.test_drawing_rebar_tables import table
 from tools.bbs_loader import load_bbs
-from tools.bbs_reconcile import (GIU, KHOP, THAY, THAY_MOT_PHAN, load_config, load_pages, read_bbs, reconcile,
+from tools.bbs_reconcile import (GIU, KHOP, THAY, load_config, load_pages, read_bbs, reconcile,
                                  unit_changes, write_bbs)
 from tools.cutting_stock_solver import rebar_unit_weight_kg_m
 
@@ -162,11 +162,13 @@ class Km19ReproducibleTest(unittest.TestCase):
         _, secs = read_bbs(KM19_BBS_GOC)
         _, reports, _ = reconcile(secs, cfg, load_pages(os.path.join(ROOT, cfg["du_lieu_ban_ve"])))
         actions = {r.hang_muc: r.hanh_dong for r in reports}
-        self.assertEqual(actions["Mố M1"], THAY_MOT_PHAN)                  # BBS cũ lấy nhầm số của mố M2
+        self.assertEqual(actions["Mố M1"], THAY)                           # BBS cũ lấy nhầm số của mố M2
         self.assertEqual(actions["Trụ T1, T2 (Xà mũ trụ)"], THAY)
         self.assertEqual(actions["Trụ T1 (Thân trụ)"], KHOP)
         self.assertEqual(actions["Dầm chủ Super-T (15 phiến L=38.2m)"], THAY)          # 3 S1B1 + 3 S1B2 + 9 S1G
-        self.assertEqual(actions["Bản liên tục nhiệt (Link Slab)"], GIU)
+        self.assertEqual(actions["Bản liên tục nhiệt (Link Slab)"], THAY)              # bảng dưới tr.112
+        self.assertEqual(actions["Bản mặt cầu (Deck Slab)"], KHOP)
+        self.assertEqual(actions["Gờ lan can BTCT"], THAY)
         beam = next(r for r in reports if r.hang_muc.startswith("Dầm chủ"))
         self.assertAlmostEqual(beam.ban_ve_kg, 89690.31, places=2)                  # = tr.175: 77,743 + 11,947 t
 

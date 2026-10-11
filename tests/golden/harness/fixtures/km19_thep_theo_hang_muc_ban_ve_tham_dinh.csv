@@ -1,13 +1,13 @@
 hang_muc,tong_kg,nguon
 Mố M1,7958.56,tr.31
-Mố M2,19648.73,tr.40
+Mố M2,19648.73,"tr.40 (bản vẽ ghi 0 kg cho W6, W7, W9 dù dài × SL × kg/m = 237,05 kg — chờ chủ dự án)"
 "Trụ T1, T2 (Bệ móng)",32355.66,tr.44 + tr.55
 Trụ T1 (Thân trụ),32558.52,tr.48
 Trụ T2 (Thân trụ),35186.85,tr.59
 "Trụ T1, T2 (Xà mũ trụ)",26026.22,tr.51 + tr.62
 Dầm chủ Super-T (15 phiến L=38.2m),89690.31,"tr.88/91/94 × 3/3/9 phiến = tr.175: 77,743 + 11,947 t"
 Dầm ngang (Diaphragm),2763.12,tr.96
-Bản mặt cầu (Deck Slab),76676.45,"tr.112: 2 × 25.691,33 + 25.293,79 (cấu thành suy ra)"
+Bản mặt cầu (Deck Slab),76676.45,"tr.112: 2 × 25.691,33 + 25.293,79 (2 nhịp loại 1 + 1 nhịp loại 2, khớp tr.175)"
 Bản liên tục nhiệt (Link Slab),8917.94,"tr.112: 4.458,97 × 2"
 Bản quá độ Mố M1,3964.44,tr.126
 Bản quá độ Mố M2,5568.96,tr.128

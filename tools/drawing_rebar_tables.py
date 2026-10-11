@@ -47,6 +47,8 @@ class DrawingRow:
     total_kg: float = 0.0            # khối lượng × số cấu kiện (theo bản vẽ)
     issues: List[str] = field(default_factory=list)
     notes: List[str] = field(default_factory=list)     # ghi chú không phải lỗi (vd. hệ số suy từ cột tổng)
+    tron_tron: bool = False          # thép tròn trơn ('R25', 'R8') — mác CB240-T
+    ban_ve_ghi_0: bool = False       # chính bản vẽ ghi khối lượng 0 dù có dài × SL × kg/m (sai trên bản vẽ)
 
     @property
     def ok(self) -> bool:
@@ -60,6 +62,7 @@ class DrawingTable:
     rows: List[DrawingRow]
     stated_total_kg: Optional[float]
     issues: List[str] = field(default_factory=list)
+    pending_fixes: list = field(default_factory=list)    # sửa OCR chờ kiểm khi ghép với mảnh có dòng tổng
 
     @property
     def rows_total_kg(self) -> float:
@@ -73,12 +76,25 @@ def _num(v) -> Optional[float]:
 def _diameter(text, allow_plain: bool = False) -> Optional[int]:
     """'D16', 'Ø16', 'Φ16' → 16. Số trần ('16') chỉ nhận khi cột có tiêu đề đường kính (allow_plain), vì cột số
     lượng cũng hay có giá trị 16, 28..."""
-    t = norm(text).replace("Ø", "D").replace("Φ", "D")
-    pattern = r"(?:D|PHI)?\s*(\d{1,2})(?:\s*MM)?" if allow_plain else r"(?:D|PHI)\s*(\d{1,2})(?:\s*MM)?"
+    t = norm(text).replace("Ø", "D").replace("Φ", "D").replace(" ", "")      # OCR hay tách 'D18' thành 'D1 8'
+    pattern = r"(?:D|PHI|R)?(\d{1,2})(?:MM)?" if allow_plain else r"(?:D|PHI|R)(\d{1,2})(?:MM)?"
     m = re.fullmatch(pattern, t)
     if m and int(m.group(1)) in REBAR_DIAMETERS:
         return int(m.group(1))
     return None
+
+
+# kg/m ghi trên bản vẽ (làm tròn) và theo bảng quy ước → Ø. Chỉ dùng khi ô Ø OCR đọc hỏng ('DB', 'D1').
+UNIT_TO_DIAMETER = {0.222: 6, 0.395: 8, 0.617: 10, 0.888: 12, 1.21: 14, 1.208: 14, 1.58: 16, 1.578: 16, 2.0: 18,
+                    1.998: 18, 2.47: 20, 2.466: 20, 2.98: 22, 2.984: 22, 3.85: 25, 3.853: 25, 4.83: 28, 4.834: 28,
+                    6.31: 32, 6.313: 32}
+
+
+def _diameter_from_unit(text, unit: Optional[float]) -> Optional[int]:
+    t = norm(text).replace(" ", "")
+    if unit is None or not re.fullmatch(r"[DR]\w{0,2}", t):
+        return None
+    return next((d for u, d in UNIT_TO_DIAMETER.items() if abs(u - unit) <= 0.0005), None)
 
 
 def _is_group_subtotal(text: str) -> bool:
@@ -102,45 +118,49 @@ def _integer_qty(length, unit, kg) -> Optional[float]:
 
 def _apply_fixes(rows: List[DrawingRow], fixes, stated: Optional[float]) -> List[DrawingRow]:
     """
-    Sửa lỗi OCR một ô (số lượng trống/đọc sai, khối lượng đọc sai) bằng chính phép tính của bản vẽ. Mỗi dòng lỗi có
-    vài cách sửa (hoặc để nguyên); chỉ nhận tổ hợp làm Σ dòng KHỚP tổng ghi trên bản vẽ, ưu tiên tổ hợp
-    để lại ít dòng sai nhất. Không có tổ hợp nào khớp thì
-    giữ nguyên số OCR (kèm lỗi) và bỏ các dòng phải suy số lượng. Dòng đã sửa có ghi chú để đánh dấu nghi vấn.
+    Sửa lỗi OCR bằng chính phép tính của bản vẽ. fixes = [(dòng, các cách sửa, dòng_suy)]:
+    - dòng lỗi phép tính có vài cách sửa (SL đọc sai / khối lượng đọc sai) hoặc để nguyên;
+    - "dòng suy" là dòng phải điền ô OCR trống/hỏng (Ø, chiều dài tách ô, kg/m, SL, khối lượng) — chỉ giữ khi
+      được xác nhận.
+    Chỉ nhận tổ hợp làm Σ dòng KHỚP tổng ghi trên bản vẽ, ưu tiên tổ hợp để lại ít dòng sai nhất. Không có tổ
+    hợp nào khớp thì giữ nguyên số OCR (kèm lỗi) và bỏ các dòng suy. Dòng đã sửa có ghi chú để đánh dấu nghi vấn.
     """
-    if not fixes:
+    if not fixes or stated is None:          # mảnh bảng không có dòng tổng: để page_rebar_table kiểm khi ghép
         return rows
-    derived = {id(row) for row, cands in fixes if cands[0][0] == "SL" and cands[0][1] is None}
+    derived = {id(row) for row, _, is_derived in fixes if is_derived}
     unfixed = [r for r in rows if id(r) not in derived]
-    if stated is None or len(fixes) > 8:
+    if len(fixes) > 10:
         return unfixed
     tol = max(TABLE_ABS_TOL, TABLE_REL_TOL * stated)
-    base = sum(r.total_kg for r in rows if id(r) not in {id(row) for row, _ in fixes})
+    fixed_ids = {id(row) for row, _, _ in fixes}
+    base = sum(r.total_kg for r in rows if id(r) not in fixed_ids)
 
     def contrib(row, fix):
-        if fix is None:
+        if fix is None or fix[0] == "NOTE":
             return row.total_kg
         kind, val, _ = fix
         return round((val if kind == "KG" else row.kg) * row.multiplier, 2)
 
-    options = [cands if id(row) in derived else [None] + cands for row, cands in fixes]
+    options = [cands if is_derived else [None] + cands for _, cands, is_derived in fixes]
     best = None
     for combo in itertools.product(*options):
-        if abs(round(base + sum(contrib(row, f) for (row, _), f in zip(fixes, combo)), 2) - stated) <= tol:
+        if abs(round(base + sum(contrib(row, f) for (row, _, _), f in zip(fixes, combo)), 2) - stated) <= tol:
             n = sum(f is None for f in combo)          # ưu tiên tổ hợp sửa hết các dòng sai phép tính
             if best is None or n < best[0]:
                 best = (n, combo)
     if best is None:
         return unfixed
-    for (r, _), f in zip(fixes, best[1]):
+    for (r, _, _), f in zip(fixes, best[1]):
         if f is None:
             continue
         kind, val, note = f
-        if kind == "SL" and val is not None:
+        if kind == "SL":
             r.quantity = val
         elif kind == "KG":
             r.kg = val
             r.total_kg = round(val * r.multiplier, 2)
-        r.issues = [i for i in r.issues if not i.startswith("dài×SL×kg/m")]
+        if kind != "NOTE":
+            r.issues = [i for i in r.issues if not i.startswith("dài×SL×kg/m")]
         r.notes.append(note + " — Σ bảng sau sửa khớp tổng bản vẽ")
     return rows
 
@@ -208,6 +228,13 @@ def _parse_block(page: int, title: str, header, rows, values, cols: range) -> Op
         cand = [i for i in cols if i < dia_col and i not in numeric]
         mark_col = cand[-1] if cand else None
 
+    # kg/m chính bản vẽ dùng cho từng Ø — để điền ô kg/m mà OCR đọc hỏng
+    page_units: Dict[int, float] = {}
+    for r, v in body:
+        uu = _num(v[u]) if u < len(v) else None
+        if uu is not None and UNIT_RANGE[0] <= uu <= UNIT_RANGE[1]:
+            page_units.setdefault(_diameter(r[dia_col], plain[dia_col]), uu)
+
     out: List[DrawingRow] = []
     fixes = []
     stated = None
@@ -218,17 +245,52 @@ def _parse_block(page: int, title: str, header, rows, values, cols: range) -> Op
             if stated is None and nums and not _is_group_subtotal(text):
                 stated = nums[-1]
             continue
-        d = _diameter(r[dia_col], plain[dia_col]) if dia_col < len(r) else None
+        dtext = str(r[dia_col]) if dia_col < len(r) else ""
+        d = _diameter(dtext, plain[dia_col])
         vals = [(_num(v[c]) if c < len(v) else None) for c in (L, q, u, k)]
-        fix = None                           # sửa đề xuất, chỉ áp dụng nếu cả bảng khớp tổng (xem _apply_fixes)
-        if d is not None and vals[0] and vals[1] is None and vals[2] and vals[3]:
+        notes = []                           # ô phải suy — dòng chỉ giữ khi Σ bảng khớp tổng (xem _apply_fixes)
+        if d is None:
+            d = _diameter_from_unit(dtext, vals[2])
+            if d is None:
+                continue
+            notes.append(f"OCR ghi Ø '{dtext.strip()}', Ø{d} suy từ kg/m {vals[2]:g}")
+        if not vals[0]:
+            continue
+        if vals[0] < 1000 and L + 1 < len(r) and L + 1 not in (q, u, k) and str(r[L + 1]).strip() == "0":
+            notes.append(f"OCR tách chiều dài thành '{vals[0]:g}' và '0' → {vals[0] * 10:g} mm")
+            vals[0] *= 10
+        if vals[2] is None and d in page_units:
+            vals[2] = page_units[d]
+            notes.append(f"kg/m không đọc được, lấy {vals[2]:g} như các thanh Ø{d} khác của bảng")
+        mult = _num(v[mult_col]) if mult_col is not None and mult_col < len(v) else None
+        if mult is not None and not (1 <= mult <= 500 and abs(mult - round(mult)) <= 0.01):
+            mult = None                          # hệ số số cấu kiện phải là số nguyên hợp lý
+        total = _num(v[total_col]) if total_col is not None and total_col < len(v) else None
+        use_total = False                        # tổng dòng lấy đúng số ghi ở cột tổng
+        if vals[3] is None and total and vals[1] and vals[2]:
+            calc = vals[0] / 1000 * vals[1] * vals[2]
+            m = total / calc
+            if mult is None and m >= 1 and abs(m - round(m)) <= ROW_REL_TOL * m:
+                mult, vals[3], use_total = float(round(m)), round(calc, 2), True
+                notes.append(f"khối lượng 1 cấu kiện trống, = dài × SL × kg/m; hệ số {mult:g} = tổng ÷ khối lượng")
+            else:
+                vals[3] = round(total / (mult or 1.0), 2)
+                notes.append(f"khối lượng 1 cấu kiện trống, lấy từ cột tổng ({total:,.2f})")
+        elif vals[3] is None and total and vals[1] is None:
+            vals[3] = round(total / (mult or 1.0), 2)
+            notes.append(f"khối lượng 1 cấu kiện không đọc được, lấy từ cột tổng ({total:,.2f})")
+        if vals[1] is None and vals[2] and vals[3]:
             n = _integer_qty(vals[0], vals[2], vals[3])
             if n is None:
                 continue
-            vals[1], fix = n, [("SL", None, f"số lượng trống trên OCR, suy = khối lượng ghi ÷ (dài × kg/m) = {n:g}")]
-        if d is None or vals[0] is None or vals[1] is None:
+            vals[1] = n
+            notes.append(f"số lượng trống/không đọc được, suy = khối lượng ghi ÷ (dài × kg/m) = {n:g}")
+        if vals[1] is None:
             continue
-        if fix is None and not _row_ok(*vals) and vals[0] and vals[2] and vals[3]:
+        # khối lượng ghi 0 ở cả cột khối lượng và cột tổng: sai của chính bản vẽ, không phải lỗi OCR
+        design_zero = vals[3] == 0 and not total and bool(vals[2])
+        fix = None
+        if not design_zero and not _row_ok(*vals) and vals[2] and vals[3]:
             fix = []                         # các cách sửa có thể: đọc sai số lượng, hoặc đọc sai khối lượng
             n = _integer_qty(vals[0], vals[2], vals[3])
             if n is not None:
@@ -237,33 +299,50 @@ def _parse_block(page: int, title: str, header, rows, values, cols: range) -> Op
             if UNIT_RANGE[0] <= vals[2] <= UNIT_RANGE[1] and kg > 0:
                 fix.append(("KG", kg, f"OCR đọc khối lượng = {vals[3]:g}, dài × SL × kg/m = {kg:,.2f}"))
             fix = fix or None
-        mult = _num(v[mult_col]) if mult_col is not None and mult_col < len(v) else None
-        if mult is not None and not (1 <= mult <= 500 and abs(mult - round(mult)) <= 0.01):
-            mult = None                          # hệ số số cấu kiện phải là số nguyên hợp lý
-        total = _num(v[total_col]) if total_col is not None and total_col < len(v) else None
         mark = str(r[mark_col]).strip() if mark_col is not None and mark_col < len(r) else ""
         stt = str(r[0]).strip() if r and str(r[0]).strip().isdigit() else None
         row = DrawingRow(page, stt, mark, d, vals[0], vals[1], vals[2] or 0.0, vals[3] or 0.0)
+        row.tron_tron = norm(dtext).startswith("R")
         if mult is None and total is not None and row.kg:
             m = total / row.kg               # cột số cấu kiện/số đốt trống nhưng có cột tổng: suy từ số trên bản vẽ
-            if m >= 1 and abs(m - round(m)) <= 0.01:
+            calc = row.length_mm / 1000 * row.quantity * row.unit_kg_m
+            m2 = total / calc if calc else 0.0
+            if round(m) >= 1 and abs(m - round(m)) <= 0.01:
                 mult = float(round(m))
                 if mult != 1:
                     row.notes.append(f"hệ số {mult:g} suy từ cột tổng ({total:,.2f} ÷ {row.kg:,.2f})")
+            elif round(m2) >= 1 and abs(m2 - round(m2)) <= ROW_REL_TOL * m2:
+                # cột khối lượng làm tròn 0,1 kg nên tổng ÷ khối lượng lệch số nguyên; dùng dài × SL × kg/m
+                mult, use_total = float(round(m2)), True
+                if mult != 1:
+                    row.notes.append(f"hệ số {mult:g} suy từ cột tổng ({total:,.2f} ÷ dài × SL × kg/m {calc:,.2f})"
+                                     f" — ô số cấu kiện gộp/không đọc được")
         row.multiplier = mult or 1.0
         row.total_kg = round(row.kg * row.multiplier, 2)
+        if total and (use_total or abs(total - row.total_kg) <= max(ROW_ABS_TOL, ROW_REL_TOL * total)):
+            row.total_kg = round(total, 2)          # số ghi ở cột tổng (khối lượng 1 cấu kiện làm tròn 0,1 kg)
         if not mark or mark.isdigit():
             row.issues.append(f"không đọc được ký hiệu thanh (STT {stt or '?'})")
-        if not _row_ok(*vals):
+        if design_zero:
+            row.ban_ve_ghi_0 = True
+            row.notes.append(f"BẢN VẼ ghi khối lượng 0 dù dài × SL × kg/m = "
+                             f"{row.length_mm / 1000 * row.quantity * row.unit_kg_m:,.2f} kg — sai trên bản vẽ")
+        elif not _row_ok(*vals):
             calc = vals[0] / 1000 * vals[1] * (vals[2] or 0)
             row.issues.append(f"dài×SL×kg/m = {calc:,.2f} ≠ khối lượng ghi {vals[3] or 0:,.2f}")
         if total is not None and abs(total - row.total_kg) > max(ROW_ABS_TOL, ROW_REL_TOL * total):
             row.issues.append(f"khối lượng × hệ số = {row.total_kg:,.2f} ≠ tổng ghi {total:,.2f}")
         out.append(row)
-        if fix is not None:
-            fixes.append((row, fix))
+        if notes:
+            note = "; ".join(notes)
+            fixes.append((row, [(kind, val, note + "; " + n) for kind, val, n in fix] if fix
+                          else [("NOTE", None, note)], True))
+        elif fix:
+            fixes.append((row, fix, False))
     out = _apply_fixes(out, fixes, stated)
     t = DrawingTable(page, title, out, stated)
+    if stated is None:
+        t.pending_fixes = fixes
     if not out:
         t.issues.append("không đọc được dòng thép nào")
     if stated is None:
@@ -279,10 +358,29 @@ def parse_table(page: int, table: dict) -> List[DrawingTable]:
     header = list(header) + [""] * (width - len(header))
     out = []
     for cols in _blocks(header, rows):
-        t = _parse_block(page, table.get("title") or "", header, rows, values, cols)
-        if t is not None:
-            out.append(t)
+        for seg in _segments(rows, cols):
+            t = _parse_block(page, table.get("title") or "", header, [rows[i] for i in seg],
+                             [values[i] if i < len(values) else [] for i in seg], cols)
+            if t is not None:
+                out.append(t)
     return out
+
+
+def _segments(rows, cols: range) -> List[List[int]]:
+    """
+    Tách các bảng xếp chồng trong cùng khối cột (vd. tr.112: bản mặt cầu ở trên, liên tục nhiệt ở dưới): mỗi
+    bảng kết thúc ở dòng tổng khối lượng thép của nó; các dòng phía sau dòng tổng thuộc bảng kế tiếp (đoạn không có
+    dòng thép nào thì bị bỏ qua).
+    """
+    segs, cur = [], []
+    for i, r in enumerate(rows):
+        text = " ".join(norm(r[c]) for c in cols if c < len(r))
+        cur.append(i)
+        if "TONG" in text and "THEP" in text and not _is_group_subtotal(text):
+            segs.append(cur)
+            cur = []
+    segs.append(cur)
+    return [s for s in segs if s]
 
 
 def page_tables(page: dict) -> List[DrawingTable]:
@@ -321,7 +419,8 @@ def page_rebar_table(page: dict) -> Optional[DrawingTable]:
     if len(with_total) != 1:
         return None
     main = with_total[0]
-    merged_rows = [r for t in tables for r in t.rows]
+    pending = [f for t in tables for f in t.pending_fixes]
+    merged_rows = _apply_fixes([r for t in tables for r in t.rows], pending, main.stated_total_kg)
     merged_sum = sum(r.total_kg for r in merged_rows)
     if abs(merged_sum - main.stated_total_kg) >= abs(main.rows_total_kg - main.stated_total_kg):
         return main

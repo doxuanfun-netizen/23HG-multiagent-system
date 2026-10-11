@@ -137,6 +137,70 @@ class OcrRepairTest(unittest.TestCase):
         self.assertEqual([r.mark for r in t2.rows], ["A", "B"])          # dòng phải suy SL bị bỏ
 
 
+class OcrLayoutTest(unittest.TestCase):
+    """Lỗi bố cục OCR gặp ở Mố M1/M2 (tr.31, 40), gờ lan can (tr.119), liên tục nhiệt (tr.112)."""
+    HDR = ["STT", "TÊN THANH", "ĐƯỜNG KÍNH", "CHIỀU DÀI MM", "", "SỐ LƯỢNG", "KG/M", "KHỐI LƯỢNG KG", "TỔNG KHỐI LƯỢNG KG"]
+
+    def _t(self, rows, total):
+        base = [["1", "A", "D16", "1000", "", "10", "1.580", "15.80", "15.80"],
+                ["2", "B", "D8", "2000", "", "10", "0.395", "7.90", "7.90"]]
+        return table(self.HDR, base + rows + [["", "TỔNG HỢP KHỐI LƯỢNG CỐT THÉP", "", "", "", "", "", "", str(total)]])
+
+    def test_plain_round_bar_is_read(self):
+        (t1,) = parse_table(31, self._t([["3", "H1", "R25", "1070", "", "23", "3.850", "94.75", "94.75"]], 118.45))
+        self.assertTrue(table_usable(t1), t1.issues)
+        self.assertEqual((t1.rows[-1].diameter_mm, t1.rows[-1].tron_tron), (25, True))
+
+    def test_unreadable_diameter_from_unit_weight(self):
+        """'DB' (OCR của D8) → Ø8 vì kg/m 0,395; chỉ nhận khi Σ bảng khớp tổng."""
+        (t1,) = parse_table(31, self._t([["3", "B1", "DB", "640", "", "50", "0.395", "12.64", "12.64"]], 36.34))
+        self.assertTrue(table_usable(t1), t1.issues)
+        self.assertEqual(t1.rows[-1].diameter_mm, 8)
+        (t2,) = parse_table(31, self._t([["3", "B1", "DB", "640", "", "50", "0.395", "12.64", "12.64"]], 99.0))
+        self.assertEqual([r.mark for r in t2.rows], ["A", "B"])
+
+    def test_length_split_into_two_cells(self):
+        """Tr.40: '1640' bị tách thành '164' và '0'; ô kg/m và SL hỏng — suy từ cột tổng, kg/m của Ø16 trong bảng."""
+        (t1,) = parse_table(40, self._t([["3", "T1", "D16", "189", "0", "CONG", "INH", "TU", "20.90"]], 44.60))
+        self.assertTrue(table_usable(t1), t1.issues)
+        r = t1.rows[-1]
+        self.assertEqual((r.length_mm, r.quantity, r.unit_kg_m), (1890, 7, 1.58))
+
+    def test_zero_weight_written_on_drawing_is_flagged_not_dropped(self):
+        """Tr.40: W6/W7/W9 có dài và SL nhưng bản vẽ ghi 0 kg ở cả hai cột — sai của bản vẽ, không phải OCR."""
+        (t1,) = parse_table(40, self._t([["3", "W6", "D16", "615", "", "53", "1.580", "0.0", "0.00"]], 23.70))
+        self.assertTrue(table_usable(t1), t1.issues)
+        self.assertTrue(t1.rows[-1].ban_ve_ghi_0)
+        self.assertIn("BẢN VẼ ghi khối lượng 0", t1.rows[-1].notes[0])
+
+    def test_merged_multiplier_cell_with_rounded_weights(self):
+        """Tr.119: 'số đốt' 19 là ô gộp; khối lượng làm tròn 0,1 kg nên tổng ÷ khối lượng không ra số nguyên."""
+        hdr = ["TÊN THANH", "ĐƯỜNG KÍNH", "CHIỀU DÀI MM", "SỐ LƯỢNG", "KG/M", "KHỐI LƯỢNG KG", "SỐ LƯỢNG ĐỐT",
+               "TỔNG KHỐI LƯỢNG KG"]
+        t = table(hdr, [["G3", "D14", "2344", "41", "1.210", "116.3", "19.0", "2209.4"],
+                        ["G4B", "D12", "388", "13", "0.888", "4.5", "", "85.1"],
+                        ["G4A", "D12", "342", "13", "0.888", "", "", "75.0"],
+                        ["", "TỔNG HỢP KHỐI LƯỢNG CỐT THÉP", "", "", "", "", "", "2369.5"]])
+        (t1,) = parse_table(119, t)
+        self.assertTrue(table_usable(t1), t1.issues)
+        self.assertEqual([r.multiplier for r in t1.rows], [19, 19, 19])
+        self.assertEqual([r.total_kg for r in t1.rows], [2209.4, 85.1, 75.0])
+
+    def test_stacked_tables_are_split_at_their_totals(self):
+        """Tr.112: bảng bản mặt cầu ở trên, bảng liên tục nhiệt ở dưới trong cùng khối cột."""
+        hdr = ["TÊN THANH", "ĐƯỜNG KÍNH", "SỐ THANH", "CHIỀU DÀI MM", "KG/M", "KHỐI LƯỢNG KG"]
+        t = table(hdr, [["S1", "D14", "84", "1000", "1.210", "101.64"], ["S2", "D18", "10", "1000", "2.000", "20.00"],
+                        ["", "TỔNG KHỐI LƯỢNG THÉP", "", "", "", "121.64"],
+                        ["", "KHỐI LƯỢNG BÊ TÔNG 35MPA", "", "", "", "102.53"],
+                        ["L1", "D1 8", "54", "1000", "2.000", "108.00"], ["L2", "D25", "10", "1000", "3.850", "38.50"],
+                        ["L3", "D10", "10", "1000", "0.617", "6.17"],
+                        ["", "TỔNG KHỐI LƯỢNG THÉP", "", "", "", "152.67"]])
+        tables = parse_table(112, t)
+        self.assertEqual([x.stated_total_kg for x in tables], [121.64, 152.67])
+        self.assertEqual([r.mark for r in tables[1].rows], ["L1", "L2", "L3"])
+        self.assertTrue(all(table_usable(x) for x in tables))
+
+
 class PartialTableTest(unittest.TestCase):
     def _t(self, stated):
         return table(["TÊN THANH", "ĐƯỜNG KÍNH", "CHIỀU DÀI MM", "SỐ LƯỢNG", "KG/M", "KHỐI LƯỢNG KG"],
@@ -176,10 +240,22 @@ class RealDossierPagesTest(unittest.TestCase):
             self.assertTrue(table_usable(t), f"tr.{page}: {t.issues}")
             self.assertAlmostEqual(t.rows_total_kg, total, delta=0.05, msg=f"tr.{page}")
 
-    def test_abutment_m1_has_known_gap(self):
-        t = page_rebar_table(self.pages[31])
-        self.assertAlmostEqual(t.stated_total_kg, 7958.56, places=2)
-        self.assertAlmostEqual(partial_gap_kg(t), 126.74, places=2)
+    def test_abutments_and_parapet_read_completely(self):
+        """Trước đây thiếu 126,74 / 192,83 / 458,42 kg; nay mọi dòng đọc được và khớp tổng bản vẽ."""
+        for page, total in {31: 7958.56, 40: 19648.73, 119: 20069.02}.items():
+            t = page_rebar_table(self.pages[page])
+            self.assertTrue(table_usable(t), f"tr.{page}: {t.issues}")
+            self.assertAlmostEqual(t.rows_total_kg, total, delta=0.5, msg=f"tr.{page}")
+        zero = [r.mark for r in page_rebar_table(self.pages[40]).rows if r.ban_ve_ghi_0]
+        self.assertEqual(zero, ["W6(T)", "W7(T)", "W9(T)"])
+
+    def test_link_slab_table_on_page_112(self):
+        from tools.drawing_rebar_tables import page_tables
+        ltn = [t for t in page_tables(self.pages[112]) if any(r.mark == "L2" for r in t.rows)]
+        self.assertEqual(len(ltn), 1)
+        self.assertEqual(ltn[0].stated_total_kg, 8917.94)
+        self.assertTrue(table_usable(ltn[0]), ltn[0].issues)
+        self.assertEqual(sorted(r.mark for r in ltn[0].rows), ["L1", "L2", "L3", "S4"])
 
     def test_pile_rows_have_length_not_quantity(self):
         rows = page_tables(self.pages[64])[0].rows

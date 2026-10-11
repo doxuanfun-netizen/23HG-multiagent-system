@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from tools.cutting_stock_solver import REBAR_UNIT_WEIGHT_KG_M, rebar_unit_weight_kg_m
-from tools.drawing_rebar_tables import (good_rows, numeric_issues, page_rebar_table, partial_gap_kg,
+from tools.drawing_rebar_tables import (good_rows, numeric_issues, page_rebar_table, page_tables, partial_gap_kg,
                                         table_usable)
 
 CAP_DUL = "Cáp DƯL 15.2mm"
@@ -102,9 +102,19 @@ def nhom_duong_kinh(d: float) -> str:
     return "D<=10mm" if d <= 10 else ("10<D<=18mm" if d <= 18 else "D>18mm")
 
 
-def mac_thep(d: float) -> str:
-    """Theo quy ước của BBS cũ: Ø ≤ 10 thép tròn trơn CB240-T, còn lại CB400-V."""
-    return "CB240-T" if d <= 10 else "CB400-V"
+def mac_thep(d: float, tron_tron: bool = False) -> str:
+    """Theo quy ước của BBS cũ: Ø ≤ 10 thép tròn trơn CB240-T, còn lại CB400-V. Bản vẽ ghi 'R25', 'R8' (tròn trơn)
+    thì CB240-T bất kể Ø."""
+    return "CB240-T" if tron_tron or d <= 10 else "CB400-V"
+
+
+def drawing_table(page: dict, pg: dict):
+    """Bảng thép của trang; trang có nhiều bảng (vd. tr.112) thì chọn bảng chứa ký hiệu 'bang_co_ky_hieu'."""
+    mark = pg.get("bang_co_ky_hieu")
+    if not mark:
+        return page_rebar_table(page)
+    return next((t for t in page_tables(page) if t.stated_total_kg is not None and any(r.mark == mark for r in t.rows)),
+                None)
 
 
 def read_bbs(path: str, sheet: str = "THONG_KE_THEP_CHI_TIET") -> Tuple[Dict[str, str], List[Section]]:
@@ -204,7 +214,7 @@ def reconcile(sections: List[Section], config: dict, pages: Dict[int, dict]):
         # hạng mục có bảng thép theo trang
         info = []
         for pg in item["trang"]:
-            t = page_rebar_table(pages[pg["so"]]) if pg["so"] in pages else None
+            t = drawing_table(pages[pg["so"]], pg) if pg["so"] in pages else None
             info.append((pg, t))
         pages_txt = ", ".join(f"tr.{pg['so']}" for pg, _ in info)
         mult_known = all(pg["he_so"] is not None for pg, _ in info)
@@ -239,7 +249,7 @@ def reconcile(sections: List[Section], config: dict, pages: Dict[int, dict]):
                 for r in good_rows(t):
                     old = lookup.get((r.mark, r.diameter_mm, round(r.length_mm / 1000, 3)))
                     row = BbsRow(name, f"{pg['bo_phan']} ({src})", r.mark if r.mark and not r.mark.isdigit() else "(?)",
-                                 float(r.diameter_mm), mac=mac_thep(r.diameter_mm), hinh=old.hinh if old else "",
+                                 float(r.diameter_mm), mac=mac_thep(r.diameter_mm, r.tron_tron), hinh=old.hinh if old else "",
                                  L_m=round(r.length_mm / 1000, 3), n_per=r.quantity, n_ck=pg["he_so"] * r.multiplier,
                                  unit=rebar_unit_weight_kg_m(r.diameter_mm), nhom=nhom_duong_kinh(r.diameter_mm),
                                  ghi_chu=f"Theo bản vẽ thẩm định {src}")
@@ -247,6 +257,9 @@ def reconcile(sections: List[Section], config: dict, pages: Dict[int, dict]):
                     if not r.mark or r.mark.isdigit():
                         row.nghi_van.append(f"OCR không đọc được ký hiệu thanh (STT {r.stt or '?'}) — xem PDF {src}")
                     row.nghi_van.extend(f"{n} — xem PDF {src}" for n in r.notes)
+                    if r.ban_ve_ghi_0:
+                        row.nghi_van.append("BBS vẫn giữ thanh này để gia công (có dài và số lượng trên bản vẽ) nên "
+                                            "BBS lớn hơn tổng bản vẽ phần này — chủ dự án quyết định và ghim")
                     new_rows.append(row)
                 gap = gaps[pg["so"]]
                 if gap:
