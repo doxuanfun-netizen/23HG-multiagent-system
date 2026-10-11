@@ -128,5 +128,42 @@ class FrequencyWorkbookTest(unittest.TestCase):
         self.assertGreater(nv.max_row, 10)
 
 
+REPO_GOC = os.path.join(ROOT, "examples", "data", "km19_tan_suat_goc_truoc_sua.xlsx")
+REPO_MOI = os.path.join(ROOT, "examples", "HO_SO_CAU_KM19_529", "01_HIEN_TRUONG_QLCL_KCS",
+                        "Bang_Theo_Doi_Tan_Suat_Thi_Nghiem_Be_Tong_Va_Thep_Cau_Km19.xlsx")
+
+
+@unittest.skipUnless(os.path.isfile(DU_LIEU) and os.path.isfile(REPO_GOC), "thiếu dữ liệu Km19")
+class RepoWorkbookTest(unittest.TestCase):
+    """Bản trong repo (bố cục lệch 1 cột so với file đơn vị) = đúng kết quả chạy script trên bản trước sửa."""
+
+    @classmethod
+    def setUpClass(cls):
+        from examples.sua_tan_suat_km19_theo_ban_ve import run
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.out = os.path.join(cls.tmp.name, "ra.xlsx")
+        run(REPO_GOC, cls.out, ngay="11/10/2026")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_committed_workbook_is_exactly_what_the_script_produces(self):
+        a, b = openpyxl.load_workbook(self.out), openpyxl.load_workbook(REPO_MOI)
+        self.assertEqual(a.sheetnames, b.sheetnames)
+        for sh in a.sheetnames:
+            self.assertEqual([[c.value for c in r] for r in a[sh].iter_rows()],
+                             [[c.value for c in r] for r in b[sh].iter_rows()], sh)
+
+    def test_layout_shift_and_abutment_m1(self):
+        bt = openpyxl.load_workbook(REPO_MOI)[BT]
+        rows = {bt.cell(r, 2).value: bt.cell(r, 4).value for r in range(4, 87) if bt.cell(r, 2).value}
+        self.assertEqual(rows["Bê tông bệ mố M1 (C30 đá 1x2)"], 0)                # tr.31: mố M1 không có bệ
+        self.assertEqual(rows["Bê tông bệ mố M2 (C30 đá 1x2)"], 148.99)
+        self.assertAlmostEqual(rows["Bê tông tường thân mố M1 - Đợt 1 (C30 đá 1x2)"]
+                               + rows["Bê tông tường thân mố M1 - Đợt 2 (C30 đá 1x2)"], 52.96, places=2)
+        self.assertIn("/200", bt["Q4"].value)                                    # cát (cột Q ở bố cục lệch)
+
+
 if __name__ == "__main__":
     unittest.main()

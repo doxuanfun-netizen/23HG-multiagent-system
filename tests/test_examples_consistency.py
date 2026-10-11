@@ -57,9 +57,14 @@ _SKIP_DIR_NAMES = {
 }
 
 
+# Bản lưu trước-sửa của sổ tần suất 01_HIEN_TRUONG_QLCL_KCS (thư mục đã bỏ qua ở trên) — cùng loại file, cùng lý do.
+_SKIP_FILE_NAMES = {"km19_tan_suat_goc_truoc_sua.xlsx"}
+
+
 def _skip_audit(path):
     parts = set(path.replace("\\", "/").split("/"))
-    return os.path.getsize(path) > _HEAVY_BYTES or bool(parts & _SKIP_DIR_NAMES)
+    return (os.path.getsize(path) > _HEAVY_BYTES or bool(parts & _SKIP_DIR_NAMES)
+            or os.path.basename(path) in _SKIP_FILE_NAMES)
 
 
 class FormulaCoverageTest(unittest.TestCase):

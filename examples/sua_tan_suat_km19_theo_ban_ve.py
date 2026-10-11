@@ -2,13 +2,15 @@
 """
 Sửa file theo dõi tần suất thí nghiệm Cầu Km19 theo bản vẽ thẩm định (logic: tools/tan_suat_theo_ban_ve.py).
 
-Đầu vào : file Excel theo dõi tần suất của dự án (--vao; file làm việc của đơn vị, KHÔNG commit vào repo)
+Đầu vào : file Excel theo dõi tần suất (--vao; mặc định bản trong repo trước sửa: examples/data/
+          km19_tan_suat_goc_truoc_sua.xlsx; file làm việc của đơn vị thì KHÔNG commit vào repo)
           examples/data/km19_tan_suat_theo_ban_ve.json   quy tắc dòng bê tông → trang + nhãn bản vẽ
           BBS đã sửa theo bản vẽ + du_lieu.json (HSTK đã OCR)
 Đầu ra  : bản đã sửa (--ra): bê tông theo bản vẽ, thép dựng lại từ BBS, công thức tần suất sửa, DM sinh lại,
           sheet NGHI_VAN (cột Đã soát / Ghim).
 
-Chạy:  python examples/sua_tan_suat_km19_theo_ban_ve.py --vao <file.xlsx> --ra <file_moi.xlsx>
+Chạy:  python examples/sua_tan_suat_km19_theo_ban_ve.py                  (bản trong repo)
+       python examples/sua_tan_suat_km19_theo_ban_ve.py --vao <file.xlsx> --ra <file_moi.xlsx>
 """
 
 import argparse
@@ -29,6 +31,10 @@ from tools.tan_suat_theo_ban_ve import (apply_concrete, apply_dm, apply_steel, a
                                        concrete_events, steel_rows_from_bbs, update_bang_nhap)
 
 DEFAULT_CONFIG = os.path.join(ROOT, "examples", "data", "km19_tan_suat_theo_ban_ve.json")
+# Mặc định: bản trong repo (sinh bởi tools/generate_tan_suat_thi_nghiem_excel.py, giữ bản trước sửa để chạy lại được)
+DEFAULT_VAO = os.path.join(ROOT, "examples", "data", "km19_tan_suat_goc_truoc_sua.xlsx")
+DEFAULT_RA = os.path.join(ROOT, "examples", "HO_SO_CAU_KM19_529", "01_HIEN_TRUONG_QLCL_KCS",
+                          "Bang_Theo_Doi_Tan_Suat_Thi_Nghiem_Be_Tong_Va_Thep_Cau_Km19.xlsx")
 
 
 def run(vao: str, ra: str, config: str = DEFAULT_CONFIG, ngay: str = None) -> dict:
@@ -69,8 +75,8 @@ def run(vao: str, ra: str, config: str = DEFAULT_CONFIG, ngay: str = None) -> di
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Sửa file tần suất thí nghiệm Km19 theo bản vẽ thẩm định")
-    ap.add_argument("--vao", required=True)
-    ap.add_argument("--ra", required=True)
+    ap.add_argument("--vao", default=DEFAULT_VAO, help="file cần sửa (mặc định: bản trong repo trước sửa)")
+    ap.add_argument("--ra", default=DEFAULT_RA, help="file ghi ra (mặc định: bản trong repo)")
     ap.add_argument("--config", default=DEFAULT_CONFIG)
     ap.add_argument("--ngay", default=None)
     a = ap.parse_args(argv)
