@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Test sửa file theo dõi tần suất thí nghiệm theo bản vẽ (tools/tan_suat_theo_ban_ve.py,
-examples/sua_tan_suat_km19_theo_ban_ve.py). File thật của đơn vị không có trong repo, nên test dựng một workbook
+examples/sua_tan_suat_km19_theo_ban_ve.py, bộ sinh tools/generate_tan_suat_thi_nghiem_excel.py). File thật của đơn vị không có trong repo, nên test dựng một workbook
 nhỏ cùng bố cục (sheet bê tông, thép, tổng hợp, DM) rồi chạy công cụ trên dữ liệu bản vẽ + BBS thật.
 """
 
@@ -128,32 +128,50 @@ class FrequencyWorkbookTest(unittest.TestCase):
         self.assertGreater(nv.max_row, 10)
 
 
-REPO_GOC = os.path.join(ROOT, "examples", "data", "km19_tan_suat_goc_truoc_sua.xlsx")
 REPO_MOI = os.path.join(ROOT, "examples", "HO_SO_CAU_KM19_529", "01_HIEN_TRUONG_QLCL_KCS",
                         "Bang_Theo_Doi_Tan_Suat_Thi_Nghiem_Be_Tong_Va_Thep_Cau_Km19.xlsx")
 
 
-@unittest.skipUnless(os.path.isfile(DU_LIEU) and os.path.isfile(REPO_GOC), "thiếu dữ liệu Km19")
-class RepoWorkbookTest(unittest.TestCase):
-    """Bản trong repo (bố cục lệch 1 cột so với file đơn vị) = đúng kết quả chạy script trên bản trước sửa."""
+def _rows(ws):
+    return [[c.value for c in r] for r in ws.iter_rows()]
+
+
+@unittest.skipUnless(os.path.isfile(DU_LIEU), "thiếu dữ liệu Km19")
+class GeneratorTest(unittest.TestCase):
+    """Bộ sinh tự sửa theo bản vẽ: bản trong repo (bố cục lệch 1 cột so với file đơn vị) = đúng đầu ra bộ sinh."""
 
     @classmethod
     def setUpClass(cls):
-        from examples.sua_tan_suat_km19_theo_ban_ve import run
+        from tools.generate_tan_suat_thi_nghiem_excel import build_tan_suat_master_workbook
         cls.tmp = tempfile.TemporaryDirectory()
-        cls.out = os.path.join(cls.tmp.name, "ra.xlsx")
-        run(REPO_GOC, cls.out, ngay="11/10/2026")
+        cls.out, cls.raw = os.path.join(cls.tmp.name, "ra.xlsx"), os.path.join(cls.tmp.name, "tho.xlsx")
+        old = os.environ.pop("AEC_PROJECTS_DIR", None)
+        try:
+            cls.stats = build_tan_suat_master_workbook(cls.out, ngay="11/10/2026")
+            build_tan_suat_master_workbook(cls.raw, theo_ban_ve=False)
+        finally:
+            if old is not None:
+                os.environ["AEC_PROJECTS_DIR"] = old
 
     @classmethod
     def tearDownClass(cls):
         cls.tmp.cleanup()
 
-    def test_committed_workbook_is_exactly_what_the_script_produces(self):
+    def test_committed_workbook_is_exactly_what_the_generator_produces(self):
         a, b = openpyxl.load_workbook(self.out), openpyxl.load_workbook(REPO_MOI)
         self.assertEqual(a.sheetnames, b.sheetnames)
         for sh in a.sheetnames:
-            self.assertEqual([[c.value for c in r] for r in a[sh].iter_rows()],
-                             [[c.value for c in r] for r in b[sh].iter_rows()], sh)
+            self.assertEqual(_rows(a[sh]), _rows(b[sh]), sh)
+
+    def test_generator_output_differs_from_raw_build(self):
+        """Bước sửa thật sự chạy: bản thô còn số cũ (bệ mố M1 > 0, cát/đá chia ngược), bản sinh thì không."""
+        tho, moi = openpyxl.load_workbook(self.raw), openpyxl.load_workbook(self.out)
+        self.assertNotIn("NGHI_VAN", tho.sheetnames)
+        name = "Bê tông bệ mố M1 (C30 đá 1x2)"
+        r = next(r for r in range(4, 90) if tho[BT].cell(r, 2).value == name)
+        self.assertGreater(tho[BT].cell(r, 4).value, 0)
+        self.assertEqual(moi[BT].cell(r, 4).value, 0)
+        self.assertGreater(self.stats["nghi_van"], 0)
 
     def test_layout_shift_and_abutment_m1(self):
         bt = openpyxl.load_workbook(REPO_MOI)[BT]
