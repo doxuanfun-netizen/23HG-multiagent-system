@@ -135,5 +135,84 @@ class SummaryAndExitCodeTest(unittest.TestCase):
         self.assertIn("0/1 ca đạt", text)
 
 
+def _fake_table():
+    return {"10": {"a": 1.0, "b": 2.0}, "12": {"a": 3.0, "b": 4.0}}
+
+
+def _boom():
+    raise RuntimeError("hỏng")
+
+
+def _write_csv(text):
+    fd, path = tempfile.mkstemp(suffix=".csv")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(text)
+    return path
+
+
+def _table(cid, csv_path, producer="tests.test_golden_harness:_fake_table", tol=None, **extra):
+    base = {"id": cid, "title": cid, "source_type": "approved_dossier", "status": "active", "kind": "table",
+            "approved_ref": "hồ sơ mẫu", "producer": producer, "expected_csv": csv_path,
+            "tol": tol or {"a": 0.01, "b": 0.01}}
+    base.update(extra)
+    return base
+
+
+class TableKindTest(unittest.TestCase):
+    def setUp(self):
+        self.paths = []
+
+    def tearDown(self):
+        for p in self.paths:
+            os.remove(p)
+
+    def csv(self, text):
+        self.paths.append(_write_csv(text))
+        return self.paths[-1]
+
+    def test_matching_table_passes(self):
+        res = runner.run_case(_table("t", self.csv("k,a,b\n10,1.0,2.0\n12,3.0,4.0\n")))
+        self.assertEqual(res["result"], "PASS", res["detail"])
+        self.assertIn("4 ô đạt", res["detail"])
+
+    def test_cell_outside_tolerance_names_key_and_column(self):
+        res = runner.run_case(_table("t", self.csv("k,a,b\n10,1.0,2.0\n12,3.0,4.5\n")))
+        self.assertEqual(res["result"], "FAIL")
+        self.assertIn("12/b", res["detail"])
+        self.assertIn("1/4 ô lệch", res["detail"])
+
+    def test_missing_and_extra_keys_fail(self):
+        res = runner.run_case(_table("t", self.csv("k,a,b\n10,1.0,2.0\n14,5.0,6.0\n")))
+        self.assertEqual(res["result"], "FAIL")
+        self.assertIn("thiếu khóa ['14']", res["detail"])
+        self.assertIn("không có trong hồ sơ ['12']", res["detail"])
+
+    def test_producer_exception_is_fail(self):
+        res = runner.run_case(_table("t", self.csv("k,a\n10,1.0\n"), producer="tests.test_golden_harness:_boom",
+                                     tol={"a": 0.1}))
+        self.assertEqual(res["result"], "FAIL")
+        self.assertIn("RuntimeError", res["detail"])
+
+    def test_table_needs_csv_and_tolerances(self):
+        no_csv = _table("t", "")
+        with self.assertRaisesRegex(runner.ManifestError, "expected_csv"):
+            runner.validate({"cases": [no_csv]})
+        bad_tol = _table("u", "x.csv")
+        bad_tol["tol"] = 0.1
+        with self.assertRaisesRegex(runner.ManifestError, "tol"):
+            runner.validate({"cases": [bad_tol]})
+
+    def test_unknown_kind_rejected(self):
+        case = _active("k", [{"args": [16], "expected": 1.58}], kind="matrix")
+        with self.assertRaisesRegex(runner.ManifestError, "kind"):
+            runner.validate({"cases": [case]})
+
+    def test_real_bbs_table_case_runs_without_error(self):
+        case = next(c for c in runner.load_cases(MANIFEST) if c["id"] == "bbs_tong_hop_theo_duong_kinh")
+        res = runner.run_case(case)
+        self.assertIn(res["result"], ("PASS", "FAIL"))
+        self.assertNotIn("lỗi", res["detail"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,19 @@
+#!/bin/sh
+# Kiểm tra trước khi push: chạy đúng các bước CI và bộ test apps (CI chưa chạy bộ này).
+# Bật một lần cho bản clone:   git config core.hooksPath .githooks
+# Bỏ qua khi thật cần:          git push --no-verify
+set -e
+cd "$(git rev-parse --show-toplevel)"
+PY="${PYTHON:-python3}"
+command -v "$PY" >/dev/null 2>&1 || PY=python
+
+echo "[pre-push] 1/3 Bộ test gốc (như CI)..."
+"$PY" -m unittest discover -s tests -t . -q
+
+echo "[pre-push] 2/3 Tự kiểm tra solver + CPM (như CI)..."
+"$PY" run_state_graph.py --solver-test > /dev/null
+
+echo "[pre-push] 3/3 Bộ test apps/23hg_schedule_assistant_pro (test LibreOffice tự bỏ qua nếu thiếu Calc)..."
+(cd apps/23hg_schedule_assistant_pro && "$PY" -m unittest discover -s tests -p "test_*.py" -q)
+
+echo "[pre-push] OK"

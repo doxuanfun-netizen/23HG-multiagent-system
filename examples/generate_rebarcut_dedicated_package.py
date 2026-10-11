@@ -30,7 +30,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 from tools.bbs_loader import load_bbs
-from tools.cutting_stock_solver import CuttingStockSolver, CutDemand
+from tools.cutting_stock_solver import CuttingStockSolver, CutDemand, rebar_unit_weight_kg_m
 from tools.rebarcut_export import write_rebarcut_workbook
 
 # Đường dẫn thư mục đầu ra
@@ -63,7 +63,9 @@ DIA_CONFIG = {
 }
 
 
-def create_master_dashboard(path: str, summary_rows: List[Dict]) -> None:
+def create_master_dashboard(path: str, summary_rows: List[Dict], pt: Dict, bbs_errors=()) -> None:
+    """pt: {'strands', 'len_m', 'kg'} của cáp DƯL, tính từ hằng số thiết kế (không gõ cứng trong bảng).
+    bbs_errors: các dòng BBS bị loại khi đọc (sai đường kính, chiều dài...) — phải hiện trong bảng, không bỏ im lặng."""
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "TONG_HOP_CAT_THEP"
@@ -80,7 +82,9 @@ def create_master_dashboard(path: str, summary_rows: List[Dict]) -> None:
         "TT", "Đường kính (Ø)", "Mô tả hạng mục kết cấu chính",
         "Số thanh thiết kế (BBS)", "Tổng chiều dài (m)", "Số cây 11.7m cần mua",
         "Khối lượng thép mua (kg)", "Chiều dài phế/đề-xê (m)", "Tỷ lệ hao hụt (%)",
-        "Số mẫu cắt (Patterns)", "Số mối nối đề xuất", "Trạm gia công phụ trách", "Trạng thái tối ưu"
+        "Số mẫu cắt (Patterns)", "Số mối nối đề xuất",
+        "Thanh CHƯA lập kế hoạch cắt (dài hơn cây, chưa có vùng nối)", "KL thép CHƯA lập kế hoạch (kg)",
+        "Trạm gia công phụ trách", "Trạng thái tối ưu"
     ]
 
     header_row = 6
@@ -99,6 +103,12 @@ def create_master_dashboard(path: str, summary_rows: List[Dict]) -> None:
     total_bars = 0
     total_weight = 0.0
     total_waste = 0.0
+    total_unplanned_qty = 0
+    total_unplanned_len = 0.0
+    total_unplanned_kg = 0.0
+    last_col = 2 + len(headers) - 1
+    text_cols = (2, 3, 4, last_col - 1, last_col)
+    red = Font(bold=True, color="C00000")
 
     for idx, item in enumerate(summary_rows, start=1):
         ws.cell(row, 2, idx).alignment = Alignment(horizontal="center")
@@ -112,14 +122,19 @@ def create_master_dashboard(path: str, summary_rows: List[Dict]) -> None:
         ws.cell(row, 10, item["waste_pct"]).number_format = "0.00%"
         ws.cell(row, 11, item["patterns_count"]).alignment = Alignment(horizontal="center")
         ws.cell(row, 12, item["splices_count"]).alignment = Alignment(horizontal="center")
-        ws.cell(row, 13, item["station"])
-        status_cell = ws.cell(row, 14, item["status"])
+        ws.cell(row, 13, item["unplanned_qty"]).number_format = "#,##0"
+        ws.cell(row, 14, round(item["unplanned_kg"], 1)).number_format = "#,##0.0"
+        ws.cell(row, 15, item["station"])
+        status_cell = ws.cell(row, 16, item["status"])
         status_cell.alignment = Alignment(horizontal="center")
-        status_cell.font = Font(bold=True, color="006100")
+        status_cell.font = red if item["unplanned_qty"] else Font(bold=True, color="006100")
+        if item["unplanned_qty"]:
+            ws.cell(row, 13).font = red
+            ws.cell(row, 14).font = red
 
-        for c in range(2, 15):
+        for c in range(2, last_col + 1):
             ws.cell(row, c).border = border
-            if c not in (2, 3, 4, 13, 14):
+            if c not in text_cols:
                 ws.cell(row, c).alignment = Alignment(horizontal="right")
 
         total_qty += item["bars_qty"]
@@ -127,23 +142,28 @@ def create_master_dashboard(path: str, summary_rows: List[Dict]) -> None:
         total_bars += item["bars_11m7"]
         total_weight += item["weight_kg"]
         total_waste += item["waste_m"]
+        total_unplanned_qty += item["unplanned_qty"]
+        total_unplanned_len += item["unplanned_len_m"]
+        total_unplanned_kg += item["unplanned_kg"]
         row += 1
 
     # Dòng Cáp DƯL 15.2mm
     ws.cell(row, 2, len(summary_rows) + 1).alignment = Alignment(horizontal="center")
     ws.cell(row, 3, "Ø15.2 (Cáp DƯL)").alignment = Alignment(horizontal="center")
     ws.cell(row, 4, "Cáp DƯL 7 sợi ASTM A416 Gr270 căng kéo dầm Super-T")
-    ws.cell(row, 5, 660).number_format = "#,##0"
-    ws.cell(row, 6, 25212.0).number_format = "#,##0.00"
+    ws.cell(row, 5, pt["strands"]).number_format = "#,##0"
+    ws.cell(row, 6, pt["len_m"]).number_format = "#,##0.00"
     ws.cell(row, 7, "- (Cuộn cuộn)").alignment = Alignment(horizontal="center")
-    ws.cell(row, 8, 27783.6).number_format = "#,##0.0"
+    ws.cell(row, 8, pt["kg"]).number_format = "#,##0.0"
     ws.cell(row, 9, 0.0).number_format = "#,##0.00"
     ws.cell(row, 10, 0.0).number_format = "0.00%"
     ws.cell(row, 11, "-").alignment = Alignment(horizontal="center")
     ws.cell(row, 12, "-").alignment = Alignment(horizontal="center")
-    ws.cell(row, 13, "Trạm căng kéo cáp DƯL chuyên dụng")
-    ws.cell(row, 14, "THEO CUỘN").alignment = Alignment(horizontal="center")
-    for c in range(2, 15):
+    ws.cell(row, 13, 0).number_format = "#,##0"
+    ws.cell(row, 14, 0.0).number_format = "#,##0.0"
+    ws.cell(row, 15, "Trạm căng kéo cáp DƯL chuyên dụng")
+    ws.cell(row, 16, "THEO CUỘN").alignment = Alignment(horizontal="center")
+    for c in range(2, last_col + 1):
         ws.cell(row, c).border = border
         ws.cell(row, c).fill = PatternFill("solid", fgColor="F2F2F2")
     row += 1
@@ -152,24 +172,42 @@ def create_master_dashboard(path: str, summary_rows: List[Dict]) -> None:
     ws.cell(row, 2, "TỔNG CỘNG").alignment = Alignment(horizontal="center")
     ws.cell(row, 3, "")
     ws.cell(row, 4, "TOÀN BỘ CÔNG TRÌNH CẦU KM19+529.080")
-    ws.cell(row, 5, total_qty + 660).number_format = "#,##0"
-    ws.cell(row, 6, total_len + 25212.0).number_format = "#,##0.00"
+    ws.cell(row, 5, total_qty + pt["strands"]).number_format = "#,##0"
+    ws.cell(row, 6, total_len + pt["len_m"]).number_format = "#,##0.00"
     ws.cell(row, 7, total_bars).number_format = "#,##0"
-    ws.cell(row, 8, total_weight + 27783.6).number_format = "#,##0.0"
+    ws.cell(row, 8, total_weight + pt["kg"]).number_format = "#,##0.0"
     ws.cell(row, 9, total_waste).number_format = "#,##0.00"
     ws.cell(row, 10, (total_waste / (total_bars * 11.7)) if total_bars else 0).number_format = "0.00%"
     ws.cell(row, 11, sum(x["patterns_count"] for x in summary_rows)).alignment = Alignment(horizontal="center")
     ws.cell(row, 12, sum(x["splices_count"] for x in summary_rows)).alignment = Alignment(horizontal="center")
-    ws.cell(row, 13, "Đồng bộ bãi gia công 5 trạm")
-    ws.cell(row, 14, "HOÀN TẤT").alignment = Alignment(horizontal="center")
+    ws.cell(row, 13, total_unplanned_qty).number_format = "#,##0"
+    ws.cell(row, 14, round(total_unplanned_kg, 1)).number_format = "#,##0.0"
+    ws.cell(row, 15, "Đồng bộ bãi gia công 5 trạm")
+    ws.cell(row, 16, "CHƯA ĐỦ" if total_unplanned_qty else "HOÀN TẤT").alignment = Alignment(horizontal="center")
 
-    for c in range(2, 15):
+    for c in range(2, last_col + 1):
         cell = ws.cell(row, c)
         cell.font = Font(name="Times New Roman", size=11, bold=True)
         cell.fill = PatternFill("solid", fgColor="D9E1F2")
         cell.border = border
-        if c not in (2, 3, 4, 13, 14):
+        if c not in text_cols:
             cell.alignment = Alignment(horizontal="right")
+    if total_unplanned_qty:
+        for c in (13, 14, 16):
+            ws.cell(row, c).font = Font(name="Times New Roman", size=11, bold=True, color="C00000")
+        warn = ws.cell(row + 2, 2,
+                       f"CẢNH BÁO: {total_unplanned_qty:,} thanh ({total_unplanned_len:,.1f} m, "
+                       f"{total_unplanned_kg:,.1f} kg) dài hơn cây 11.7m nhưng chưa có vùng cho phép nối, nên CHƯA có "
+                       f"trong kế hoạch cắt. Số cây cần mua ở trên CHƯA đủ cho các thanh này. Cần xác định vị trí và "
+                       f"chiều dài nối theo bản vẽ rồi chạy lại.")
+        warn.font = Font(name="Times New Roman", size=11, bold=True, color="C00000")
+    if bbs_errors:
+        r0 = row + (4 if total_unplanned_qty else 2)
+        head = ws.cell(r0, 2, f"CẢNH BÁO: {len(bbs_errors)} dòng BBS bị loại khi đọc, KHÔNG có trong bảng này "
+                              f"— cần sửa BBS rồi chạy lại:")
+        head.font = Font(name="Times New Roman", size=11, bold=True, color="C00000")
+        for k, e in enumerate(bbs_errors, start=1):
+            ws.cell(r0 + k, 2, f"  - {e}").font = Font(name="Times New Roman", size=10, color="C00000")
 
     # Column widths
     ws.column_dimensions["A"].width = 3
@@ -184,8 +222,10 @@ def create_master_dashboard(path: str, summary_rows: List[Dict]) -> None:
     ws.column_dimensions["J"].width = 16
     ws.column_dimensions["K"].width = 14
     ws.column_dimensions["L"].width = 14
-    ws.column_dimensions["M"].width = 32
-    ws.column_dimensions["N"].width = 16
+    ws.column_dimensions["M"].width = 20
+    ws.column_dimensions["N"].width = 18
+    ws.column_dimensions["O"].width = 32
+    ws.column_dimensions["P"].width = 22
 
     wb.save(path)
 
@@ -235,6 +275,10 @@ def run(out_dir=None, sync_micro=None, bbs_path=TEMPLATE_BBS, bbs_sheet="THONG_K
     log(f"  + Số lượng demand hợp lệ: {len(res.demands)}")
     log(f"  + Tổng số thanh cần cắt: {res.total_pieces:,} thanh")
     log(f"  + Số dòng cáp DƯL tách riêng: {len(res.skipped)}")
+    if res.errors:
+        log(f"  ⚠ {len(res.errors)} dòng BBS bị loại (không có trong kế hoạch cắt):")
+        for e in res.errors:
+            log(f"    - {e}")
 
     # 3. Khởi tạo solver RebarCut Pro
     solver = CuttingStockSolver(bar_length_mm=11700, kerf_mm=5, end_trim_mm=0, time_limit_s=time_limit_s)
@@ -267,6 +311,12 @@ def run(out_dir=None, sync_micro=None, bbs_path=TEMPLATE_BBS, bbs_sheet="THONG_K
         export_cnc_csv(cnc_path, sol, dia)
 
         total_len_m = sum(d.length_mm * d.quantity for d in sub_demands) / 1000.0
+        # Thanh dài hơn cây mà chưa có vùng cho phép nối: solver không lập kế hoạch cho chúng (sol.unplanned).
+        # Phải hiện ra trong bảng, nếu không số cây cần mua sẽ thiếu mà vẫn ghi OPTIMAL.
+        unplanned_qty = sum(u["quantity"] for u in sol.unplanned)
+        unplanned_len_m = sum(u["quantity"] * u["length_mm"] for u in sol.unplanned) / 1000.0
+        unplanned_kg = unplanned_len_m * rebar_unit_weight_kg_m(dia)
+        status = f"CHƯA ĐỦ ({unplanned_qty:,} thanh chưa lập kế hoạch)" if unplanned_qty else sol.status
         summary_rows.append({
             "dia": dia,
             "desc": cfg["desc"],
@@ -279,12 +329,18 @@ def run(out_dir=None, sync_micro=None, bbs_path=TEMPLATE_BBS, bbs_sheet="THONG_K
             "waste_pct": sol.waste_ratio_pct / 100.0,
             "patterns_count": len(sol.patterns),
             "splices_count": sol.total_splices,
-            "status": sol.status,
+            "unplanned_qty": unplanned_qty,
+            "unplanned_len_m": unplanned_len_m,
+            "unplanned_kg": unplanned_kg,
+            "status": status,
             "time_s": dt
         })
 
         log(f"  * Ø{dia:02d} [{cfg['name']}]: {len(sub_demands)} marks, {sum(d.quantity for d in sub_demands):,} thanh "
-              f"--> {sol.total_bars_needed} cây 11.7m | Đề-xê: {sol.waste_ratio_pct:.2f}% | Status: {sol.status} ({dt:.2f}s)")
+              f"--> {sol.total_bars_needed} cây 11.7m | Đề-xê: {sol.waste_ratio_pct:.2f}% | Status: {status} ({dt:.2f}s)")
+        if unplanned_qty:
+            log(f"    ⚠ Ø{dia:02d}: {unplanned_qty:,} thanh ({unplanned_len_m:,.1f} m, {unplanned_kg:,.1f} kg) dài hơn cây "
+                f"nhưng chưa có vùng cho phép nối — CHƯA có trong kế hoạch cắt")
 
     # 4.1. Tạo hồ sơ Cáp Dự ứng lực 15.2mm dầm Super-T
     log(f"  * Cáp DƯL [15.2mm]: {PT_STRANDS_PER_BEAM * PT_BEAM_COUNT} tao cáp L={PT_STRAND_LENGTH_M}m --> Xuất hồ sơ riêng Trạm căng kéo...")
@@ -328,7 +384,8 @@ def run(out_dir=None, sync_micro=None, bbs_path=TEMPLATE_BBS, bbs_sheet="THONG_K
     # 5. Xuất Dashboard tổng hợp và File Master Toàn cầu
     log(f"\n[4/5] Đang tạo Dashboard Tổng Hợp và File Master Toàn Cầu 5 Sheet...")
     dashboard_path = os.path.join(target_folder, "00_BANG_TONG_HOP_CAT_THEP_THEO_PHI.xlsx")
-    create_master_dashboard(dashboard_path, summary_rows)
+    create_master_dashboard(dashboard_path, summary_rows,
+                            {"strands": n_strands, "len_m": pt_total_len_m, "kg": pt_weight_kg}, res.errors)
     log(f"  + Dashboard: {dashboard_path}")
 
     master_path = os.path.join(target_folder, "00_RebarCut_MASTER_TOAN_CAU_11M7.xlsx")
@@ -383,13 +440,21 @@ Hệ thống tổ hợp cắt thép được lập bằng công nghệ **Pure Py
 - Đầu thừa < 20xD được gom vào hộc phế liệu phân loại theo từng mác thép để thanh lý phế liệu có kiểm soát.
 """)
     log(f"  + Đã tạo hướng dẫn: {readme_path}")
-    log("\n[5/5] HOÀN TẤT 100% HỆ THỐNG CẮT THÉP CHUYÊN NGHIỆP!")
+    n_unplanned = sum(r["unplanned_qty"] for r in summary_rows)
+    if res.errors:
+        log(f"\n  ⚠ {len(res.errors)} dòng BBS bị loại khi đọc — xem cảnh báo cuối bảng tổng hợp")
+    if n_unplanned:
+        log(f"\n[5/5] XONG, NHƯNG CÒN {n_unplanned:,} THANH CHƯA CÓ TRONG KẾ HOẠCH CẮT (xem cột đỏ trong bảng tổng hợp)")
+    else:
+        log("\n[5/5] XONG: mọi thanh trong BBS đã có trong kế hoạch cắt")
     log("=" * 80)
 
     return {
         "target_folder": target_folder,
         "dias": dias,
         "bars_by_dia": {r["dia"]: r["bars_11m7"] for r in summary_rows},
+        "unplanned_by_dia": {r["dia"]: r["unplanned_qty"] for r in summary_rows if r["unplanned_qty"]},
+        "bbs_errors": list(res.errors),
         "total_bars_master": total_bars_master,
         "summary_rows": summary_rows,
     }

@@ -114,6 +114,115 @@ class DedicatedPackageTest(unittest.TestCase):
         self.assertEqual((strands, round(total_len), weight), (660, 25212, 27783.6))      # đúng số cũ của hồ sơ
 
 
+def dashboard_rows(path):
+    """{nhãn Ø: [giá trị cột B..]} và các dòng còn lại của bảng tổng hợp."""
+    ws = openpyxl.load_workbook(path).active
+    return [[c.value for c in r][1:] for r in ws.iter_rows(min_row=6)]
+
+
+class EveryBarPlannedTest(unittest.TestCase):
+    """Bộ BBS nhỏ không có thanh dài: không được báo thiếu, và mua đủ chiều dài cho mọi Ø."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        mod = load_module()
+        bbs = os.path.join(cls.tmp.name, "bbs.csv")
+        with open(bbs, "w", encoding="utf-8") as f:
+            f.write(BBS)
+        cls.out = os.path.join(cls.tmp.name, "out")
+        cls.result = mod.run(out_dir=cls.out, bbs_path=bbs, bbs_sheet=None, quiet=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_no_unplanned_and_purchase_covers_demand(self):
+        self.assertEqual(self.result["unplanned_by_dia"], {})
+        for r in self.result["summary_rows"]:
+            self.assertGreaterEqual(r["bars_11m7"] * 11.7 + 1e-9, r["total_len_m"], f"Ø{r['dia']}")
+            self.assertFalse(r["status"].startswith("CHƯA ĐỦ"))
+
+    def test_total_row_says_done_and_cable_row_is_derived(self):
+        rows = dashboard_rows(os.path.join(self.out, "00_BANG_TONG_HOP_CAT_THEP_THEO_PHI.xlsx"))
+        total = next(r for r in rows if r[0] == "TỔNG CỘNG")
+        self.assertEqual(total[14], "HOÀN TẤT")
+        cable = next(r for r in rows if r[1] == "Ø15.2 (Cáp DƯL)")
+        self.assertEqual(cable[3], 660)
+
+
+# Ø25 dài 14 m > cây 11.7 m và không có vùng cho phép nối → solver không lập kế hoạch được.
+LONG_BBS = BBS + "D1,25,CB400-V,14000,3\n"
+
+
+class LongBarNotSilentlyDroppedTest(unittest.TestCase):
+    """Lỗi cũ: thanh dài hơn cây bị solver đưa vào `unplanned`, nhưng bảng tổng hợp bỏ qua — số cây cần mua thiếu
+    mà vẫn ghi OPTIMAL. Hồ sơ Km19 thiếu 3.546 thanh (~121 tấn) theo cách này."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        mod = load_module()
+        bbs = os.path.join(cls.tmp.name, "bbs.csv")
+        with open(bbs, "w", encoding="utf-8") as f:
+            f.write(LONG_BBS)
+        cls.out = os.path.join(cls.tmp.name, "out")
+        cls.result = mod.run(out_dir=cls.out, bbs_path=bbs, bbs_sheet=None, quiet=True)
+        cls.row25 = next(r for r in cls.result["summary_rows"] if r["dia"] == 25)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_summary_row_reports_unplanned(self):
+        self.assertEqual(self.result["unplanned_by_dia"], {25: 3})
+        self.assertEqual(self.row25["unplanned_qty"], 3)
+        self.assertAlmostEqual(self.row25["unplanned_len_m"], 42.0)
+        self.assertGreater(self.row25["unplanned_kg"], 0)
+        self.assertTrue(self.row25["status"].startswith("CHƯA ĐỦ"), self.row25["status"])
+
+    def test_purchase_plus_unplanned_covers_demand(self):
+        for r in self.result["summary_rows"]:
+            self.assertGreaterEqual(r["bars_11m7"] * 11.7 + r["unplanned_len_m"] + 1e-9, r["total_len_m"],
+                                    f"Ø{r['dia']}")
+
+    def test_dashboard_shows_unplanned_and_warns(self):
+        rows = dashboard_rows(os.path.join(self.out, "00_BANG_TONG_HOP_CAT_THEP_THEO_PHI.xlsx"))
+        r25 = next(r for r in rows if r[1] == "Ø25")
+        self.assertEqual(r25[11], 3)                                    # cột "Thanh CHƯA lập kế hoạch"
+        self.assertTrue(str(r25[14]).startswith("CHƯA ĐỦ"))
+        total = next(r for r in rows if r[0] == "TỔNG CỘNG")
+        self.assertEqual(total[11], 3)
+        self.assertEqual(total[14], "CHƯA ĐỦ")
+        self.assertTrue(any(isinstance(r[0], str) and r[0].startswith("CẢNH BÁO: 3 thanh") for r in rows))
+
+    def test_per_diameter_workbook_lists_unplanned_bars(self):
+        path = glob.glob(os.path.join(self.out, "THEO_TUNG_DUONG_KINH_PHI", "*_D25_*.xlsx"))[0]
+        wb = openpyxl.load_workbook(path)
+        self.assertIn("CHUA_LAP_KE_HOACH", wb.sheetnames)
+        data = [[c.value for c in r] for r in wb["CHUA_LAP_KE_HOACH"].iter_rows(min_row=5)]
+        self.assertEqual([(r[1], r[2], r[5]) for r in data], [("D1", 25, 3)])
+        self.assertIn("CÒN 3 thanh", wb["PA_TOI_UU"]["A3"].value)
+
+
+class RejectedBbsRowsAreReportedTest(unittest.TestCase):
+    """Dòng BBS sai (Ø không phải thép thanh, chiều dài 2mm...) bị bộ đọc loại; trước đây script tạo bộ cắt không báo gì."""
+
+    def test_rejected_rows_listed_in_result_and_dashboard(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bbs = os.path.join(tmp, "bbs.csv")
+            with open(bbs, "w", encoding="utf-8") as f:
+                f.write(BBS + "X1,128,CB400-V,2,525\n")
+            out = os.path.join(tmp, "out")
+            result = load_module().run(out_dir=out, bbs_path=bbs, bbs_sheet=None, quiet=True)
+            self.assertEqual(len(result["bbs_errors"]), 1)
+            self.assertIn("Ø128", result["bbs_errors"][0])
+            rows = dashboard_rows(os.path.join(out, "00_BANG_TONG_HOP_CAT_THEP_THEO_PHI.xlsx"))
+            texts = [r[0] for r in rows if isinstance(r[0], str)]
+            self.assertTrue(any(t.startswith("CẢNH BÁO: 1 dòng BBS bị loại") for t in texts), texts)
+            self.assertTrue(any("Ø128" in t for t in texts))
+
+
 class DestinationFolderRegressionTest(unittest.TestCase):
     def test_missing_micro_dossier_folder_no_longer_crashes(self):
         """Trước đây: shutil.copyfile vào thư mục BO_HO_SO_02... chưa tồn tại → FileNotFoundError ở bước cuối."""

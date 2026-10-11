@@ -41,6 +41,10 @@ def _plan_sheet(wb, name: str, title: str, sol: CuttingStockSolution) -> None:
     ws = wb.create_sheet(name)
     ws["A1"] = title
     ws["A3"] = f"{sol.status} — {sol.solver_name}"
+    if sol.unplanned:
+        n = sum(u["quantity"] for u in sol.unplanned)
+        ws["A3"] = (f"{sol.status} cho phần ĐÃ lập kế hoạch — CÒN {n:,} thanh chưa có trong kế hoạch "
+                    f"(xem sheet CHUA_LAP_KE_HOACH) — {sol.solver_name}")
     ws["A4"], ws["B4"] = "Cây", sol.total_bars_needed
     ws["C4"], ws["D4"] = "Cận dưới", sol.lower_bound_bars
     ws["E4"], ws["F4"] = "Đề-xê (%)", round(sol.waste_ratio_pct, 2)
@@ -137,6 +141,25 @@ def write_rebarcut_workbook(
     ws["A10"] = ("Chỉ là đề xuất vật tư. Phải kiểm tra vị trí nối, vùng cấm nối, tỷ lệ nối trên cùng mặt cắt, "
                  "chiều dài nối/neo, khoảng cách so le mối nối và được TVGS/thiết kế chấp thuận.")
     ws.column_dimensions["A"].width = 38
+
+    # ── CHUA_LAP_KE_HOACH: thanh solver không lập kế hoạch (vd. dài hơn cây mà chưa có vùng nối) ─────────
+    unplanned_rows = [("PA_TOI_UU", u) for u in base.unplanned]
+    if spliced is not None:
+        unplanned_rows += [("PA_NOI", u) for u in spliced.unplanned]
+    if unplanned_rows:
+        ws = wb.create_sheet("CHUA_LAP_KE_HOACH")
+        ws["A1"] = "THANH CHƯA CÓ TRONG KẾ HOẠCH CẮT — SỐ CÂY CẦN MUA Ở CÁC SHEET PA CHƯA BAO GỒM CÁC THANH NÀY"
+        ws["A2"] = ("Thường do thanh dài hơn cây thép mà BBS chưa có vùng cho phép nối. Cần xác định vị trí, "
+                    "kiểu và chiều dài nối theo bản vẽ, được thiết kế/TVGS chấp thuận, rồi chạy lại.")
+        headers = ["Phương án", "Bar Mark", "Ø (mm)", "Mác thép", "Chiều dài (m)", "Số lượng", "Tổng dài (m)", "Lý do"]
+        for c, h in enumerate(headers, start=1):
+            ws.cell(row=4, column=c, value=h)
+        _style_header(ws, 4, len(headers))
+        for label, u in unplanned_rows:
+            ws.append([label, u["mark"], u["diameter_mm"], u.get("grade", ""), u["length_mm"] / 1000,
+                       u["quantity"], u["length_mm"] * u["quantity"] / 1000, u["reason"]])
+        ws.column_dimensions["B"].width = 28
+        ws.column_dimensions["H"].width = 80
 
     # ── PA sheets ─────────────────────────────────────────────────────────────
     _plan_sheet(wb, "PA_TOI_UU", "PA TỐI ƯU – OR-TOOLS (KHÔNG NỐI)", base)

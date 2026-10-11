@@ -112,25 +112,43 @@
       ]
     },
     {
+      "id": "bbs_tong_hop_theo_duong_kinh",
+      "title": "Tổng chiều dài và khối lượng thép thanh theo Ø (không gồm cáp DƯL) so với sheet tổng hợp của BBS đã duyệt",
+      "source_type": "approved_dossier",
+      "status": "active",
+      "kind": "table",
+      "approved_ref": "examples/HO_SO_CAU_KM19_529/02_XUONG_TIEN_CHE_COT_THEP/04_Thong_Ke_Thep_Chi_Tiet_BBS_396_Dong.xlsx, sheet TONG_HOP_THEP_THEO_DUONG_KINH, cột 'Tổng chiều dài (m)' và 'Tổng trọng lượng (kg)'. File chưa lưu giá trị công thức nên số trong fixtures/bbs_km19_tong_hop_theo_duong_kinh.csv được tính lại bằng LibreOffice, không sửa tay. Sheet này không có dòng Ø8. Chủ dự án cho biết đã duyệt; số văn bản và ngày duyệt: chưa cung cấp.",
+      "producer": "tests.golden.harness.producers:bbs_theo_duong_kinh",
+      "args": [
+        "examples/HO_SO_CAU_KM19_529/02_XUONG_TIEN_CHE_COT_THEP/04_Thong_Ke_Thep_Chi_Tiet_BBS_396_Dong.xlsx",
+        "THONG_KE_THEP_CHI_TIET"
+      ],
+      "expected_csv": "tests/golden/harness/fixtures/bbs_km19_tong_hop_theo_duong_kinh.csv",
+      "tol": {
+        "tong_dai_m": 0.01,
+        "tong_kg": 0.5
+      }
+    },
+    {
       "id": "bbs_10_dong_bat_thuong",
       "title": "10 dòng BBS có Ø không phải thép thanh và chiều dài 2–4 mm",
       "source_type": "approved_dossier",
       "status": "pending",
-      "reason": "Dầm ngang và Bản liên tục nhiệt: Ø 54–260 mm, chiều dài 1 thanh 0,001–0,004 m, tổng khoảng 81.890 kg (~9% tổng BBS). Sheet tổng hợp không có các dòng này và không có Ø8 (~215 kg), nên tổng 801.796 kg khác tổng chi tiết 883.902 kg. Chờ chủ dự án xác nhận sửa dữ liệu hay loại bỏ."
+      "reason": "10 dòng Dầm ngang và Bản liên tục nhiệt: Ø 54–260 mm, chiều dài 1 thanh 0,001–0,004 m, tổng ~81.890 kg (~9% tổng BBS); bộ đọc BBS loại cả 10 dòng. Bản vẽ thẩm tra ghi liên tục nhiệt 4.458,97 kg × 2 = 8.917,94 kg (HSTK trang 112) và dầm ngang 2.763,12 kg (trang 96), nên các dòng này có vẻ là lỗi nhập liệu. Sheet tổng hợp không có các dòng này và không có Ø8 (~215 kg): 801.796 kg so với tổng chi tiết 883.902 kg. Chờ chủ dự án cấp BBS đã sửa."
     },
     {
       "id": "payment_03a_vs_approved",
       "title": "Mẫu 03a so với bảng khối lượng thực hiện đã ký",
       "source_type": "approved_dossier",
       "status": "pending",
-      "reason": "Chưa có Mẫu 03a đã ký. Hiện chênh lệch so với BBS +14,4% chưa được giải thích."
+      "reason": "Chưa có Mẫu 03a đã ký. File 03a trong repo không dùng làm chuẩn được: công thức khối lượng và đơn giá trỏ sai dòng sang sheet QS_DIEN_GIAI_CHI_TIET ở 15/18 mục (vd. 'Cốt thép mố và trụ' lấy dòng 'Bê tông xà mũ')."
     },
     {
       "id": "bridge_estimate_vs_approved",
       "title": "Dự toán cầu G_XD so với bản đã duyệt",
       "source_type": "approved_dossier",
       "status": "pending",
-      "reason": "Chưa có dự toán cầu đã duyệt. Bộ kiểm thử hiện chỉ kiểm tra tự nhất quán."
+      "reason": "Chưa có dự toán cầu đã duyệt. Dự toán trong repo có dòng tổng hạng mục nhập tay, không bằng tổng dòng con (hạng mục 4: 108,766 t so với 118,97 t; 14: 224,652 t so với 128,1 t; 17: 361,6 t so với 90,63 t), và cốt thép mố M1/M2 ghi 'theo trang 31/40' là 23,45 t/31,85 t trong khi trang đó ghi 7,959 t/19,649 t."
     }
   ]
 }
