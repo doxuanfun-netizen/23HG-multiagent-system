@@ -1,0 +1,49 @@
+{
+  "_ghi_chu": "Ca hand_formula chỉ kiểm tra công thức. Ca approved_dossier chỉ đạt khi có file đã duyệt và kỳ vọng được điền từ file đó (ghi approved_ref). Ca pending chưa có dữ liệu, không bao giờ được tính là đạt.",
+  "cases": [
+    {
+      "id": "steel_rebar_unit_mass",
+      "title": "Khối lượng đơn vị cốt thép D²/162",
+      "source_type": "hand_formula",
+      "status": "active",
+      "producer": "tools.steel_qs:rebar_unit_mass",
+      "checks": [
+        {
+          "args": [
+            16
+          ],
+          "expected": 1.580247,
+          "tol": 1e-06
+        },
+        {
+          "args": [
+            10
+          ],
+          "expected": 0.617284,
+          "tol": 1e-06
+        }
+      ]
+    },
+    {
+      "id": "cut_plan_vs_bbs_approved",
+      "title": "Bảng cắt thép theo Ø so với BBS đã duyệt",
+      "source_type": "approved_dossier",
+      "status": "pending",
+      "reason": "Chưa có BBS đã duyệt của dự án để đối chiếu số thanh và khối lượng theo Ø."
+    },
+    {
+      "id": "payment_03a_vs_approved",
+      "title": "Mẫu 03a so với bảng khối lượng thực hiện đã ký",
+      "source_type": "approved_dossier",
+      "status": "pending",
+      "reason": "Chưa có Mẫu 03a đã ký. Hiện chênh lệch so với BBS +14,4% chưa được giải thích."
+    },
+    {
+      "id": "bridge_estimate_vs_approved",
+      "title": "Dự toán cầu G_XD so với bản đã duyệt",
+      "source_type": "approved_dossier",
+      "status": "pending",
+      "reason": "Chưa có dự toán cầu đã duyệt. Bộ kiểm thử hiện chỉ kiểm tra tự nhất quán."
+    }
+  ]
+}
