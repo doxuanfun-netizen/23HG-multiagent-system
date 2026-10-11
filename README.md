@@ -20,7 +20,7 @@
 ### Những gì đã được kiểm chứng
 - `python -m unittest discover -s tests -t .`: 340 test đạt (4 test bỏ qua khi thiếu thư viện tùy chọn), gồm các phép tính tay độc lập cho tiền, đo bóc và hồ sơ mẫu; CI chạy trên Ubuntu (Python 3.10, 3.12) và Windows (Python 3.11). Test chưa phủ hết: ví dụ lỗi cú pháp trong `tools/qs_export.py` (làm `--qs-out` hỏng) tồn tại từ commit `8a90ad4` mà không test nào bắt được, đến nay mới sửa và bổ sung test.
 - Chạy `--demo` đủ 8 pha (CAD → cắt thép → QS → QA/QC → Human Gate → CPM → ca máy → As-Built) không lỗi.
-- Solver cắt thép tách theo từng Ø và mác thép, tính lưỡi cắt, báo **cận dưới** số cây (`OPTIMAL` nghĩa là đã chứng minh không dùng ít hơn được).
+- Solver cắt thép tách theo từng Ø và mác thép, tính lưỡi cắt, báo **cận dưới** số cây (`OPTIMAL` nghĩa là đã chứng minh không dùng ít hơn được cho các thanh đã lập kế hoạch; thanh dài hơn cây mà chưa có vùng cho phép nối được liệt kê riêng là "chưa lập kế hoạch").
 - Quét tĩnh các file Excel mẫu bằng `python -m tools.audit_excels_static <thư_mục>` (không cần Excel): không có mã lỗi công thức, không có tham chiếu tới sheet không tồn tại. Quality Gate khi xuất hồ sơ cũng kiểm tra điều này.
 - Bộ tính công thức `tools/excel_eval.py` tính được **toàn bộ** ô công thức trong `examples/` và `templates/` (hơn 10.000 ô; gồm ngày tháng, `IF/AND`, `VLOOKUP`, `SUMPRODUCT` theo mảng, `TEXT`), không ô nào ra lỗi Excel. Đây vẫn là bộ tính tự viết, không phải Excel.
 
@@ -39,7 +39,7 @@ Phát hành theo **[MIT License](LICENSE)**. Tác giả & duy trì: **Nguyễn B
 
 > 📘 **Tài liệu hữu ích cho người mới:** Xem ngay [Cẩm nang Hướng dẫn Viết Prompt & Câu Lệnh Thực Chiến](docs/HUONG_DAN_VIET_PROMPT.md) để biết cách ra lệnh chính xác cho AI và chạy các tác vụ kỹ thuật chuẩn xác.
 >
-> 🌟 **CHIẾN TÍCH THỰC CHIẾN (OCTOBER 2026):** Xem ngay [Báo cáo Bóc tách CAD & Vạch trần sai lệch 4,5 km cống Thoát nước thải Cụm B9](docs/CASE_STUDY_CAD_TAKEOFF_B9_THOAT_NUOC_THAI.md) kèm [Bộ hồ sơ Master Excel 100% công thức sống](examples/BOC_TACH_THOAT_NUOC_THAI_B9_CAD_TAKEOFF/README.md) — 23HG quét 100% hình học 990 hố ga, 967 tuyến cống, phát hiện 1.285 dimension bị gán `DIMLFAC = 0.8` làm hụt 4.466m cống và ép TVTK phải cập nhật lại hồ sơ!
+> 🌟 **Ví dụ thực tế (10/2026):** [Báo cáo bóc tách CAD và sai lệch 4,5 km cống thoát nước thải cụm B9](docs/CASE_STUDY_CAD_TAKEOFF_B9_THOAT_NUOC_THAI.md) kèm [bộ hồ sơ Master Excel tính bằng công thức](examples/BOC_TACH_THOAT_NUOC_THAI_B9_CAD_TAKEOFF/README.md) — quét hình học 990 hố ga, 967 tuyến cống, phát hiện 1.285 dimension bị gán `DIMLFAC = 0.8` làm hụt 4.466 m cống; đã đề nghị tư vấn thiết kế cập nhật hồ sơ.
 >
 > 🚀 **PHÂN HỆ ĐIỀU HÀNH DOANH NGHIỆP (ENTERPRISE v4.1.0):** Trải nghiệm ngay [23HG Schedule Assistant Pro](apps/23hg_schedule_assistant_pro/README.md) — Giao diện Điều hành Excel C-Suite, Live Gantt Canvas, Quản trị EVM 5D, Cầu nối 2 chiều MS Project (XML) & Primavera P6 (XER), và Ribbon 34 macro lệnh tại thư mục `apps/23hg_schedule_assistant_pro/`. Xem [Hồ sơ Nghiệm thu Bàn giao](apps/23hg_schedule_assistant_pro/BAN_GIAO_DANH_GIA_DU_AN.md).
 
@@ -223,7 +223,7 @@ python run_state_graph.py --phase rebar --bbs "BBS_du_an.xlsx" --cut-plan-out ph
 ```
 > - Đọc được Excel (tự tìm sheet có bảng BBS, hoặc chỉ định `--bbs-sheet`), CSV (`,` `;` hoặc tab) và JSON. Cột nhận diện theo tiêu đề tiếng Việt hoặc tiếng Anh: *Ký hiệu thanh*, *Đường kính Ø (mm)*, *Mác thép*, *Chiều dài 1 thanh (m)* hoặc `length_mm`, *Tổng số thanh* hoặc *Số thanh / cấu kiện* × *Số cấu kiện*. Cột chiều dài bắt buộc ghi đơn vị (m hoặc mm).
 > - Dòng BBS sai dữ liệu (đường kính không tiêu chuẩn, chiều dài quá ngắn, số lượng lẻ...) làm hệ thống **dừng và liệt kê từng dòng**. Nếu muốn loại các dòng đó và tiếp tục, thêm `--bbs-skip-invalid`; các dòng bị loại vẫn được cảnh báo.
-> - Solver chỉ ghép các đoạn **cùng đường kính và cùng mác thép**, trừ 3mm lưỡi cắt mỗi nhát, rồi báo **cận dưới** số cây. `OPTIMAL` nghĩa là đã chứng minh không thể dùng ít cây hơn. Nếu đề-xê vẫn > 1.5% thì đó là do chiều dài thanh trong BBS, không phải do cách ghép.
+> - Solver chỉ ghép các đoạn **cùng đường kính và cùng mác thép**, trừ 3mm lưỡi cắt mỗi nhát, rồi báo **cận dưới** số cây. `OPTIMAL` nghĩa là đã chứng minh không thể dùng ít cây hơn cho các thanh đã lập kế hoạch (thanh dài hơn cây mà chưa có vùng cho phép nối nằm ở cột/sheet "CHƯA lập kế hoạch"). Nếu đề-xê vẫn > 1.5% thì đó là do chiều dài thanh trong BBS, không phải do cách ghép.
 > - **Thanh dài hơn 11.7m** được tự tách thành k đoạn nối (vd 39.85m thành 4 đoạn, 3 mối nối), nếu có vùng cho phép nối (cột *Vùng cho phép nối* hoặc `--splice-zone`):
 >   - Mỗi đoạn ≤ cây thép và ≥ max(L nối, 20D). Mọi vùng chồng nối nằm trong vùng cho phép.
 >   - **Mối nối so le theo từng dòng BBS:** tâm các mối nối cách nhau < 1.3 × L_nối coi là cùng mặt cắt, và mỗi mặt cắt có tối đa `--max-splice-ratio` (mặc định 50%) số thanh có mối nối.
@@ -235,8 +235,9 @@ python run_state_graph.py --phase rebar --bbs "BBS_du_an.xlsx" --cut-plan-out ph
 > - **Xuất theo bố cục RebarCut Pro Excel:** `--rebarcut-out ket_qua.xlsx`, gồm các sheet INPUT, SO_SANH, PA_TOI_UU, PA_NOI, MOI_NOI, REMAIN, CHI_TIET.
 > - **Bộ cắt thép giao xưởng theo từng Ø (Gói B Km19)** nằm trong repo tại `examples/HO_SO_CAU_KM19_529/02_XUONG_TIEN_CHE_COT_THEP/` (thư mục Gói B thuộc quy hoạch Dream Team Km19) (≈ 18 MB, 26 file): `00_BANG_TONG_HOP_CAT_THEP_THEO_PHI.xlsx` (nhìn tổng theo Ø), `01_To_Hop_Cat_Thep_11m7_RebarCut.xlsx`, `THEO_TUNG_DUONG_KINH_PHI/` (mỗi Ø một file RebarCut, Ø8 → Ø32, kèm cáp DƯL 15,2) và `LENH_CAT_CNC_CSV/` (mỗi Ø một lệnh cắt CNC), cùng `README_QUY_TRINH_VAN_HANH_BAI_THEP.md`. Sinh lại:
 >   `python examples/generate_rebarcut_dedicated_package.py --out "<thư mục đích>"` (không có `--out` thì ghi vào thư mục dự án `AEC_PROJECTS_DIR`; `--bbs` đổi file BBS nguồn). Mọi số trong hướng dẫn vận hành được tính từ BBS, không gõ cứng.
-> - **Hai file gộp** (xlsx RebarCut ≈ 4,2 MB và CSV từng đoạn cắt ≈ 9 MB, mã cây đánh số liên tục) là bản tổng của mọi Ø, giữ trong repo từ trước. Chúng và bộ theo từng Ø **cùng số lượng** (33.212 cây 11,7 m; tổng chiều dài cắt từng Ø khớp tuyệt đối) nhưng **cách ghép từng đoạn lên từng cây và mã cây khác nhau**; xưởng cần dùng một bộ cho nhất quán.
-> - **Chạy lại có đổi kết quả không?** Trên cùng máy cho kết quả giống hệt, và bộ giải chứng minh tối ưu (`OPTIMAL`) cho cả 11 Ø nên số cây không phụ thuộc tốc độ máy. Cách ghép đoạn lên cây có thể khác giữa các phiên bản bộ giải. Nếu xưởng đã cắt theo một bản cụ thể thì **đừng ghi đè** bản đó.
+> - **Hai file gộp** (xlsx RebarCut ≈ 4,2 MB và CSV từng đoạn cắt ≈ 9 MB, mã cây đánh số liên tục) là bản tổng của mọi Ø, giữ trong repo từ trước. Chúng và bộ theo từng Ø **cùng số lượng** (33.212 cây 11,7 m; tổng chiều dài cắt từng Ø khớp nhau) nhưng **cách ghép từng đoạn lên từng cây và mã cây khác nhau**; xưởng cần dùng một bộ cho nhất quán.
+> - **Lưu ý (11/10/2026): bộ file cắt thép đang có trong repo CHƯA ĐỦ.** 3.546 thanh dài hơn cây 11,7 m (Ø14, Ø16, Ø18, Ø25, Ø28, Ø32; khoảng 144 t) chưa có trong kế hoạch cắt vì BBS chưa có vùng cho phép nối, và phiên bản cũ của script không báo điều này. Script đã được sửa: bảng tổng hợp có cột "CHƯA lập kế hoạch", trạng thái "CHƯA ĐỦ" và cảnh báo đỏ; file từng Ø có sheet `CHUA_LAP_KE_HOACH`. Cần xác định vị trí nối theo bản vẽ rồi sinh lại bộ file.
+> - **Chạy lại có đổi kết quả không?** Trên cùng máy cho kết quả giống hệt, và bộ giải báo `OPTIMAL` cho phần đã lập kế hoạch ở cả 11 Ø nên số cây không phụ thuộc tốc độ máy. Cách ghép đoạn lên cây có thể khác giữa các phiên bản bộ giải. Nếu xưởng đã cắt theo một bản cụ thể thì **đừng ghi đè** bản đó.
 > - Repo có test chặn commit file lớn hơn 1 MB (trừ danh sách ngoại lệ có lý do: 2 file gộp và thư mục cắt thép theo từng Ø) và chặn đường dẫn dài quá 190 ký tự (giới hạn Windows) và chặn các bản sao cùng tên bị lệch nhau (`tests/test_repo_hygiene.py`).
 
 #### a2. Tính tiến độ CPM từ file tiến độ thật:
@@ -321,7 +322,7 @@ python tools/pho_bang_batch_exporter.py --all
 # 2. Xuất trọn bộ hệ thống công nghiệp cho Cầu thôn Khai Hoang 2, Km 14+363.65:
 python tools/export_cau_khai_hoang_2.py
 
-# 3. Xuất trọn vẹn 3 Tầng hồ sơ cho dự án bất kỳ từ Master Workbook (kèm Quality Gate 100% Zero Errors):
+# 3. Xuất trọn vẹn 3 Tầng hồ sơ cho dự án bất kỳ từ Master Workbook (kèm Quality Gate chặn lỗi công thức):
 python run_state_graph.py --export-all --excel "Du_An_Master.xlsx" --export-dir "./HO_SO_XUAT_XUONG" --project-name "Cầu Km19+529.080"
 
 # 4. Xuất trực tiếp qua module Package Dispatcher độc lập (Tự động áp dụng chuẩn 3 tầng 15 cột cho Gói A):
@@ -335,8 +336,8 @@ python -m tools.package_dispatcher --source ./examples/HO_SO_CONG_HOP_TUYEN_A5 -
 > - **Tự động sản xuất đồng bộ 3 tầng đóng gói**:
 >   1. **Tầng 1 (Macro Master)**: `BO_HO_SO_01_MACRO_MASTER_14_SHEET` (Master 14 Sheet, XML/MPP Gantt, BBNT Word A4, Thuyết minh BPTC, Báo cáo kiểm toán tự chấm).
 >   2. **Tầng 2 (Micro 14 bộ)**: `BO_HO_SO_02_VI_MO_CHUYEN_SAU_14_BO` (12-14 file độc lập chuyên sâu; công thức trỏ sang sheet không có trong file được thay bằng ma trận giá trị sạch; sheet chưa có dữ liệu không được xuất).
->   3. **Tầng 3 (Hub & Spoke 5 gói)**: `03_HO_SO_THUC_CHIEN_HUB_AND_SPOKE_5_GOI_VE_TINH` (Tách file theo vai trò thực chiến: **Gói A Cơ giới & Dầu diezel bắt buộc tuân thủ 100% chuẩn mẫu 3 tầng 15 cột A..O Vincons**, Gói B Xưởng thép RebarCut 11.7m, Gói C Hiện trường QA/QC, Gói D QS Dự toán 03a, Gói E Executive Dashboard, Bảng phân quyền RACI & Biên bản bàn giao, file `DISPATCH_MANIFEST.json` xác thực mã băm MD5).
-> - **Cổng kiểm toán tự động (Quality Gate)**: Quét toàn bộ mọi file Excel đã sinh, phát hiện và chặn đứng mọi mã lỗi công thức (`#REF!`, `#VALUE!`, `#DIV/0!`, `#N/A`, `#NAME?`), bảo đảm **100% Zero Formula Errors**. Kết quả tự động ghi vào `DISPATCH_MANIFEST.json`.
+>   3. **Tầng 3 (Hub & Spoke 5 gói)**: `03_HO_SO_THUC_CHIEN_HUB_AND_SPOKE_5_GOI_VE_TINH` (Tách file theo vai trò thực chiến: **Gói A Cơ giới & Dầu diezel theo mẫu 3 tầng 15 cột A..O Vincons**, Gói B Xưởng thép RebarCut 11.7m, Gói C Hiện trường QA/QC, Gói D QS Dự toán 03a, Gói E Executive Dashboard, Bảng phân quyền RACI & Biên bản bàn giao, file `DISPATCH_MANIFEST.json` xác thực mã băm MD5).
+> - **Cổng kiểm toán tự động (Quality Gate)**: Quét toàn bộ mọi file Excel đã sinh, phát hiện và chặn đứng mọi mã lỗi công thức (`#REF!`, `#VALUE!`, `#DIV/0!`, `#N/A`, `#NAME?`), và báo lỗi nếu còn. Kết quả tự động ghi vào `DISPATCH_MANIFEST.json`. Giới hạn: ô công thức chưa có giá trị lưu sẵn chỉ được kiểm khi bộ tính nội bộ (`tools/excel_eval.py`) hỗ trợ hàm đó.
 
 #### b. Chạy thử toàn bộ 8 pha bằng dữ liệu mẫu (demo):
 ```powershell
@@ -369,9 +370,9 @@ python examples/run_cad_diff_demo.py
 ```powershell
 python examples/BOC_TACH_THOAT_NUOC_THAI_B9_CAD_TAKEOFF/generate_cad_takeoff_master.py
 ```
-> - **Quy mô:** Quét trực tiếp 100% hình học từ bản vẽ CAD `261008.MB TNT LÔ B9.2-3-4.dwg` gồm **990 hố ga TB41** và **967 tuyến cống** (tổng chiều dài $22.016,90\text{ m}$).
-> - **Phát hiện bất thường (Red Flag):** Vạch trần toàn bộ 1.285 dimension bị gán hệ số `DIMLFAC = 0.8` (Line vẽ thật $23.8\text{m}$ nhưng Text ghi nhãn `D300-L19M`), phát hiện chênh lệch thiếu hụt lên tới **$4.466,45\text{ m}$ cống** ($20\%$). Ép bên Tư vấn Thiết kế phải cập nhật lại hồ sơ.
-> - **Sản phẩm bàn giao:** File Master Excel [Boc_Tach_Khoi_Luong_Cong_HoGa_B9_CAD_Master.xlsx](examples/BOC_TACH_THOAT_NUOC_THAI_B9_CAD_TAKEOFF/Boc_Tach_Khoi_Luong_Cong_HoGa_B9_CAD_Master.xlsx) 5 Sheets, 100% công thức sống, tích hợp đầy đủ tọa độ trắc địa VN-2000 (Trục X, Y) và 15 đầu việc BoQ chuẩn TT 36/2026/TT-BXD.
+> - **Quy mô:** Quét hình học trực tiếp từ bản vẽ CAD `261008.MB TNT LÔ B9.2-3-4.dwg` gồm **990 hố ga TB41** và **967 tuyến cống** (tổng chiều dài $22.016,90\text{ m}$).
+> - **Phát hiện bất thường (Red Flag):** Phát hiện 1.285 dimension bị gán hệ số `DIMLFAC = 0.8` (Line vẽ thật $23.8\text{m}$ nhưng Text ghi nhãn `D300-L19M`), phát hiện chênh lệch thiếu hụt lên tới **$4.466,45\text{ m}$ cống** ($20\%$). Đã đề nghị tư vấn thiết kế cập nhật lại hồ sơ.
+> - **Sản phẩm bàn giao:** File Master Excel [Boc_Tach_Khoi_Luong_Cong_HoGa_B9_CAD_Master.xlsx](examples/BOC_TACH_THOAT_NUOC_THAI_B9_CAD_TAKEOFF/Boc_Tach_Khoi_Luong_Cong_HoGa_B9_CAD_Master.xlsx) 5 sheet, khối lượng tính bằng công thức, tích hợp đầy đủ tọa độ trắc địa VN-2000 (Trục X, Y) và 15 đầu việc BoQ chuẩn TT 36/2026/TT-BXD.
 > - Chi tiết toàn văn: Xem [Báo cáo Thực chiến Case Study](docs/CASE_STUDY_CAD_TAKEOFF_B9_THOAT_NUOC_THAI.md).
 
 #### f. Chạy Kiểm toán Độc lập trên Workbook 14 Sheet Master (điểm tự chấm):
@@ -711,7 +712,7 @@ Hệ thống đăng ký 8 hàm LAMBDA chuyên ngành AEC thông qua chuẩn Open
 - Tích hợp `embed_cad_proof_images()` chèn trực tiếp hình ảnh trích xuất từ bản vẽ CAD (Mặt đứng mố M1, M2, Mặt cắt ngang trụ T1, T2, Chi tiết cọc khoan nhồi) vào cột minh họa của bảng tính.
 - Mọi con số kích thước trên bảng tính đều có thể đối chiếu trực quan 1-1 với bản vẽ thiết kế gốc ngay trong file Excel.
 
-> 📁 **Hồ sơ mẫu thực tế:** Xem [`examples/HO_SO_CAU_KM19_529/`](examples/HO_SO_CAU_KM19_529/) — Bảng đo bóc hoàn chỉnh toàn bộ hạ bộ Cầu Km19+529 QL23 đạt điểm kiểm toán tuyệt đối 100/100 (`BANG_BOC_TACH_CHI_TIET_HA_BO_MO_TRU_COC_KM19.xlsx`).
+> 📁 **Hồ sơ mẫu thực tế:** Xem [`examples/HO_SO_CAU_KM19_529/`](examples/HO_SO_CAU_KM19_529/) — Bảng đo bóc hoàn chỉnh toàn bộ hạ bộ Cầu Km19+529 QL23 (`BANG_BOC_TACH_CHI_TIET_HA_BO_MO_TRU_COC_KM19.xlsx`) — không có lỗi công thức khi quét tĩnh; số liệu chưa đối chiếu đầy đủ với bản vẽ thẩm tra.
 
 ---
 

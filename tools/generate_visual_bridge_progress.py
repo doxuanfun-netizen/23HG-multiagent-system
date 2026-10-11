@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Hệ thống Tự động Xuất Sơ đồ Tiến độ Trực quan & Hồ sơ Hoàn công Cầu (As-Built Visual Progress Dashboard)
-Mô phỏng 100% bố cục chuẩn kỹ thuật công trường:
+Bố cục theo bảng theo dõi kỹ thuật công trường:
 - Bảng thông số nhịp & khối lượng đỉnh
 - Sơ đồ trắc dọc cầu (Elevation view) với phân tầng cấu kiện và mã màu trực quan:
   + Đã thi công (Xanh lá)
@@ -16,8 +16,18 @@ Mô phỏng 100% bố cục chuẩn kỹ thuật công trường:
   * Thân trụ T2: Đốt 1 Đã xong, Đốt 2 Đang triển khai
   * Mố M1: Bệ đã xong, Thân đang triển khai cốt thép / ván khuôn
   * Mố M2: Đã hoàn thành thân mố, đang triển khai đỉnh mố / tường cánh
+
+Dữ liệu nằm trong examples/data/asbuilt_km19.json (không gõ cứng trong script):
+  - hang_muc: các hạng mục hiện trường (ngày, tình trạng, KCS);
+  - ke_hoach_duc_dam: ngày bắt đầu, chu kỳ, số nhịp, số phiến mỗi nhịp, số phiến đã đúc → lịch đúc được TÍNH.
+Giới hạn: sơ đồ HTML vẽ cố định 3 nhịp; màu khối dầm trên sơ đồ SVG chưa đổi theo số phiến đã đúc.
+
+Chạy:  python tools/generate_visual_bridge_progress.py [--config ...] [--html ...] [--xlsx ...]
 """
 
+import argparse
+import datetime as dt
+import math
 import os
 import sys
 import json
@@ -26,14 +36,156 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ARTIFACT_DIR = os.environ.get(
-    "AEC_ARTIFACT_DIR",
-    os.path.join(os.path.expanduser("~"), ".gemini", "antigravity", "brain", "72d154f5-cd5c-48e3-a99b-1b14843e8fa6")
-)
+ARTIFACT_DIR = os.environ.get("AEC_ARTIFACT_DIR", os.path.join(ROOT, "output"))
+CONFIG_PATH = os.path.join(ROOT, "examples", "data", "asbuilt_km19.json")
+DEFAULT_XLSX = os.path.join(ROOT, "examples", "HO_SO_CAU_KM19_529", "01_HIEN_TRUONG_QLCL_KCS",
+                            "So_Do_Tien_Do_Truc_Quan_AsBuilt_Cau_Km19.xlsx")
+TRANG_THAI = ("ĐÃ THI CÔNG", "ĐANG TRIỂN KHAI", "CHƯA THI CÔNG")
+ROW_KEYS = ("hang_muc", "vi_tri", "quy_cach", "mac_bt", "khoi_luong_m3", "tien_do_thiet_ke",
+            "ngay_khoi_cong", "ngay_hoan_thanh", "tinh_trang", "danh_gia_kcs", "ghi_chu")
+HTML_NHIP = 3                     # template HTML vẽ cố định 3 nhịp
 
 
-def generate_html_dashboard(output_path: str):
-    """Tạo tệp HTML trực quan tương tác cao theo chuẩn Generative UI & Tailwind CSS"""
+class AsBuiltConfigError(ValueError):
+    pass
+
+
+def load_config(path=CONFIG_PATH):
+    """Đọc và kiểm tra cấu hình As-Built; sai thì báo lỗi kèm vị trí."""
+    with open(path, encoding="utf-8") as f:
+        cfg = json.load(f)
+    kh = cfg.get("ke_hoach_duc_dam") or {}
+    try:
+        dt.date.fromisoformat(kh["ngay_bat_dau"])
+    except (KeyError, TypeError, ValueError):
+        raise AsBuiltConfigError("ke_hoach_duc_dam.ngay_bat_dau phải có dạng YYYY-MM-DD")
+    for key in ("chu_ky_ngay", "so_nhip", "phien_moi_nhip"):
+        if not isinstance(kh.get(key), int) or kh[key] <= 0:
+            raise AsBuiltConfigError(f"ke_hoach_duc_dam.{key} phải là số nguyên dương")
+    tong = kh["so_nhip"] * kh["phien_moi_nhip"]
+    if not isinstance(kh.get("da_duc"), int) or not 0 <= kh["da_duc"] <= tong:
+        raise AsBuiltConfigError(f"ke_hoach_duc_dam.da_duc phải trong khoảng 0..{tong}")
+    markers = 0
+    for i, item in enumerate(cfg.get("hang_muc") or [], start=1):
+        if item.get("chen_ke_hoach_dam"):
+            markers += 1
+            continue
+        missing = [k for k in ROW_KEYS if k not in item]
+        if missing:
+            raise AsBuiltConfigError(f"hang_muc[{i}] thiếu {missing}")
+        if item["tinh_trang"] not in TRANG_THAI:
+            raise AsBuiltConfigError(f"hang_muc[{i}] '{item['hang_muc']}': tinh_trang phải là một trong {TRANG_THAI}")
+    if markers != 1:
+        raise AsBuiltConfigError("hang_muc phải có đúng một mục {\"chen_ke_hoach_dam\": true}")
+    return cfg
+
+
+def _d(d):
+    return d.strftime("%d/%m/%Y")
+
+
+def _dm(d):
+    return d.strftime("%d/%m")
+
+
+def ke_hoach_dam(kh):
+    """Lịch đúc dầm tính từ cấu hình: đúc lần lượt từng phiến, mỗi phiến một chu kỳ, theo thứ tự nhịp."""
+    start = dt.date.fromisoformat(kh["ngay_bat_dau"])
+    cycle, n, so_nhip, da_duc = kh["chu_ky_ngay"], kh["phien_moi_nhip"], kh["so_nhip"], kh["da_duc"]
+    nhip = []
+    for i in range(so_nhip):
+        bd = start + dt.timedelta(days=i * n * cycle)
+        kt = start + dt.timedelta(days=(i + 1) * n * cycle)
+        done = min(max(da_duc - i * n, 0), n)
+        trang_thai = TRANG_THAI[2] if done == 0 else (TRANG_THAI[0] if done == n else TRANG_THAI[1])
+        lich = [(bd + dt.timedelta(days=k * cycle), bd + dt.timedelta(days=(k + 1) * cycle)) for k in range(n)]
+        nhip.append({"so": i + 1, "bat_dau": bd, "ket_thuc": kt, "da_duc": done, "trang_thai": trang_thai, "lich": lich})
+    return {"tong": so_nhip * n, "da_duc": da_duc, "chu_ky": cycle, "phien_moi_nhip": n, "nhip": nhip}
+
+
+def _tinh_trang_nhip(nh, n):
+    if nh["da_duc"] == 0:
+        return f"Chưa thi công (0/{n} phiến)"
+    if nh["da_duc"] == n:
+        return f"Đã đúc xong ({n}/{n} phiến)"
+    return f"Đang đúc ({nh['da_duc']}/{n} phiến)"
+
+
+def html_tokens(cfg):
+    """Giá trị điền vào các token @@...@@ của template HTML."""
+    kh = cfg["ke_hoach_duc_dam"]
+    plan = ke_hoach_dam(kh)
+    if len(plan["nhip"]) != HTML_NHIP:
+        raise AsBuiltConfigError(f"Template HTML vẽ cố định {HTML_NHIP} nhịp; cấu hình có {len(plan['nhip'])} nhịp")
+    n, tong, cycle = plan["phien_moi_nhip"], plan["tong"], plan["chu_ky"]
+    t = {
+        "TONG_PHIEN": str(tong), "DA_DUC": str(plan["da_duc"]), "CHU_KY": str(cycle),
+        "PHIEN_MOI_NHIP": str(n), "NGAY_MOI_NHIP": str(n * cycle), "BT_NHIP": f"{kh['bt_moi_nhip_m3']:g}",
+        "NGAY_1_BE": str(tong * cycle), "NGAY_2_BE": str(math.ceil(tong * cycle / 2)),
+        "TT_TONG": ("Chưa thi công" if plan["da_duc"] == 0 else
+                    "Đã đúc xong" if plan["da_duc"] == tong else "Đang đúc"),
+        "BAI_DUC_HIEN_TRANG": ("Hiện chưa đúc phiến nào." if plan["da_duc"] == 0 else
+                               f"Đã đúc {plan['da_duc']}/{tong} phiến."),
+    }
+    for nh in plan["nhip"]:
+        k = f"N{nh['so']}"
+        pct = round(100 * nh["da_duc"] / n)
+        t[f"{k}_BD"], t[f"{k}_KT"], t[f"{k}_BD_NGAN"] = _d(nh["bat_dau"]), _d(nh["ket_thuc"]), _dm(nh["bat_dau"])
+        t[f"{k}_TIEN_DO"] = f"{nh['da_duc']}/{n} phiến ({pct}%)"
+        t[f"{k}_TT"] = _tinh_trang_nhip(nh, n)
+        t[f"{k}_TT_HOA"] = nh["trang_thai"]
+        t[f"{k}_LICH"] = " → ".join(f"D{j} ({_dm(a)}-{_dm(b)})" for j, (a, b) in enumerate(nh["lich"], start=1))
+    return t
+
+
+def fill_tokens(template, tokens):
+    out = template
+    for k, v in tokens.items():
+        out = out.replace(f"@@{k}@@", v)
+    if "@@" in out:
+        i = out.index("@@")
+        raise AsBuiltConfigError(f"Template còn token chưa điền: {out[i:i + 40]!r}")
+    return out
+
+
+def beam_rows(cfg):
+    """Các dòng Excel 'Đúc dầm Super-T Nhịp i' tính từ ke_hoach_duc_dam."""
+    kh = cfg["ke_hoach_duc_dam"]
+    plan = ke_hoach_dam(kh)
+    n, cycle = plan["phien_moi_nhip"], plan["chu_ky"]
+    rows = []
+    for nh in plan["nhip"]:
+        note = (f"KH bắt đầu đúc {_d(nh['bat_dau'])}, chu kỳ {cycle} ngày/phiến ({n * cycle} ngày)" if nh["so"] == 1
+                else f"KH đúc sau Nhịp {nh['so'] - 1}, chu kỳ {cycle} ngày/phiến ({n * cycle} ngày)")
+        kcs = f"Chưa đúc (0/{n})" if nh["da_duc"] == 0 else f"Đã đúc ({nh['da_duc']}/{n})"
+        rows.append((f"Đúc dầm Super-T Nhịp {nh['so']}", "Bãi đúc", f"{n} Phiến L={kh['chieu_dai_dam_m']:g}m",
+                     kh["mac_bt"], kh["bt_moi_nhip_m3"], f"{_dm(nh['bat_dau'])} - {_d(nh['ket_thuc'])}",
+                     f"{_d(nh['bat_dau'])} (KH)", f"{_d(nh['ket_thuc'])} (KH)", nh["trang_thai"], kcs, note))
+    return rows
+
+
+def excel_rows(cfg):
+    rows = []
+    for item in cfg["hang_muc"]:
+        if item.get("chen_ke_hoach_dam"):
+            rows.extend(beam_rows(cfg))
+        else:
+            rows.append(tuple(item[k] for k in ROW_KEYS))
+    return rows
+
+
+def tom_tat(rows, cfg):
+    """Dòng tóm tắt hiện trạng, đếm từ dữ liệu thay vì gõ tay."""
+    count = {t: sum(1 for r in rows if r[8] == t) for t in TRANG_THAI}
+    plan = ke_hoach_dam(cfg["ke_hoach_duc_dam"])
+    return (f"Hiện trạng thi công As-Built: {count[TRANG_THAI[0]]} hạng mục đã thi công • "
+            f"{count[TRANG_THAI[1]]} đang triển khai • {count[TRANG_THAI[2]]} chưa thi công • "
+            f"Dầm Super-T đã đúc {plan['da_duc']}/{plan['tong']} phiến")
+
+
+def generate_html_dashboard(output_path: str, cfg=None):
+    """Tạo tệp HTML trực quan; lịch đúc dầm điền từ cấu hình (xem html_tokens)."""
+    cfg = cfg or load_config()
     html_content = """<!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -90,9 +242,9 @@ def generate_html_dashboard(output_path: str):
             <div class="text-[11px] text-emerald-500 font-medium">Hoàn thành 100%</div>
           </div>
           <div class="bg-slate-900/80 border border-slate-700 rounded-xl p-3 text-center">
-            <div class="text-xs text-slate-400 font-medium">Dầm Super-T (15 phiến)</div>
-            <div class="text-xl font-bold text-slate-300 mt-1">0/15 phiến</div>
-            <div class="text-[11px] text-cyan-400 font-semibold">KH đúc: 25/10 (7 ngày/phiến)</div>
+            <div class="text-xs text-slate-400 font-medium">Dầm Super-T (@@TONG_PHIEN@@ phiến)</div>
+            <div class="text-xl font-bold text-slate-300 mt-1">@@DA_DUC@@/@@TONG_PHIEN@@ phiến</div>
+            <div class="text-[11px] text-cyan-400 font-semibold">KH đúc: @@N1_BD_NGAN@@ (@@CHU_KY@@ ngày/phiến)</div>
           </div>
         </div>
       </div>
@@ -178,19 +330,19 @@ def generate_html_dashboard(output_path: str):
                     <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">LÊN BỆ MỐ</span>
                   </td>
                   <td class="p-2 border border-slate-700">
-                    <span class="px-2 py-0.5 rounded bg-slate-700 text-slate-300 border border-slate-600 text-[10px] font-bold">KH: 25/10/2026</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-700 text-slate-300 border border-slate-600 text-[10px] font-bold">KH: @@N1_BD@@</span>
                   </td>
                   <td class="p-2 border border-slate-700">
                     <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">XONG ĐỐT 1</span>
                   </td>
                   <td class="p-2 border border-slate-700">
-                    <span class="px-2 py-0.5 rounded bg-slate-700 text-slate-300 border border-slate-600 text-[10px] font-bold">KH: 29/11/2026</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-700 text-slate-300 border border-slate-600 text-[10px] font-bold">KH: @@N2_BD@@</span>
                   </td>
                   <td class="p-2 border border-slate-700">
                     <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">XONG ĐỐT 1</span>
                   </td>
                   <td class="p-2 border border-slate-700">
-                    <span class="px-2 py-0.5 rounded bg-slate-700 text-slate-300 border border-slate-600 text-[10px] font-bold">KH: 03/01/2027</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-700 text-slate-300 border border-slate-600 text-[10px] font-bold">KH: @@N3_BD@@</span>
                   </td>
                   <td class="p-2 border border-slate-700">
                     <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">ĐÃ LÊN THÂN</span>
@@ -399,21 +551,21 @@ def generate_html_dashboard(output_path: str):
             <!-- NHỊP 1 (M1 - T1) -->
             <g id="grp_span1" class="svg-node" onclick="inspectElem('SPAN1')">
               <rect x="142" y="98" width="171" height="15" rx="2" fill="url(#gradNotDone)" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,2"/>
-              <text x="227" y="109" fill="#cbd5e1" font-size="9" text-anchor="middle">DẦM SUPER-T NHỊP 1 (KH ĐÚC: 25/10/2026)</text>
+              <text x="227" y="109" fill="#cbd5e1" font-size="9" text-anchor="middle">DẦM SUPER-T NHỊP 1 (KH ĐÚC: @@N1_BD@@)</text>
               <rect x="138" y="90" width="175" height="7" fill="url(#gradNotDone)" stroke="#64748b" stroke-width="1"/>
             </g>
 
             <!-- NHỊP 2 (T1 - T2) -->
             <g id="grp_span2" class="svg-node" onclick="inspectElem('SPAN2')">
               <rect x="415" y="98" width="178" height="15" rx="2" fill="url(#gradNotDone)" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,2"/>
-              <text x="504" y="109" fill="#cbd5e1" font-size="9" text-anchor="middle">DẦM SUPER-T NHỊP 2 (KH ĐÚC: 29/11/2026)</text>
+              <text x="504" y="109" fill="#cbd5e1" font-size="9" text-anchor="middle">DẦM SUPER-T NHỊP 2 (KH ĐÚC: @@N2_BD@@)</text>
               <rect x="415" y="90" width="178" height="7" fill="url(#gradNotDone)" stroke="#64748b" stroke-width="1"/>
             </g>
 
             <!-- NHỊP 3 (T2 - M2) -->
             <g id="grp_span3" class="svg-node" onclick="inspectElem('SPAN3')">
               <rect x="695" y="98" width="177" height="15" rx="2" fill="url(#gradNotDone)" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,2"/>
-              <text x="783" y="109" fill="#cbd5e1" font-size="9" text-anchor="middle">DẦM SUPER-T NHỊP 3 (KH ĐÚC: 03/01/2027)</text>
+              <text x="783" y="109" fill="#cbd5e1" font-size="9" text-anchor="middle">DẦM SUPER-T NHỊP 3 (KH ĐÚC: @@N3_BD@@)</text>
               <rect x="695" y="90" width="177" height="7" fill="url(#gradNotDone)" stroke="#64748b" stroke-width="1"/>
             </g>
 
@@ -503,20 +655,20 @@ def generate_html_dashboard(output_path: str):
         <!-- 4. TIẾN ĐỘ DẦM SUPER-T PHÂN NHỊP & CHU KỲ ĐÚC 7 NGÀY/PHIẾN -->
         <div class="mt-4 pt-3 border-t border-slate-700/80">
           <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">
-            <span class="flex items-center gap-2"><span>🏗️</span> Kế Hoạch Bãi Đúc Dầm Super-T (Khởi Công: 25/10/2026 — Chu Kỳ: 7 Ngày / 1 Phiến)</span>
-            <span class="text-slate-400 font-semibold text-xs">Hiện tại: 0/15 phiến (Chưa thi công)</span>
+            <span class="flex items-center gap-2"><span>🏗️</span> Kế Hoạch Bãi Đúc Dầm Super-T (Khởi Công: @@N1_BD@@ — Chu Kỳ: @@CHU_KY@@ Ngày / 1 Phiến)</span>
+            <span class="text-slate-400 font-semibold text-xs">Hiện tại: @@DA_DUC@@/@@TONG_PHIEN@@ phiến (@@TT_TONG@@)</span>
           </div>
 
           <div class="grid grid-cols-3 gap-3 text-xs text-center">
             <div class="bg-slate-900 border border-slate-700 rounded-xl p-3">
               <div class="font-bold text-slate-300">NHỊP 1 (M1 - T1, L=38.20M)</div>
-              <div class="text-[11px] text-amber-400 font-semibold mt-1">Khởi công đúc: 25/10/2026</div>
+              <div class="text-[11px] text-amber-400 font-semibold mt-1">Khởi công đúc: @@N1_BD@@</div>
               <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden mt-2">
                 <div class="bg-blue-500 h-full rounded-full" style="width: 0%"></div>
               </div>
               <div class="flex justify-between text-[10px] text-slate-400 mt-1">
-                <span>0/5 phiến (0%)</span>
-                <span class="text-slate-400">Dự kiến xong: 29/11/2026</span>
+                <span>@@N1_TIEN_DO@@</span>
+                <span class="text-slate-400">Dự kiến xong: @@N1_KT@@</span>
               </div>
             </div>
 
@@ -527,8 +679,8 @@ def generate_html_dashboard(output_path: str):
                 <div class="bg-blue-500 h-full rounded-full" style="width: 0%"></div>
               </div>
               <div class="flex justify-between text-[10px] text-slate-400 mt-1">
-                <span>0/5 phiến (0%)</span>
-                <span class="text-slate-400">Dự kiến: 29/11 - 03/01/2027</span>
+                <span>@@N2_TIEN_DO@@</span>
+                <span class="text-slate-400">Dự kiến: @@N2_BD_NGAN@@ - @@N2_KT@@</span>
               </div>
             </div>
 
@@ -539,8 +691,8 @@ def generate_html_dashboard(output_path: str):
                 <div class="bg-blue-500 h-full rounded-full" style="width: 0%"></div>
               </div>
               <div class="flex justify-between text-[10px] text-slate-400 mt-1">
-                <span>0/5 phiến (0%)</span>
-                <span class="text-slate-400">Dự kiến: 03/01 - 07/02/2027</span>
+                <span>@@N3_TIEN_DO@@</span>
+                <span class="text-slate-400">Dự kiến: @@N3_BD_NGAN@@ - @@N3_KT@@</span>
               </div>
             </div>
           </div>
@@ -548,10 +700,10 @@ def generate_html_dashboard(output_path: str):
           <!-- BẢNG CHI TIẾT CHU KỲ 7 NGÀY / 1 PHIẾN -->
           <div class="mt-3 bg-slate-950/70 p-2.5 rounded-xl border border-slate-800 text-[11px] text-slate-300 flex flex-wrap items-center justify-between gap-2">
             <div>
-              ⏱️ <strong>Chu kỳ 7 ngày / 1 phiến:</strong> Ngày 1-2 (Lắp cốt thép & ống ghen) → Ngày 3 (Ghép ván khuôn & đổ BT C45) → Ngày 4-5 (Bảo dưỡng đạt 85% R28) → Ngày 6 (Căng kéo cáp DƯL 15.2mm & bơm vữa) → Ngày 7 (Cẩu dầm ra bãi chứa luân chuyển bệ đúc).
+              ⏱️ <strong>Chu kỳ @@CHU_KY@@ ngày / 1 phiến:</strong> Ngày 1-2 (Lắp cốt thép & ống ghen) → Ngày 3 (Ghép ván khuôn & đổ BT C45) → Ngày 4-5 (Bảo dưỡng đạt 85% R28) → Ngày 6 (Căng kéo cáp DƯL 15.2mm & bơm vữa) → Ngày 7 (Cẩu dầm ra bãi chứa luân chuyển bệ đúc).
             </div>
             <div class="text-cyan-400 font-bold">
-              Tổng 15 phiến: 105 ngày (1 bệ đúc) hoặc 53 ngày (2 bệ đúc song song)
+              Tổng @@TONG_PHIEN@@ phiến: @@NGAY_1_BE@@ ngày (1 bệ đúc) hoặc @@NGAY_2_BE@@ ngày (2 bệ đúc song song)
             </div>
           </div>
         </div>
@@ -612,7 +764,7 @@ def generate_html_dashboard(output_path: str):
             <li class="flex items-start gap-2 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
               <span class="text-blue-400 font-bold mt-0.5">4.</span>
               <div>
-                <strong class="text-white">Bãi đúc dầm Super-T (Kế hoạch 25/10/2026):</strong> Hiện chưa đúc phiến nào. Tập trung hoàn thiện bệ đúc, kiểm định kích thủy lực căng kéo cáp DƯL 15.2mm, tập kết cốt thép và nghiệm thu trạm trộn bê tông C45 để sẵn sàng bấm nút khởi công đúc ngày 25/10 theo chu kỳ 7 ngày/phiến.
+                <strong class="text-white">Bãi đúc dầm Super-T (Kế hoạch @@N1_BD@@):</strong> @@BAI_DUC_HIEN_TRANG@@ Tập trung hoàn thiện bệ đúc, kiểm định kích thủy lực căng kéo cáp DƯL 15.2mm, tập kết cốt thép và nghiệm thu trạm trộn bê tông C45 để sẵn sàng bấm nút khởi công đúc ngày @@N1_BD_NGAN@@ theo chu kỳ @@CHU_KY@@ ngày/phiến.
               </div>
             </li>
           </ul>
@@ -702,18 +854,18 @@ def generate_html_dashboard(output_path: str):
       'SPAN1': {
         icon: '🌉',
         title: 'KẾT CẤU NHỊP 1 (M1 - T1, L=38.2M)',
-        badge: 'CHƯA THI CÔNG (KH: 25/10/2026)',
+        badge: '@@N1_TT_HOA@@ (KH: @@N1_BD@@)',
         badgeClass: 'bg-slate-700 text-slate-300 border-slate-600',
         content: `
           <div class="space-y-2">
             <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Quy cách dầm:</span> <span class="text-white font-bold">5 phiến Super-T 38.2m C45</span></div>
-            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Tình trạng hiện tại:</span> <span class="text-slate-300 font-bold">Chưa thi công (0/5 phiến)</span></div>
-            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Kế hoạch khởi công:</span> <span class="text-amber-400 font-bold">25/10/2026</span></div>
-            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Chu kỳ công nghệ:</span> <span class="text-cyan-400 font-bold">7 ngày / 1 phiến</span></div>
-            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Dự kiến hoàn thành:</span> <span class="text-emerald-400 font-bold">29/11/2026 (35 ngày)</span></div>
-            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Tổng BT 5 phiến:</span> <span class="text-white font-bold">144.95 m³</span></div>
+            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Tình trạng hiện tại:</span> <span class="text-slate-300 font-bold">@@N1_TT@@</span></div>
+            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Kế hoạch khởi công:</span> <span class="text-amber-400 font-bold">@@N1_BD@@</span></div>
+            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Chu kỳ công nghệ:</span> <span class="text-cyan-400 font-bold">@@CHU_KY@@ ngày / 1 phiến</span></div>
+            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Dự kiến hoàn thành:</span> <span class="text-emerald-400 font-bold">@@N1_KT@@ (@@NGAY_MOI_NHIP@@ ngày)</span></div>
+            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Tổng BT @@PHIEN_MOI_NHIP@@ phiến:</span> <span class="text-white font-bold">@@BT_NHIP@@ m³</span></div>
             <div class="p-2.5 bg-slate-900 rounded-lg text-slate-300 text-[11px] leading-relaxed">
-              💡 <strong>Kế hoạch 5 phiến Nhịp 1:</strong> D1 (25/10-01/11) → D2 (01/11-08/11) → D3 (08/11-15/11) → D4 (15/11-22/11) → D5 (22/11-29/11).
+              💡 <strong>Kế hoạch @@PHIEN_MOI_NHIP@@ phiến Nhịp 1:</strong> @@N1_LICH@@.
             </div>
           </div>
         `
@@ -721,32 +873,32 @@ def generate_html_dashboard(output_path: str):
       'SPAN2': {
         icon: '🌉',
         title: 'KẾT CẤU NHỊP 2 (T1 - T2, L=38.2M)',
-        badge: 'CHƯA THI CÔNG (KH: 29/11/2026)',
+        badge: '@@N2_TT_HOA@@ (KH: @@N2_BD@@)',
         badgeClass: 'bg-slate-700 text-slate-300 border-slate-600',
         content: `
           <div class="space-y-2">
             <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Quy cách dầm:</span> <span class="text-white font-bold">5 phiến Super-T 38.2m C45</span></div>
-            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Tình trạng hiện tại:</span> <span class="text-slate-300 font-bold">Chưa thi công (0/5 phiến)</span></div>
+            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Tình trạng hiện tại:</span> <span class="text-slate-300 font-bold">@@N2_TT@@</span></div>
             <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Kế hoạch đúc:</span> <span class="text-amber-400 font-bold">Đúc nối tiếp sau Nhịp 1</span></div>
-            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Chu kỳ công nghệ:</span> <span class="text-cyan-400 font-bold">7 ngày / 1 phiến</span></div>
-            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Dự kiến đúc:</span> <span class="text-emerald-400 font-bold">29/11/2026 - 03/01/2027 (35 ngày)</span></div>
-            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Tổng BT 5 phiến:</span> <span class="text-white font-bold">144.95 m³</span></div>
+            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Chu kỳ công nghệ:</span> <span class="text-cyan-400 font-bold">@@CHU_KY@@ ngày / 1 phiến</span></div>
+            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Dự kiến đúc:</span> <span class="text-emerald-400 font-bold">@@N2_BD@@ - @@N2_KT@@ (@@NGAY_MOI_NHIP@@ ngày)</span></div>
+            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Tổng BT @@PHIEN_MOI_NHIP@@ phiến:</span> <span class="text-white font-bold">@@BT_NHIP@@ m³</span></div>
           </div>
         `
       },
       'SPAN3': {
         icon: '🌉',
         title: 'KẾT CẤU NHỊP 3 (T2 - M2, L=38.2M)',
-        badge: 'CHƯA THI CÔNG (KH: 03/01/2027)',
+        badge: '@@N3_TT_HOA@@ (KH: @@N3_BD@@)',
         badgeClass: 'bg-slate-700 text-slate-300 border-slate-600',
         content: `
           <div class="space-y-2">
             <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Quy cách dầm:</span> <span class="text-white font-bold">5 phiến Super-T 38.2m C45</span></div>
-            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Tình trạng hiện tại:</span> <span class="text-slate-300 font-bold">Chưa thi công (0/5 phiến)</span></div>
+            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Tình trạng hiện tại:</span> <span class="text-slate-300 font-bold">@@N3_TT@@</span></div>
             <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Kế hoạch đúc:</span> <span class="text-amber-400 font-bold">Đúc nối tiếp sau Nhịp 2</span></div>
-            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Chu kỳ công nghệ:</span> <span class="text-cyan-400 font-bold">7 ngày / 1 phiến</span></div>
-            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Dự kiến đúc:</span> <span class="text-emerald-400 font-bold">03/01/2027 - 07/02/2027 (35 ngày)</span></div>
-            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Tổng BT 5 phiến:</span> <span class="text-white font-bold">144.95 m³</span></div>
+            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Chu kỳ công nghệ:</span> <span class="text-cyan-400 font-bold">@@CHU_KY@@ ngày / 1 phiến</span></div>
+            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Dự kiến đúc:</span> <span class="text-emerald-400 font-bold">@@N3_BD@@ - @@N3_KT@@ (@@NGAY_MOI_NHIP@@ ngày)</span></div>
+            <div class="flex justify-between border-b border-slate-700/60 pb-1.5"><span class="text-slate-400">Tổng BT @@PHIEN_MOI_NHIP@@ phiến:</span> <span class="text-white font-bold">@@BT_NHIP@@ m³</span></div>
           </div>
         `
       }
@@ -770,13 +922,17 @@ def generate_html_dashboard(output_path: str):
 </body>
 </html>
 """
+    html_content = fill_tokens(html_content, html_tokens(cfg))
+    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(html_content)
     print(f"[OK] Đã xuất bản tệp HTML Visual Dashboard: {output_path}")
 
 
-def generate_excel_dashboard(output_path: str):
+def generate_excel_dashboard(output_path: str, cfg=None):
     """Tạo tệp Excel sơ đồ tiến độ trực quan có thể in ấn A3/A4 ngoài công trường"""
+    cfg = cfg or load_config()
+    data_rows = excel_rows(cfg)
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "SO_DO_TIEN_DO_TRUC_QUAN"
@@ -812,7 +968,7 @@ def generate_excel_dashboard(output_path: str):
     ws.row_dimensions[1].height = 30
 
     ws.merge_cells("A2:N2")
-    ws["A2"] = "Hiện trạng thi công thực tế As-Built: 26 Cọc khoan nhồi (100%) • 4/4 Bệ mố trụ (100%) • Thân Đốt 1 T1,T2 & Thân Mố M2 (Xong) • Đang triển khai Đốt 2 & Thân M1"
+    ws["A2"] = tom_tat(data_rows, cfg)
     ws["A2"].font = font_sub
     ws["A2"].alignment = align_center
     ws.row_dimensions[2].height = 20
@@ -856,36 +1012,6 @@ def generate_excel_dashboard(output_path: str):
         cell.border = thin_border
     ws.row_dimensions[6].height = 26
 
-    data_rows = [
-        # Cọc khoan nhồi
-        ("Cọc khoan nhồi M1", "Mố M1", "3 Cọc D1000, L=20m", "C30 sụt 18±2", 74.13, "15/08 - 25/08", "16/08/2026", "24/08/2026", "ĐÃ THI CÔNG", "ĐẠT (PDA + Siêu âm)", "Hoàn thành 3/3 cọc"),
-        ("Cọc khoan nhồi T1", "Trụ T1", "8 Cọc D1200, L=40m", "C30 sụt 18±2", 376.08, "20/08 - 10/09", "21/08/2026", "08/09/2026", "ĐÃ THI CÔNG", "ĐẠT (PDA + Siêu âm)", "Hoàn thành 8/8 cọc"),
-        ("Cọc khoan nhồi T2", "Trụ T2", "8 Cọc D1200, L=30m", "C30 sụt 18±2", 286.88, "25/08 - 15/09", "26/08/2026", "12/09/2026", "ĐÃ THI CÔNG", "ĐẠT (PDA + Siêu âm)", "Hoàn thành 8/8 cọc"),
-        ("Cọc khoan nhồi M2", "Mố M2", "7 Cọc D1200, L=36m", "C30 sụt 18±2", 299.81, "01/09 - 20/09", "02/09/2026", "18/09/2026", "ĐÃ THI CÔNG", "ĐẠT (PDA + Siêu âm)", "Hoàn thành 7/7 cọc"),
-
-        # Bê tông lót & Bệ
-        ("Bê tông lót móng", "Toàn cầu", "Đá 4x6, Dày 10cm", "M100", 44.10, "15/09 - 18/09", "16/09/2026", "18/09/2026", "ĐÃ THI CÔNG", "ĐẠT", "Xong 4/4 bệ"),
-        ("Bệ mố M1", "Mố M1", "Dài 9.8m x Rộng 3.2m x H1.5m", "C30", 74.50, "19/09 - 22/09", "19/09/2026", "22/09/2026", "ĐÃ THI CÔNG", "ĐẠT R28", "Đã đổ xong"),
-        ("Bệ trụ T1 (Đợt 1+2)", "Trụ T1", "Dài 12.6m x Rộng 4.8m x H2.2m", "C30", 165.00, "20/09 - 25/09", "20/09/2026", "24/09/2026", "ĐÃ THI CÔNG", "ĐẠT R28", "Đã đổ xong 2 đợt"),
-        ("Bệ trụ T2 (Đợt 1+2)", "Trụ T2", "Dài 12.6m x Rộng 4.8m x H2.2m", "C30", 165.00, "22/09 - 27/09", "22/09/2026", "26/09/2026", "ĐÃ THI CÔNG", "ĐẠT R28", "Đã đổ xong 2 đợt"),
-        ("Bệ mố M2", "Mố M2", "Dài 9.8m x Rộng 3.2m x H1.5m", "C30", 74.50, "23/09 - 26/09", "23/09/2026", "26/09/2026", "ĐÃ THI CÔNG", "ĐẠT R28", "Đã đổ xong"),
-
-        # Thân mố trụ
-        ("Thân mố M1 (Đợt 1)", "Mố M1", "Chiều cao H=3.5m", "C30", 45.00, "28/09 - 05/10", "01/10/2026", "Chưa xong", "ĐANG TRIỂN KHAI", "Đang gia công", "Đang lắp cốt thép/ván khuôn"),
-        ("Thân trụ T1 (Đốt 1)", "Trụ T1", "Đốt 1 H=3.8m", "C30", 42.00, "26/09 - 30/09", "26/09/2026", "29/09/2026", "ĐÃ THI CÔNG", "ĐẠT R7", "Đã đổ xong Đốt 1"),
-        ("Thân trụ T1 (Đốt 2)", "Trụ T1", "Đốt 2 H=3.8m", "C30", 42.00, "01/10 - 06/10", "02/10/2026", "Chưa xong", "ĐANG TRIỂN KHAI", "Đang ván khuôn", "Đang lắp ván khuôn leo"),
-        ("Thân trụ T2 (Đốt 1)", "Trụ T2", "Đốt 1 H=4.0m", "C30", 45.00, "27/09 - 01/10", "28/09/2026", "30/09/2026", "ĐÃ THI CÔNG", "ĐẠT R7", "Đã đổ xong Đốt 1"),
-        ("Thân trụ T2 (Đốt 2)", "Trụ T2", "Đốt 2 H=4.0m", "C30", 45.00, "02/10 - 07/10", "03/10/2026", "Chưa xong", "ĐANG TRIỂN KHAI", "Đang cốt thép", "Đang lắp cốt thép Đốt 2"),
-        ("Thân mố M2 (Đợt 1+2)", "Mố M2", "Toàn bộ thân mố H=6.5m", "C30", 84.44, "27/09 - 04/10", "27/09/2026", "03/10/2026", "ĐÃ THI CÔNG", "ĐẠT R7", "Đã lên xong thân mố M2!"),
-        ("Tường đỉnh & cánh M2", "Mố M2", "Tường ngực, tường cánh", "C30", 24.46, "05/10 - 10/10", "05/10/2026", "Chưa xong", "ĐANG TRIỂN KHAI", "Đang gia công", "Đang ghép ván khuôn"),
-
-        # Kết cấu nhịp
-        ("Đúc dầm Super-T Nhịp 1", "Bãi đúc", "5 Phiến L=38.2m", "C45", 144.95, "25/10 - 29/11/2026", "25/10/2026 (KH)", "29/11/2026 (KH)", "CHƯA THI CÔNG", "Chưa đúc (0/5)", "KH bắt đầu đúc 25/10/2026, chu kỳ 7 ngày/phiến (35 ngày)"),
-        ("Đúc dầm Super-T Nhịp 2", "Bãi đúc", "5 Phiến L=38.2m", "C45", 144.95, "29/11 - 03/01/2027", "29/11/2026 (KH)", "03/01/2027 (KH)", "CHƯA THI CÔNG", "Chưa đúc (0/5)", "KH đúc sau Nhịp 1, chu kỳ 7 ngày/phiến (35 ngày)"),
-        ("Đúc dầm Super-T Nhịp 3", "Bãi đúc", "5 Phiến L=38.2m", "C45", 144.95, "03/01 - 07/02/2027", "03/01/2027 (KH)", "07/02/2027 (KH)", "CHƯA THI CÔNG", "Chưa đúc (0/5)", "KH đúc sau Nhịp 2, chu kỳ 7 ngày/phiến (35 ngày)"),
-        ("Lao lắp nhịp & Bản mặt cầu", "Trên nhịp", "3 Nhịp Super-T", "C35", 282.88, "10/02 - 10/03/2027", "Chưa làm", "Chưa xong", "CHƯA THI CÔNG", "Chưa", "Chờ hoàn thành xà mũ T1, T2 & đủ dầm")
-    ]
-
     for row_idx, rdata in enumerate(data_rows, 7):
         ws.row_dimensions[row_idx].height = 20
         status = rdata[8]
@@ -919,10 +1045,18 @@ def generate_excel_dashboard(output_path: str):
     print(f"[OK] Đã xuất bản tệp Excel Sơ đồ tiến độ trực quan: {output_path}")
 
 
-if __name__ == "__main__":
-    html_file = os.path.join(ARTIFACT_DIR, "so_do_tien_do_truc_quan_cau_km19.html")
-    generate_html_dashboard(html_file)
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="Xuất sơ đồ tiến độ trực quan As-Built (HTML + Excel) từ cấu hình")
+    ap.add_argument("--config", default=CONFIG_PATH)
+    ap.add_argument("--html", default=os.path.join(ARTIFACT_DIR, "so_do_tien_do_truc_quan_cau_km19.html"))
+    ap.add_argument("--xlsx", default=DEFAULT_XLSX)
+    a = ap.parse_args(argv)
+    cfg = load_config(a.config)
+    generate_html_dashboard(a.html, cfg)
+    os.makedirs(os.path.dirname(os.path.abspath(a.xlsx)), exist_ok=True)
+    generate_excel_dashboard(a.xlsx, cfg)
+    return 0
 
-    excel_file = os.path.join(ROOT, "examples", "HO_SO_CAU_KM19_529", "01_HIEN_TRUONG_QLCL_KCS", "So_Do_Tien_Do_Truc_Quan_AsBuilt_Cau_Km19.xlsx")
-    os.makedirs(os.path.dirname(excel_file), exist_ok=True)
-    generate_excel_dashboard(excel_file)
+
+if __name__ == "__main__":
+    sys.exit(main())

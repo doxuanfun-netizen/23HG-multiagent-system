@@ -28,6 +28,10 @@ python run_state_graph.py --demo                 # chạy thử 8 pha bằng d�
 CI (GitHub Actions) chạy hai lệnh đầu trên Ubuntu và Windows cho mọi Pull Request. PR chỉ được
 gộp khi CI xanh.
 
+Bật kiểm tra tự động trước khi push (một lần cho mỗi bản clone): `git config core.hooksPath .githooks`.
+Hook `.githooks/pre-push` chạy hai lệnh CI ở trên và bộ test `apps/23hg_schedule_assistant_pro`
+(CI chưa chạy bộ này). Quy ước chi tiết cho người và AI xem `CLAUDE.md`.
+
 ## 3. Quy tắc bắt buộc khi viết code
 
 1. **Không để LLM làm toán.** Mọi phép tính khối lượng, đơn giá, cắt thép, tiến độ nằm trong
