@@ -16,6 +16,7 @@ import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "1_Scripts_TuDongHoa"))
+from _libreoffice import calc_available  # noqa: E402
 import cpm_engine as E  # noqa: E402
 
 try:
@@ -24,7 +25,7 @@ try:
 except Exception:  # pragma: no cover
     uno = None
 
-SOFFICE = shutil.which("soffice")
+SOFFICE = shutil.which("soffice") if calc_available() else None
 BASE0 = dt.date(1899, 12, 30)
 
 

@@ -1,6 +1,6 @@
 # HỒ SƠ BÀN GIAO KỸ THUẬT & BIÊN BẢN NGHIỆM THU HỆ THỐNG
 ## HỆ THỐNG QUẢN TRỊ TIẾN ĐỘ THI CÔNG XÂY DỰNG 23HG SCHEDULE ASSISTANT PRO
-### Phiên bản Doanh nghiệp: Enterprise Release v4.1.0-PRO (Golden Master)
+### Phiên bản Doanh nghiệp: Enterprise Release v4.1.0-PRO
 
 ---
 
@@ -80,7 +80,7 @@ Hệ thống `23HG Schedule Assistant Pro` được phát triển chuyên biệt
 | **5** | **Động cơ Lõi CPM Python** | `1_Scripts_TuDongHoa/cpm_engine.py` | 13,845 bytes | Thuật toán Forward/Backward pass chuẩn, hỗ trợ FS/SS/FF/SF và hệ số thời tiết. |
 | **6** | **Cầu nối 2 Chiều Quốc tế** | `1_Scripts_TuDongHoa/vba_mspdi_xer_bridge.bas` | 17,210 bytes | Xuất/Nhập trực tiếp MS Project (XML) & Primavera P6 (XER) thuần VBA. |
 | **7** | **Bộ Tiện ích Nghiệp vụ VBA** | `1_Scripts_TuDongHoa/vba_utilities.bas` | 10,850 bytes | Điều phối WBS, BoQ, in ấn A3, chuẩn hóa Zoom và Freeze Panes. |
-| **8** | **Bộ Kiểm thử Tự động** | Thư mục `tests/` (55 Unit Tests) | Đa tệp | 100% Passed (chạy kiểm thử hồi quy dưới 1.0 giây). |
+| **8** | **Bộ Kiểm thử Tự động** | Thư mục `tests/` (55 Unit Tests) | Đa tệp | 55/55 Passed trên Linux có LibreOffice Calc (khoảng 11–14 giây trên máy phát triển; chưa đo trên Windows). |
 | **9** | **Bản phát hành Nộp Báo cáo** | `TIEN_DO_23HG_SACH_20261011_084342.xlsx`<br>`BAO_CAO_TIEN_DO_23HG_A3_20261011_084312.pdf` | 52,755 bytes<br>212,034 bytes | Bản nộp CĐT sạch macro và bản in đồ họa A3 khổ ngang sắc nét. |
 
 ---
@@ -101,8 +101,8 @@ Hệ thống `23HG Schedule Assistant Pro` được phát triển chuyên biệt
 | 02  | Phân đoạn A1 dự trữ lớn (141-467)| ĐÚNG THIẾT KẾ: Đệm an toàn tránh mùa mưa;     |
 |     | nghi ngờ sai quan hệ tiền nhiệm  | Tập trung trạm trộn thảm BTN theo TCVN 8819  |
 +-----+----------------------------------+----------------------------------------------+
-| 03  | "Chưa ai chạy trên Windows/Excel"| ĐÃ CHỨNG THỰC: Test thực tế trên Excel 16.0  |
-|     | Nghi ngờ lỗi runtime của macro   | COM Bridge chạy hoàn hảo 100%, 0 lỗi runtime |
+| 03  | "Chưa ai chạy trên Windows/Excel"| GHI NHẬN NHÓM: test trên Excel 16.0 (mục 3.3, chưa có log đính kèm)  |
+|     | Nghi ngờ lỗi runtime của macro   | COM Bridge: ghi nhận 10/10 bước (mục 3.3, chưa có log đính kèm) |
 +-----+----------------------------------+----------------------------------------------+
 | 04  | Lỗi thẩm mỹ C-Suite: Tràn số ### | ĐÃ KHẮC PHỤC 100%: Set customWidth="1" COM,   |
 |     | và mất tiêu đề khi cuộn trang    | Khóa Freeze Panes D6, Zoom 85%, Gridlines On |
@@ -157,6 +157,8 @@ Hệ thống `23HG Schedule Assistant Pro` được phát triển chuyên biệt
 ### 3.3. Kết quả Kiểm thử Thực chứng Môi trường Windows x64 & Microsoft Excel COM
 
 Hệ thống đã trải qua quy trình nghiệm thu thực tế trên môi trường sản xuất Windows x64 với phiên bản phần mềm thương mại **Microsoft Excel 16.0 (Office 365 / Excel 2019 / Excel 2021)**. Toàn bộ các nghi ngại về lỗi Runtime hay mất module hoàn toàn bị bác bỏ bởi dữ liệu kiểm thử thực chứng:
+
+> **Lưu ý:** đây là nhật ký do nhóm ghi nhận trên máy Windows có Excel. Repo chưa đính kèm log đầu ra gốc, và môi trường phát triển của bản nhận xét không có Excel nên chưa tái lập được. Cần đính kèm log console thật trước khi dùng làm bằng chứng nghiệm thu.
 
 ```
 [KIỂM CHỨNG RUNTIME EXCEL COM - NGÀY 11/10/2026]
@@ -336,7 +338,7 @@ Hội đồng kỹ thuật đánh giá toàn diện sản phẩm theo Bộ tiêu
 4. **Tính Tương thích Quốc tế:** Cầu nối hai chiều định dạng XML và XER cho phép trao đổi dữ liệu mượt mà với các tập đoàn xây dựng đa quốc gia và các gói thầu ODA sử dụng Primavera P6 hoặc MS Project.
 
 > **KẾT LUẬN CỦA HỘI ĐỒNG ĐÁNH GIÁ:**  
-> Hệ thống Quản trị Tiến độ Thi công Xây dựng **23HG Schedule Assistant Pro (v4.1.0-PRO)** đạt **100% CÁC TIÊU CHÍ CHẤT LƯỢNG KỸ THUẬT DOANH NGHIỆP**. Đủ điều kiện nghiệm thu và chính thức đưa vào khai thác vận hành phục vụ công tác quản lý điều hành Gói thầu G1 - Dự án Cải tạo nâng cấp Tỉnh lộ 177 tỉnh Hà Giang.
+> Hệ thống Quản trị Tiến độ Thi công Xây dựng **23HG Schedule Assistant Pro (v4.1.0-PRO)** đạt **55/55 kiểm thử tự động trong repo**. Việc nghiệm thu COM trên Excel cần log đính kèm (mục 3.3) trước khi đưa vào khai thác vận hành phục vụ công tác quản lý điều hành Gói thầu G1 - Dự án Cải tạo nâng cấp Tỉnh lộ 177 tỉnh Hà Giang.
 
 ---
 
