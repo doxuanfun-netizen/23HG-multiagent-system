@@ -143,7 +143,7 @@
       "title": "Dự toán cầu G_XD so với bản đã duyệt",
       "source_type": "approved_dossier",
       "status": "pending",
-      "reason": "Chưa có dự toán cầu đã duyệt. Dự toán trong repo đã sửa khối lượng theo bản vẽ thẩm định (11/10/2026: G_XD 33,97 → 26,78 tỷ, chủ yếu do thép dầm Super-T 361,6 → 89,69 t), nhưng đơn giá chưa đối chiếu và còn hạng mục có trên bản vẽ mà dự toán chưa có (sheet NGHI_VAN) — không dùng làm chuẩn."
+      "reason": "Chưa có dự toán cầu đã duyệt. Dự toán trong repo đã sửa khối lượng theo bản vẽ thẩm định (11/10/2026: G_XD 33,97 → 27,03 tỷ, chủ yếu do thép dầm Super-T 361,6 → 89,69 t), nhưng đơn giá chưa đối chiếu và còn hạng mục có trên bản vẽ mà dự toán chưa có (sheet NGHI_VAN) — không dùng làm chuẩn."
     }
   ]
 }

@@ -451,3 +451,64 @@ def zero_weight_rows_kg(t: DrawingTable) -> float:
     """Khối lượng (dài × SL × kg/m × hệ số) của các dòng mà chính bản vẽ ghi 0 kg (vd. tr.40: W6, W7, W9)."""
     return round(sum(r.length_mm / 1000 * r.quantity * r.unit_kg_m * r.multiplier
                      for r in t.rows if r.ban_ve_ghi_0), 2)
+
+
+def _plain_number(cell) -> Optional[float]:
+    """Số ghi bằng dấu chấm thập phân ('2.604' m) — không dùng cột 'values' chuẩn hóa kiểu VN."""
+    t = str(cell or "").strip().replace(" ", "")
+    return float(t) if re.fullmatch(r"\d+(\.\d+)?", t) else None
+
+
+def hanging_bar_rows(page: dict, elevation_page: Optional[dict] = None) -> List[DrawingRow]:
+    """
+    Bảng phụ "ỐNG SIÊU ÂM VÀ THANH THÉP TREO LỒNG P11-D16 (TÍNH CHO 01 CỌC)" trên trang cọc (tr.64/66/68/70):
+    thép treo lồng không nằm trong bảng thép chính nên tổng thép của trang không gồm nó. Ký hiệu, Ø và kg/m lấy
+    từ tiêu đề cột; chiều dài (m), số thanh, khối lượng từ dòng số liệu. Ô trống: số thanh suy từ khối lượng,
+    hoặc đọc '4-P11-D16' trên trang mặt đứng cọc (elevation_page); khối lượng = dài × SL × kg/m. Có ghi chú để soát.
+    """
+    for t in page.get("tables") or []:
+        header = [norm(h) for h in t.get("header") or []]
+        if not any("TREO LONG" in h for h in header):
+            continue
+        joined = " ".join(header)
+        m = re.search(r"(P\d+)\s*-\s*D(\d+)", joined)
+        u = re.search(r"(\d+\.\d+)\s*KG/?M", joined.replace(" ", ""))
+        if not m or not u:
+            continue
+        mark, d, unit = m.group(1), int(m.group(2)), float(u.group(1))
+        cols = lambda word: [i for i, h in enumerate(header) if "TREO LONG" in h and word in h]
+        for row in t.get("rows") or []:
+            first = lambda idx: next((v for v in (_plain_number(row[i]) for i in idx if i < len(row)) if v), None)
+            length_m, qty, kg = first(cols("CHIEU DAI")), first(cols("SO THANH")), first(cols("KHOI LUONG"))
+            if not length_m:
+                continue
+            notes = []
+            if qty is None and kg:
+                qty = float(round(kg / (length_m * unit)))
+                notes.append(f"số thanh trống trên OCR, suy = khối lượng ÷ (dài × kg/m) = {qty:g}")
+            if qty is None and elevation_page is not None:
+                e = re.search(rf"(\d+)\s*-\s*{mark}\s*-\s*D{d}", elevation_page.get("text") or "")
+                if e:
+                    qty = float(e.group(1))
+                    notes.append(f"số thanh trống trên OCR, lấy '{e.group(0)}' ở mặt đứng cọc tr.{elevation_page['page']}")
+            if qty is None:
+                continue
+            calc = round(length_m * qty * unit, 2)
+            if kg is None:
+                kg = calc
+                notes.append(f"khối lượng trống trên OCR, = dài × SL × kg/m = {kg:,.2f}")
+            r = DrawingRow(page["page"], None, mark, d, length_m * 1000, qty, unit, kg, 1.0, kg, notes=notes)
+            if not _row_ok(r.length_mm, qty, unit, kg):
+                r.issues.append(f"dài×SL×kg/m = {calc:,.2f} ≠ khối lượng ghi {kg:,.2f}")
+            r.notes.insert(0, "thép treo lồng — bảng phụ, không nằm trong tổng thép chính của trang")
+            return [r]
+    return []
+
+
+def with_extra_rows(t: DrawingTable, extra: List[DrawingRow]) -> DrawingTable:
+    """Bảng thép của trang cộng thêm các dòng bảng phụ (vd. thép treo lồng cọc): tổng = tổng ghi + Σ dòng phụ."""
+    if not extra or t.stated_total_kg is None:
+        return t
+    out = DrawingTable(t.page, t.title, list(t.rows) + list(extra),
+                       round(t.stated_total_kg + sum(r.total_kg for r in extra), 2), list(t.issues))
+    return out

@@ -25,7 +25,7 @@ from typing import Dict, List, Optional, Tuple
 
 from tools.cutting_stock_solver import REBAR_UNIT_WEIGHT_KG_M, rebar_unit_weight_kg_m
 from tools.drawing_rebar_tables import (good_rows, numeric_issues, page_rebar_table, page_tables, partial_gap_kg,
-                                        table_usable, zero_weight_rows_kg)
+                                        table_usable, zero_weight_rows_kg, hanging_bar_rows, with_extra_rows)
 
 CAP_DUL = "Cáp DƯL 15.2mm"
 MIN_LENGTH_M = 0.05
@@ -215,6 +215,8 @@ def reconcile(sections: List[Section], config: dict, pages: Dict[int, dict]):
         info = []
         for pg in item["trang"]:
             t = drawing_table(pages[pg["so"]], pg) if pg["so"] in pages else None
+            if t is not None and pg.get("thep_treo_long"):   # bảng phụ thép treo lồng cọc (P11), trang mặt đứng kèm
+                t = with_extra_rows(t, hanging_bar_rows(pages[pg["so"]], pages.get(pg["thep_treo_long"])))
             info.append((pg, t))
         pages_txt = ", ".join(f"tr.{pg['so']}" for pg, _ in info)
         mult_known = all(pg["he_so"] is not None for pg, _ in info)
