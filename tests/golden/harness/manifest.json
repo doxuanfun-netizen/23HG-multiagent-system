@@ -117,7 +117,7 @@
       "source_type": "approved_dossier",
       "status": "active",
       "kind": "table",
-      "approved_ref": "HSTK Cầu Km19+529.080 có dấu thẩm định (OCR: 05_DU_LIEU_GOC_SCAN_MARKER/du_lieu.json); trang ghi trong cột 'nguon' của fixture. Dung sai 0,3% do bản vẽ dùng kg/m làm tròn (1,21) còn hồ sơ dùng bảng solver (1,208).",
+      "approved_ref": "HSTK Cầu Km19+529.080 có dấu thẩm định (OCR: 05_DU_LIEU_GOC_SCAN_MARKER/du_lieu.json); trang ghi trong cột 'nguon' của fixture. Dung sai 0,3% do bản vẽ dùng kg/m làm tròn (1,21) còn hồ sơ dùng bảng solver (1,208). Mố M2: chủ dự án quyết định 11/10/2026 tính thêm W6, W7, W9 mà tr.40 ghi 0 kg (237,05 kg).",
       "producer": "tests.golden.harness.producers:bbs_theo_hang_muc",
       "args": [
         "examples/HO_SO_CAU_KM19_529/02_XUONG_TIEN_CHE_COT_THEP/04_Thong_Ke_Thep_Chi_Tiet_BBS_396_Dong.xlsx",

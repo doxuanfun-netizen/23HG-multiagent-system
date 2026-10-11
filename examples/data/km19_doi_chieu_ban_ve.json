@@ -4,7 +4,8 @@
   "khop": {"tuong_doi": 0.003, "tuyet_doi_kg": 5.0},
   "hang_muc": [
     {"ten": "Mố M1", "trang": [{"so": 31, "he_so": 1, "bo_phan": "Mố M1"}]},
-    {"ten": "Mố M2", "trang": [{"so": 40, "he_so": 1, "bo_phan": "Mố M2"}]},
+    {"ten": "Mố M2", "trang": [{"so": 40, "he_so": 1, "bo_phan": "Mố M2"}],
+     "tinh_dong_ban_ve_ghi_0": "Chủ dự án quyết định 11/10/2026: tính các thanh này (bản vẽ ghi 0 kg là sai sót)"},
     {"ten": "Trụ T1, T2 (Bệ móng)", "trang": [{"so": 44, "he_so": 1, "bo_phan": "Bệ trụ T1"},
                                               {"so": 55, "he_so": 1, "bo_phan": "Bệ trụ T2"}]},
     {"ten": "Trụ T1 (Thân trụ)", "trang": [{"so": 48, "he_so": 1, "bo_phan": "Thân trụ T1"}]},

@@ -6,6 +6,7 @@ Số liệu bản vẽ lấy tự động từ dữ liệu OCR (du_lieu.json) th
   {"trang": 64, "nhan": "THE TICH BE TONG COC"}            → số cuối cùng trên dòng đầu tiên chứa nhãn (chấm thập phân)
   {"trang": 175, "sau": "BAN MAT CAU", "nhan": "..."}      → chỉ tìm sau dòng chứa nhãn 'sau'
   {"trang": 31, "thep": true}                              → tổng khối lượng thép ghi trên bảng thép của trang (tấn)
+  {"trang": 40, "thep_ghi_0": true}                        → các thanh bản vẽ ghi 0 kg, tính dài × SL × kg/m (tấn)
   {"tong": [{"he_so": 3, ...}, ...]}                       → tổng có hệ số, ghi thành công thức Excel để soát được
 So nhãn sau khi bỏ dấu, viết hoa và bỏ khoảng trắng (OCR hay dính chữ: 'Cốt thepD<=10').
 
@@ -21,7 +22,7 @@ from typing import Dict, List, Optional
 
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
-from tools.drawing_rebar_tables import norm, page_rebar_table
+from tools.drawing_rebar_tables import norm, page_rebar_table, zero_weight_rows_kg
 
 FILL_SUA = PatternFill("solid", fgColor="FFF2CC")       # vàng: đã sửa theo bản vẽ
 FILL_NGHI_VAN = PatternFill("solid", fgColor="F8CBAD")  # cam: nghi vấn cần soát
@@ -77,12 +78,19 @@ def ocr_value(page: dict, nhan: str, sau: Optional[str] = None) -> float:
 
 def drawing_value(spec: dict, pages: Dict[int, dict]) -> float:
     page = pages[spec["trang"]]
-    if spec.get("thep"):
+    if spec.get("thep") or spec.get("thep_ghi_0"):
         t = page_rebar_table(page)
         if t is None or t.stated_total_kg is None:
             raise ValueError(f"tr.{spec['trang']}: không đọc được tổng thép")
+        if spec.get("thep_ghi_0"):                  # các thanh bản vẽ ghi 0 kg: dài × SL × kg/m
+            return round(zero_weight_rows_kg(t) / 1000.0, 5)
         return round(t.stated_total_kg / 1000.0, 5)
     return ocr_value(page, spec["nhan"], spec.get("sau"))
+
+
+def _num_text(v: float) -> str:
+    """Số ghi vào công thức Excel, giữ đủ 6 chữ số thập phân (không cắt còn 6 chữ số có nghĩa như '{:g}')."""
+    return f"{v:.6f}".rstrip("0").rstrip(".")
 
 
 def resolve_f(spec, pages: Dict[int, dict]):
@@ -92,7 +100,7 @@ def resolve_f(spec, pages: Dict[int, dict]):
     if "tong" in spec:
         terms = [(t.get("he_so", 1), drawing_value(t, pages)) for t in spec["tong"]]
         value = round(sum(k * v for k, v in terms), 5)
-        return value, "=" + "+".join(f"{k:g}*{v:g}" if k != 1 else f"{v:g}" for k, v in terms)
+        return value, "=" + "+".join(f"{k:g}*{_num_text(v)}" if k != 1 else _num_text(v) for k, v in terms)
     v = drawing_value(spec, pages)
     return v, v
 

@@ -445,3 +445,9 @@ def partial_gap_kg(t: DrawingTable) -> Optional[float]:
     if gap < -max(TABLE_ABS_TOL, TABLE_REL_TOL * t.stated_total_kg) or gap > PARTIAL_MAX_GAP * t.stated_total_kg:
         return None
     return max(gap, 0.0)
+
+
+def zero_weight_rows_kg(t: DrawingTable) -> float:
+    """Khối lượng (dài × SL × kg/m × hệ số) của các dòng mà chính bản vẽ ghi 0 kg (vd. tr.40: W6, W7, W9)."""
+    return round(sum(r.length_mm / 1000 * r.quantity * r.unit_kg_m * r.multiplier
+                     for r in t.rows if r.ban_ve_ghi_0), 2)

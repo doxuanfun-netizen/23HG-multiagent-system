@@ -35,8 +35,8 @@ thanh toán 03a, tiến độ CPM, KCS, As-Built. Giữ file này dưới 200 d�
   BBS (`noi_trong_chieu_dai=True` trong `examples/generate_rebarcut_dedicated_package.py`).
 - BBS, dự toán, 03a sửa theo bản vẽ có dấu thẩm định; sai khác thì đánh dấu NGHI VẤN (cột + sheet
   `NGHI_VAN`, cột "Đã soát / Ghim") để chủ dự án soát. Không tự "chốt" thay chủ dự án.
-- Còn mở: tr.40 Mố M2 bản vẽ ghi 0 kg cho W6/W7/W9 (237 kg) — harness báo lệch đúng ô này;
-  tỷ lệ hoàn thành 03a chưa có biên bản; hạng mục bản vẽ có mà dự toán chưa có (sheet `NGHI_VAN`).
+- Tr.40 Mố M2 bản vẽ ghi 0 kg cho W6/W7/W9: chủ dự án quyết định TÍNH (237,05 kg) — `tinh_dong_ban_ve_ghi_0`.
+- Còn mở: tỷ lệ hoàn thành 03a chưa có biên bản; hạng mục bản vẽ có mà dự toán chưa có (sheet `NGHI_VAN`).
 - Pháp lý: chưa văn bản nào được đối chiếu bản gốc — xem `workflows/LEGAL_STATUS.md`.
 
 ## Riêng tư và vệ sinh repo

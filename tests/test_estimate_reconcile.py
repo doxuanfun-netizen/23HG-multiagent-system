@@ -113,6 +113,8 @@ class Km19EstimateTest(unittest.TestCase):
             self.assertAlmostEqual(qs.cell(r, 6).value, v, places=3, msg=f"dòng {r}")
         self.assertEqual(qs["F67"].value, "=3*6.07125+3*6.06528+9*5.92008")       # 89,690 t = tr.175
         self.assertEqual(qs["F82"].value, "=1.573+78.951+5.071")
+        self.assertEqual(qs["F59"].value, "=16.17783+32.55852+13.01311")                # không cắt chữ số
+        self.assertEqual(qs["F58"].value, "=19.64873+0.23705")       # chủ dự án: tính W6, W7, W9 (bản vẽ ghi 0 kg)
         for r in (22, 56, 64, 66):                                                   # hết số ghi cứng ở tiêu đề
             self.assertTrue(str(qs.cell(r, 10).value).startswith("=SUM("), r)
 

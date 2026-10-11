@@ -25,7 +25,7 @@ from typing import Dict, List, Optional, Tuple
 
 from tools.cutting_stock_solver import REBAR_UNIT_WEIGHT_KG_M, rebar_unit_weight_kg_m
 from tools.drawing_rebar_tables import (good_rows, numeric_issues, page_rebar_table, page_tables, partial_gap_kg,
-                                        table_usable)
+                                        table_usable, zero_weight_rows_kg)
 
 CAP_DUL = "Cáp DƯL 15.2mm"
 MIN_LENGTH_M = 0.05
@@ -220,6 +220,14 @@ def reconcile(sections: List[Section], config: dict, pages: Dict[int, dict]):
         mult_known = all(pg["he_so"] is not None for pg, _ in info)
         have_total = all(t is not None and t.stated_total_kg is not None for _, t in info)
         drawing = (sum(t.stated_total_kg * pg["he_so"] for pg, t in info) if mult_known and have_total else None)
+        # chủ dự án quyết định tính cả các thanh mà bản vẽ ghi 0 kg (cấu hình 'tinh_dong_ban_ve_ghi_0')
+        cong_ghi_0 = (sum(zero_weight_rows_kg(t) * pg["he_so"] for pg, t in info)
+                      if drawing is not None and item.get("tinh_dong_ban_ve_ghi_0") else 0.0)
+        if cong_ghi_0:
+            flags.append(NghiVan(name, "", f"Bản vẽ ghi 0 kg cho một số thanh (dài × SL × kg/m = {_fmt(cong_ghi_0)}); "
+                                           f"{item['tinh_dong_ban_ve_ghi_0']} → tổng đối chiếu = tổng bản vẽ + "
+                                           f"{_fmt(cong_ghi_0)}", _fmt(drawing), _fmt(drawing + cong_ghi_0), pages_txt))
+            drawing += cong_ghi_0
         all_usable = all(t is not None and table_usable(t) for _, t in info)
         gaps = {pg["so"]: (0.0 if t is not None and table_usable(t) else (partial_gap_kg(t) if t is not None else None))
                 for pg, t in info}
@@ -258,7 +266,8 @@ def reconcile(sections: List[Section], config: dict, pages: Dict[int, dict]):
                         row.nghi_van.append(f"OCR không đọc được ký hiệu thanh (STT {r.stt or '?'}) — xem PDF {src}")
                     row.nghi_van.extend(f"{n} — xem PDF {src}" for n in r.notes)
                     if r.ban_ve_ghi_0:
-                        row.nghi_van.append("BBS vẫn giữ thanh này để gia công (có dài và số lượng trên bản vẽ) nên "
+                        row.nghi_van.append(item.get("tinh_dong_ban_ve_ghi_0") or
+                                            "BBS vẫn giữ thanh này để gia công (có dài và số lượng trên bản vẽ) nên "
                                             "BBS lớn hơn tổng bản vẽ phần này — chủ dự án quyết định và ghim")
                     new_rows.append(row)
                 gap = gaps[pg["so"]]
