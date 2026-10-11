@@ -202,13 +202,21 @@ class TableKindTest(unittest.TestCase):
         with self.assertRaisesRegex(runner.ManifestError, "tol"):
             runner.validate({"cases": [bad_tol]})
 
+    def test_relative_tolerance_and_text_columns(self):
+        csv_path = self.csv('k,a,b,nguon\n10,1.002,2.0,"tr.1, tr.2"\n12,3.0,4.0,tr.3\n')
+        ok = runner.run_case(_table("t", csv_path, tol={"a": {"tuyet_doi": 0.0, "tuong_doi": 0.003}, "b": 0.01}))
+        self.assertEqual(ok["result"], "PASS", ok["detail"])              # 1.0 so với 1.002: lệch 0,2% ≤ 0,3%
+        tight = runner.run_case(_table("t", csv_path, tol={"a": {"tuyet_doi": 0.0, "tuong_doi": 0.001}, "b": 0.01}))
+        self.assertEqual(tight["result"], "FAIL")
+        self.assertIn("cho phép ± 0.001", tight["detail"])
+
     def test_unknown_kind_rejected(self):
         case = _active("k", [{"args": [16], "expected": 1.58}], kind="matrix")
         with self.assertRaisesRegex(runner.ManifestError, "kind"):
             runner.validate({"cases": [case]})
 
     def test_real_bbs_table_case_runs_without_error(self):
-        case = next(c for c in runner.load_cases(MANIFEST) if c["id"] == "bbs_tong_hop_theo_duong_kinh")
+        case = next(c for c in runner.load_cases(MANIFEST) if c["id"] == "bbs_theo_hang_muc_vs_ban_ve_tham_dinh")
         res = runner.run_case(case)
         self.assertIn(res["result"], ("PASS", "FAIL"))
         self.assertNotIn("lỗi", res["detail"])

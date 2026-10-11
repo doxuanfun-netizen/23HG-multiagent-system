@@ -207,6 +207,7 @@ class CuttingStockSolver:
         max_splice_ratio: float = DEFAULT_MAX_SPLICE_RATIO,
         min_splice_segment_xd: float = MIN_SPLICE_SEGMENT_XD,
         default_splice_zones: Optional[List[Tuple[float, float]]] = None,
+        long_bar_min_segments_only: bool = False,
     ):
         self.bar_length_mm = bar_length_mm
         self.kerf_mm = kerf_mm
@@ -221,6 +222,9 @@ class CuttingStockSolver:
         self.max_splice_ratio = max_splice_ratio
         self.min_splice_segment_xd = min_splice_segment_xd
         self.default_splice_zones = default_splice_zones
+        # True: thanh dài hơn cây chỉ được tách thành SỐ ĐOẠN TỐI THIỂU. Dùng khi chiều dài BBS đã gồm sẵn đoạn
+        # nối của thiết kế (L_nối = 0 trong mô hình): thêm một đoạn là thêm một mối nối không có trong thiết kế.
+        self.long_bar_min_segments_only = long_bar_min_segments_only
 
     @property
     def usable_length_mm(self) -> int:
@@ -735,7 +739,7 @@ class CuttingStockSolver:
                 extend(x, xs + [x], remaining - 1)
 
         k_min = max(2, math.ceil((length - lap) / (usable - lap)))
-        for k in (k_min, k_min + 1):
+        for k in ((k_min,) if self.long_bar_min_segments_only else (k_min, k_min + 1)):
             extend(0, [], k)
             if len(layouts) >= max_layouts // 2:
                 break

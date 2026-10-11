@@ -157,7 +157,8 @@ LONG_BBS = BBS + "D1,25,CB400-V,14000,3\n"
 
 class LongBarNotSilentlyDroppedTest(unittest.TestCase):
     """Lỗi cũ: thanh dài hơn cây bị solver đưa vào `unplanned`, nhưng bảng tổng hợp bỏ qua — số cây cần mua thiếu
-    mà vẫn ghi OPTIMAL. Hồ sơ Km19 thiếu 3.546 thanh (~121 tấn) theo cách này."""
+    mà vẫn ghi OPTIMAL. Hồ sơ Km19 thiếu 3.546 thanh (~144 tấn) theo cách này. Chạy với noi_trong_chieu_dai=False
+    để giữ trường hợp không tách thanh dài: khi đó chúng phải hiện ra, không được biến mất."""
 
     @classmethod
     def setUpClass(cls):
@@ -167,7 +168,7 @@ class LongBarNotSilentlyDroppedTest(unittest.TestCase):
         with open(bbs, "w", encoding="utf-8") as f:
             f.write(LONG_BBS)
         cls.out = os.path.join(cls.tmp.name, "out")
-        cls.result = mod.run(out_dir=cls.out, bbs_path=bbs, bbs_sheet=None, quiet=True)
+        cls.result = mod.run(out_dir=cls.out, bbs_path=bbs, bbs_sheet=None, quiet=True, noi_trong_chieu_dai=False)
         cls.row25 = next(r for r in cls.result["summary_rows"] if r["dia"] == 25)
 
     @classmethod
@@ -203,6 +204,45 @@ class LongBarNotSilentlyDroppedTest(unittest.TestCase):
         data = [[c.value for c in r] for r in wb["CHUA_LAP_KE_HOACH"].iter_rows(min_row=5)]
         self.assertEqual([(r[1], r[2], r[5]) for r in data], [("D1", 25, 3)])
         self.assertIn("CÒN 3 thanh", wb["PA_TOI_UU"]["A3"].value)
+
+
+class LongBarSplitLapIncludedTest(unittest.TestCase):
+    """Mặc định (chủ dự án xác nhận 11/10/2026): chiều dài BBS của thanh dài hơn cây ĐÃ GỒM đoạn nối 40d.
+    Thanh 14m Ø25 → 2 đoạn (số đoạn tối thiểu), tổng 2 đoạn = 14m, mỗi đoạn ≥ 40d = 1m và ≤ 11.7m."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        bbs = os.path.join(cls.tmp.name, "bbs.csv")
+        with open(bbs, "w", encoding="utf-8") as f:
+            f.write(LONG_BBS)
+        cls.out = os.path.join(cls.tmp.name, "out")
+        cls.result = load_module().run(out_dir=cls.out, bbs_path=bbs, bbs_sheet=None, quiet=True)
+        cls.row25 = next(r for r in cls.result["summary_rows"] if r["dia"] == 25)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_long_bars_are_planned_with_one_splice_each(self):
+        self.assertEqual(self.result["unplanned_by_dia"], {})
+        self.assertEqual(self.row25["splices_count"], 3)                  # 3 thanh × (2 đoạn − 1)
+        self.assertFalse(self.row25["status"].startswith("CHƯA ĐỦ"))
+        self.assertGreaterEqual(self.row25["bars_11m7"] * 11.7 + 1e-9, self.row25["total_len_m"])
+
+    def test_pieces_sum_exactly_to_bbs_length(self):
+        path = glob.glob(os.path.join(self.out, "LENH_CAT_CNC_CSV", "*D25*.csv"))[0]
+        with open(path, encoding="utf-8-sig", newline="") as f:
+            pieces = [float(r[3]) for r in list(csv.reader(f))[1:]]
+        self.assertEqual(len(pieces), 6)                                   # 3 thanh × 2 đoạn
+        self.assertAlmostEqual(sum(pieces), 3 * 14.0, places=6)            # không cộng thêm đoạn nối
+        for p in pieces:
+            self.assertGreaterEqual(p, 40 * 25 / 1000)
+            self.assertLessEqual(p, 11.7)
+
+    def test_dashboard_states_the_rule(self):
+        ws = openpyxl.load_workbook(os.path.join(self.out, "00_BANG_TONG_HOP_CAT_THEP_THEO_PHI.xlsx")).active
+        self.assertIn("ĐÃ GỒM trong chiều dài BBS", ws["B5"].value)
 
 
 class RejectedBbsRowsAreReportedTest(unittest.TestCase):

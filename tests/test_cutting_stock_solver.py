@@ -113,5 +113,27 @@ class CuttingStockSolverTest(unittest.TestCase):
         self.assertIn("OPTIMAL", text)
 
 
+class LongBarMinimumSegmentsTest(unittest.TestCase):
+    """long_bar_min_segments_only: chiều dài BBS đã gồm đoạn nối → chỉ tách số đoạn tối thiểu (không thêm mối nối)."""
+
+    def test_only_minimum_segment_count_is_used(self):
+        import math
+        d = CutDemand(length_mm=30000, quantity=6, diameter_mm=16, mark="L1", splice_allowed=True,
+                      lap_xd=0.0, splice_zones=[(0.0, 1.0)])
+        solver = CuttingStockSolver(bar_length_mm=11700, kerf_mm=5, time_limit_s=5, min_splice_segment_xd=40,
+                                    long_bar_min_segments_only=True)
+        sol = solver.solve([d], split_long_bars=True)
+        self.assertEqual(sol.unplanned, [])
+        k_min = math.ceil(30000 / 11700)
+        per_bar = {}
+        for s in sol.splices:
+            per_bar[s["assembly_id"]] = len(s["segments_mm"])
+        self.assertEqual(len(per_bar), 6)
+        self.assertEqual(set(per_bar.values()), {k_min})
+        for s in sol.splices:
+            self.assertEqual(sum(s["segments_mm"]), 30000)                  # L_nối = 0: tổng đoạn = chiều dài BBS
+            self.assertTrue(all(seg >= 40 * 16 for seg in s["segments_mm"]))
+
+
 if __name__ == "__main__":
     unittest.main()

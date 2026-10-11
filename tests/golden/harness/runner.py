@@ -11,7 +11,8 @@ source_type của ca:
 kind của ca (mặc định "scalar"):
   - "scalar": mỗi phần tử trong 'checks' gọi hàm một lần, so một số với 'expected' ± 'tol'.
   - "table": gọi hàm một lần với 'args'/'kwargs', hàm trả {khóa: {cột: số}}; so từng ô với file
-    'expected_csv' (cột đầu là khóa) theo dung sai từng cột trong 'tol'. Khóa thiếu hoặc thừa đều là lệch.
+    'expected_csv' (cột đầu là khóa) theo dung sai từng cột trong 'tol' (số = tuyệt đối, hoặc
+    {"tuyet_doi": x, "tuong_doi": y} = cho phép max(x, y × |kỳ vọng|)). Khóa thiếu hoặc thừa đều là lệch.
 
 status của ca:
   - "active": đã có kỳ vọng, chạy kiểm tra.
@@ -96,7 +97,13 @@ def _read_expected_csv(path):
     with open(path, encoding="utf-8-sig", newline="") as f:
         rows = list(csv.reader(f))
     header, body = rows[0], [r for r in rows[1:] if r and any(x.strip() for x in r)]
-    return {r[0].strip(): {h: float(v) for h, v in zip(header[1:], r[1:]) if v.strip()} for r in body}
+    def num(v):
+        try:
+            return float(v)
+        except ValueError:
+            return None                  # cột chữ (vd. trang bản vẽ, ghi chú) chỉ để người đọc
+    return {r[0].strip(): {h: num(v) for h, v in zip(header[1:], r[1:]) if v.strip() and num(v) is not None}
+            for r in body}
 
 
 def _run_table(case):
@@ -126,10 +133,11 @@ def _run_table(case):
                 continue
             n_cells += 1
             g, e = got[k].get(col), expected[k][col]
-            if g is None or abs(g - e) > t:
+            allowed = max(t.get("tuyet_doi", 0), t.get("tuong_doi", 0) * abs(e)) if isinstance(t, dict) else t
+            if g is None or abs(g - e) > allowed:
                 shown = "không có" if g is None else f"{g:,.3f}"
                 diff = "" if g is None else f", lệch {g - e:+,.3f}"
-                cells.append(f"{k}/{col}: nhận {shown}, kỳ vọng {e:,.3f}{diff} (± {t})")
+                cells.append(f"{k}/{col}: nhận {shown}, kỳ vọng {e:,.3f}{diff} (cho phép ± {allowed:,.3f})")
     if cells:
         listed = "; ".join(cells[:MAX_LISTED]) + (f"; … và {len(cells) - MAX_LISTED} ô khác" if len(cells) > MAX_LISTED else "")
         problems.append(f"{len(cells)}/{n_cells} ô lệch: {listed}")
