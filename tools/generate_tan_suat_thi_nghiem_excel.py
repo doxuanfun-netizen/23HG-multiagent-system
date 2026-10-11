@@ -5,10 +5,17 @@ DỰ ÁN: CAO TỐC TUYÊN QUANG - HÀ GIANG | CẦU KM19+529.080 (3 NHỊP DẦ
 Tuân thủ Luật Xây dựng 135/2025/QH15, Nghị định 207/2026/NĐ-CP, Thông tư 32/2026/TT-BXD,
 TCVN 1651:2018, TCVN 4453:1995, ASTM A416 Gr270.
 
-GỒM 3 SHEET CHUYÊN NGHIỆP:
-1. Sheet 'Theo_Doi_Tan_Suat_Be_Tong': 79 cấu kiện bê tông chi tiết (26 cọc khoan nhồi C1..Cn, bệ mố, bệ trụ, thân trụ các đốt, xà mũ, 15 dầm Super-T, dầm ngang, BMC, bản quá độ, gờ lan can). Tự động tính R7, R28, lũy kế XM/Cát/Đá, cảnh báo tần suất XM 50T, Cát 200m3, Đá 350m3.
-2. Sheet 'Theo_Doi_Tan_Suat_Cot_Thep': BÓC TÁCH RIÊNG TỪNG LOẠI TỪNG THANH THÉP (bao gồm thanh P11-D16 treo lồng cọc cho toàn bộ 26 cọc) và THEO DÕI RIÊNG TỪNG LOẠI ĐƯỜNG KÍNH Ø (Ø10, Ø12, Ø14, Ø16, Ø18, Ø20, Ø22, Ø25, Ø28, Ø32, Cáp 15.2mm) kèm cột số lô CO-CQ riêng từng Ø và cảnh báo tần suất kéo/uốn 20 TẤN/LẦN cho từng loại Ø độc lập.
-3. Sheet 'Tong_Hop_Tan_Suat_Vat_Lieu': Bảng tổng hợp toàn diện kế hoạch thí nghiệm vật liệu đầu vào bóc tách riêng từng loại Ø theo TCVN 1651:2018 và các phép thử kiểm định hiện trường (156 mặt cắt siêu âm / 26 cọc).
+Hai bước:
+1. Dựng 3 sheet 'Theo_Doi_Tan_Suat_Be_Tong', 'Theo_Doi_Tan_Suat_Cot_Thep', 'Tong_Hop_Tan_Suat_Vat_Lieu' từ bảng số
+   liệu HSTK (bang_so_lieu.json, thep_cho_to_hop_cat.json) và mẫu KCS/QS/tiến độ — khung bố cục và công thức.
+2. Sửa theo bản vẽ thẩm định (tools/tan_suat_theo_ban_ve.apply_ban_ve, quy tắc ở
+   examples/data/km19_tan_suat_theo_ban_ve.json): khối lượng bê tông lấy từ bản vẽ (ghi trang), thép dựng lại từ BBS
+   đã đối chiếu bản vẽ (cọc tách từng cọc, gồm thanh treo lồng P11), số lần thí nghiệm = ROUNDUP(lũy kế / tần suất),
+   sheet NGHI_VAN liệt kê mọi chỗ lệch / chưa có số để chủ dự án soát và ghim.
+
+Chạy:  python tools/generate_tan_suat_thi_nghiem_excel.py [--ra <file.xlsx>] [--ngay dd/mm/yyyy] [--tho]
+       --tho: chỉ bước 1 (bản thô, CHƯA sửa theo bản vẽ — không dùng làm hồ sơ).
+Thư mục HSTK: biến môi trường AEC_PROJECTS_DIR; không có thì dùng examples/HO_SO_CAU_KM19_529 trong repo.
 """
 
 import os
@@ -394,6 +401,33 @@ DIA_LIST = [
     (15.2, 26, 37, "Cáp 15.2", "Cáp DƯL 15.2\n(ASTM A416)", "ASTM A416 Gr270"),
 ]
 
+# Trang bảng thép cọc và trang mặt đứng (có ghi '4-P11-D16') trong HSTK đã OCR
+_P11_PAGES = {"Mố M1": (64, 63), "Mố M2": (66, 65), "Trụ T1": (68, 67), "Trụ T2": (70, 69)}
+
+
+def _p11_from_drawing(loc):
+    """Thép treo lồng P11 của một cọc theo bảng phụ trên bản vẽ (tools.drawing_rebar_tables.hanging_bar_rows).
+    Không đọc được thì không thêm (và không đoán chiều dài)."""
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
+    from tools.drawing_rebar_tables import hanging_bar_rows
+    path = os.path.join(repo_root, "examples", "HO_SO_CAU_KM19_529", "05_DU_LIEU_GOC_SCAN_MARKER", "du_lieu.json")
+    if loc not in _P11_PAGES or not os.path.exists(path):
+        print(f"[CẢNH BÁO] Không có dữ liệu bản vẽ cho thép treo lồng P11 ({loc}) — chưa đưa vào bảng")
+        return []
+    with open(path, encoding="utf-8") as f:
+        pages = {p["page"]: p for p in json.load(f)["pages"]}
+    page, elev = _P11_PAGES[loc]
+    out = []
+    for r in hanging_bar_rows(pages[page], pages.get(elev)):
+        out.append((r.mark, "Thanh thép treo lồng cọc", r.diameter_mm, "CB400-V", "Thanh treo lồng (bảng phụ tr.%d)" % page,
+                    round(r.length_mm / 1000.0, 3), int(r.quantity), r.unit_kg_m))
+    if not out:
+        print(f"[CẢNH BÁO] Không đọc được bảng thép treo lồng tr.{page} ({loc}) — chưa đưa vào bảng")
+    return out
+
+
 def build_sheet_rebar(ws, bsl_path, thep_cat_path, tmpl_path):
     """Xây dựng Sheet 2: Theo dõi tần suất Cốt thép bóc tách chi tiết từng thanh và riêng từng loại Ø"""
     ws.title = "Theo_Doi_Tan_Suat_Cot_Thep"
@@ -501,33 +535,13 @@ def build_sheet_rebar(ws, bsl_path, thep_cat_path, tmpl_path):
                 sub = "Thép đai xoắn lồng cọc" if "P1" in mark else ("Cốt thép chủ chịu lực cọc" if dia >= 25 else "Đai tăng cường / Con kê bảo vệ")
                 bars_1_pile.append((mark, sub, dia, grade, shape, length_m, qty, unit_w))
 
-                # Bổ sung thanh thép treo lồng cọc P11-D16 ngay sau P10 (4 thanh/cọc, L = cọc + 1.2m neo bệ)
+                # Thanh thép treo lồng P11-D16 ngay sau P10: lấy từ bảng phụ trên bản vẽ cọc (chiều dài 2,604 m /
+                # 2,484 m, 4 thanh/cọc) — trước đây tự đặt L = chiều dài cọc + 1,2 m, sai so với bản vẽ.
                 if mark == "P10":
-                    hanging_len = round(length + 1.2, 3)
-                    bars_1_pile.append((
-                        "P11",
-                        "Thanh thép treo lồng cọc",
-                        16,
-                        "CB400-V",
-                        "Thanh thẳng uốn móc treo neo vào bệ",
-                        hanging_len,
-                        4,
-                        1.578
-                    ))
+                    bars_1_pile.extend(_p11_from_drawing(loc))
 
-        # Đảm bảo P11 luôn có mặt nếu bảng số liệu thiếu P10
         if not any(b[0] == "P11" for b in bars_1_pile):
-            hanging_len = round(length + 1.2, 3)
-            bars_1_pile.append((
-                "P11",
-                "Thanh thép treo lồng cọc",
-                16,
-                "CB400-V",
-                "Thanh thẳng uốn móc treo neo vào bệ",
-                hanging_len,
-                4,
-                1.578
-            ))
+            bars_1_pile.extend(_p11_from_drawing(loc))
 
         for p_num in range(1, count + 1):
             pile_title = f"Cọc khoan nhồi C{p_num} {loc} (D1.2m, L={length}m)"
@@ -1038,17 +1052,29 @@ def build_sheet_summary(ws, r_tot_concrete, r_end_rebar):
 
     ws.freeze_panes = "C5"
 
-def build_tan_suat_master_workbook(output_path: str):
-    """Tạo toàn bộ Master Workbook gồm cả 3 Sheet chuyên nghiệp"""
-    base_marker = os.environ.get("AEC_PROJECTS_DIR", os.path.join(os.path.expanduser("~"), "Downloads", "HSTK Cầu Km19+529.080_Marker"))
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO_HSTK = os.path.join(REPO_ROOT, "examples", "HO_SO_CAU_KM19_529")
+REPO_OUT = os.path.join(REPO_HSTK, "01_HIEN_TRUONG_QLCL_KCS", "Bang_Theo_Doi_Tan_Suat_Thi_Nghiem_Be_Tong_Va_Thep_Cau_Km19.xlsx")
+
+
+def _base_marker() -> str:
+    if os.environ.get("AEC_PROJECTS_DIR"):
+        return os.environ["AEC_PROJECTS_DIR"]
+    local = os.path.join(os.path.expanduser("~"), "Downloads", "HSTK Cầu Km19+529.080_Marker")
+    return local if os.path.isdir(local) else REPO_HSTK
+
+
+def build_tan_suat_master_workbook(output_path: str, theo_ban_ve: bool = True, ngay: str = None):
+    """Tạo workbook tần suất: dựng 3 sheet rồi (mặc định) sửa theo bản vẽ thẩm định. Trả về thống kê bước sửa
+    (None khi theo_ban_ve=False)."""
+    base_marker = _base_marker()
     bsl_path = os.path.join(base_marker, "05_DU_LIEU_GOC_SCAN_MARKER", "bang_so_lieu.json")
     if not os.path.exists(bsl_path):
         bsl_path = os.path.join(base_marker, "bang_so_lieu.json")
     thep_cat_path = os.path.join(base_marker, "05_DU_LIEU_GOC_SCAN_MARKER", "thep_cho_to_hop_cat.json")
     if not os.path.exists(thep_cat_path):
         thep_cat_path = os.path.join(base_marker, "thep_cho_to_hop_cat.json")
-    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    tmpl_path = os.path.join(repo_root, "templates", "Ho_So_KCS_QS_TienDo_Cau_Km19+529.080.xlsx")
+    tmpl_path = os.path.join(REPO_ROOT, "templates", "Ho_So_KCS_QS_TienDo_Cau_Km19+529.080.xlsx")
 
     wb = openpyxl.Workbook()
     # Sheet 1: Bê tông
@@ -1063,23 +1089,40 @@ def build_tan_suat_master_workbook(output_path: str):
     ws3 = wb.create_sheet("Tong_Hop_Tan_Suat_Vat_Lieu")
     build_sheet_summary(ws3, r_tot, r_end)
 
+    stats = None
+    if theo_ban_ve:
+        if REPO_ROOT not in sys.path:
+            sys.path.insert(0, REPO_ROOT)
+        from tools.tan_suat_theo_ban_ve import apply_ban_ve
+        stats = apply_ban_ve(wb, ngay=ngay)
+
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     wb.save(output_path)
     wb.close()
-    print(f"[OK] Đã xuất bản thành công Bộ hồ sơ tần suất thí nghiệm chuẩn: {output_path}")
+    if stats:
+        print(f"[OK] {output_path}: sửa theo bản vẽ — {stats['dong_thep']} dòng thép, {stats['lan_bt']} lần lấy mẫu vật "
+              f"liệu bê tông, {stats['lan_thep']} lần thép, {stats['nghi_van']} nghi vấn (sheet NGHI_VAN)")
+    else:
+        print(f"[NOTE] {output_path}: bản thô, CHƯA sửa theo bản vẽ")
+    return stats
+
+def main(argv=None):
+    import argparse
+    import shutil
+
+    ap = argparse.ArgumentParser(description="Sinh sổ theo dõi tần suất thí nghiệm Cầu Km19 theo bản vẽ thẩm định")
+    ap.add_argument("--ra", default=None, help="file ghi ra (mặc định: <HSTK>/01_HIEN_TRUONG_QLCL_KCS/... rồi chép vào repo)")
+    ap.add_argument("--ngay", default=None, help="ngày ghi ở sheet NGHI_VAN (mặc định: hôm nay)")
+    ap.add_argument("--tho", action="store_true", help="chỉ dựng bản thô, không sửa theo bản vẽ")
+    a = ap.parse_args(argv)
+    out = a.ra or os.path.join(_base_marker(), "01_HIEN_TRUONG_QLCL_KCS", os.path.basename(REPO_OUT))
+    build_tan_suat_master_workbook(out, theo_ban_ve=not a.tho, ngay=a.ngay)
+    if a.ra is None and not a.tho and os.path.abspath(out) != os.path.abspath(REPO_OUT):
+        os.makedirs(os.path.dirname(REPO_OUT), exist_ok=True)
+        shutil.copy2(out, REPO_OUT)
+        print(f"[OK] Đã đồng bộ sang git repo: {REPO_OUT}")
+    return 0
+
 
 if __name__ == "__main__":
-    base_marker = os.environ.get("AEC_PROJECTS_DIR", os.path.join(os.path.expanduser("~"), "Downloads", "HSTK Cầu Km19+529.080_Marker"))
-    out_master = os.path.join(base_marker, "01_HIEN_TRUONG_QLCL_KCS", "Bang_Theo_Doi_Tan_Suat_Thi_Nghiem_Be_Tong_Va_Thep_Cau_Km19.xlsx")
-    build_tan_suat_master_workbook(out_master)
-
-    # Đồng bộ sang kho mã nguồn git repo
-    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    repo_sync_path = os.path.join(repo_root, "examples", "HO_SO_CAU_KM19_529", "01_HIEN_TRUONG_QLCL_KCS", "Bang_Theo_Doi_Tan_Suat_Thi_Nghiem_Be_Tong_Va_Thep_Cau_Km19.xlsx")
-    try:
-        import shutil
-        os.makedirs(os.path.dirname(repo_sync_path), exist_ok=True)
-        shutil.copy2(out_master, repo_sync_path)
-        print(f"[OK] Đã đồng bộ sang git repo: {repo_sync_path}")
-    except Exception as e:
-        print(f"[NOTE] Không thể đồng bộ sang repo: {e}")
+    sys.exit(main())

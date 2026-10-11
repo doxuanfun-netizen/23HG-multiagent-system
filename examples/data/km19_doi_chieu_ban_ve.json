@@ -34,9 +34,11 @@
     {"ten": "Khe co giãn", "moi": true, "chen_sau": "Gờ lan can BTCT",
      "trang": [{"so": 121, "he_so": 1, "bo_phan": "Khe co giãn"}]},
     {"ten": "Cọc khoan nhồi D1200 (26 cọc L=872m)",
-     "trang": [{"so": 64, "he_so": 3, "bo_phan": "Cọc mố M1 L=20m"}, {"so": 66, "he_so": 7, "bo_phan": "Cọc mố M2 L=36m"},
-               {"so": 68, "he_so": 8, "bo_phan": "Cọc trụ T1 L=40m"}, {"so": 70, "he_so": 8, "bo_phan": "Cọc trụ T2 L=30m"}],
-     "tong_hop": {"trang": 175, "kg": 108884.0, "ghi_chu": "Tr.175: D<=10 10,451 t và D>18 97,451 t khớp đúng 3/7/8/8 cọc; nhóm 10<D<=18 ghi 0,982 t nhưng các trang cọc chỉ có 0,559 t — xem PDF tr.175."},
+     "trang": [{"so": 64, "he_so": 3, "bo_phan": "Cọc mố M1 L=20m", "thep_treo_long": 63},
+               {"so": 66, "he_so": 7, "bo_phan": "Cọc mố M2 L=36m", "thep_treo_long": 65},
+               {"so": 68, "he_so": 8, "bo_phan": "Cọc trụ T1 L=40m", "thep_treo_long": 67},
+               {"so": 70, "he_so": 8, "bo_phan": "Cọc trụ T2 L=30m", "thep_treo_long": 69}],
+     "tong_hop": {"trang": 175, "kg": 108884.0, "ghi_chu": "Tr.175 gồm cả thép treo lồng P11-D16 (4 thanh/cọc, bảng phụ trên từng trang cọc)."},
      "ghi_chu_he_so": "Số cọc 3/7/8/8 khớp bảng tổng hợp tr.175 (thép D<=10, D>18 và vữa lấp lòng 14,43 m³ = 3×0,34 + 7×0,59 + 8×0,66 + 8×0,50)."}
   ]
 }

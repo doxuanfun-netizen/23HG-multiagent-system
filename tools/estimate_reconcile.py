@@ -7,10 +7,12 @@ Số liệu bản vẽ lấy tự động từ dữ liệu OCR (du_lieu.json) th
   {"trang": 175, "sau": "BAN MAT CAU", "nhan": "..."}      → chỉ tìm sau dòng chứa nhãn 'sau'
   {"trang": 31, "thep": true}                              → tổng khối lượng thép ghi trên bảng thép của trang (tấn)
   {"trang": 40, "thep_ghi_0": true}                        → các thanh bản vẽ ghi 0 kg, tính dài × SL × kg/m (tấn)
+  {"trang": 64, "thep_treo_long": 63}                      → bảng phụ thép treo lồng cọc (trang mặt đứng 63) (tấn)
   {"tong": [{"he_so": 3, ...}, ...]}                       → tổng có hệ số, ghi thành công thức Excel để soát được
 So nhãn sau khi bỏ dấu, viết hoa và bỏ khoảng trắng (OCR hay dính chữ: 'Cốt thepD<=10').
 
-Dòng diễn giải QS có dạng J = E × F × G × H × I. Dòng sửa: E = số cấu kiện, F = khối lượng bản vẽ, G = H = I = 1,
+Dòng diễn giải QS có dạng J = E × F × G × H × I. Dòng sửa: E = số cấu kiện, F = khối lượng bản vẽ, G = H = 1,
+I = hệ số ghi trong cấu hình (mặc định 1),
 cột C ghi nguồn trang, cột M ghi nghi vấn, cột N giữ khối lượng cũ.
 """
 
@@ -22,7 +24,7 @@ from typing import Dict, List, Optional
 
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
-from tools.drawing_rebar_tables import norm, page_rebar_table, zero_weight_rows_kg
+from tools.drawing_rebar_tables import hanging_bar_rows, norm, page_rebar_table, zero_weight_rows_kg
 
 FILL_SUA = PatternFill("solid", fgColor="FFF2CC")       # vàng: đã sửa theo bản vẽ
 FILL_NGHI_VAN = PatternFill("solid", fgColor="F8CBAD")  # cam: nghi vấn cần soát
@@ -78,6 +80,11 @@ def ocr_value(page: dict, nhan: str, sau: Optional[str] = None) -> float:
 
 def drawing_value(spec: dict, pages: Dict[int, dict]) -> float:
     page = pages[spec["trang"]]
+    if spec.get("thep_treo_long"):                  # bảng phụ thép treo lồng cọc, kèm trang mặt đứng
+        rows = hanging_bar_rows(page, pages.get(spec["thep_treo_long"]))
+        if not rows:
+            raise ValueError(f"tr.{spec['trang']}: không đọc được bảng thép treo lồng")
+        return round(sum(r.total_kg for r in rows) / 1000.0, 5)
     if spec.get("thep") or spec.get("thep_ghi_0"):
         t = page_rebar_table(page)
         if t is None or t.stated_total_kg is None:
@@ -168,14 +175,15 @@ def apply_qs(ws, cfg: dict, pages: Dict[int, dict], sheet_label: str, note: str)
             value, f_cell = resolve_f(item["F"], pages)
         else:
             value, f_cell = 0.0, 0
+        he_so = item.get("I", 1)                  # hệ số (vd. nở thành cọc 1,12 — chủ dự án quyết định)
         ws.cell(r, 3).value = item["C"]
-        for c, v in zip(range(5, 10), (e, f_cell, 1, 1, 1)):
+        for c, v in zip(range(5, 10), (e, f_cell, 1, 1, he_so)):
             ws.cell(r, c).value = v
             ws.cell(r, c).fill = FILL_SUA
         ws.cell(r, 10).value = f"=E{r}*F{r}*G{r}*H{r}*I{r}"
         ws.cell(r, 10).fill = FILL_SUA
         ws.cell(r, 14).value = round(old, 3) if old is not None else None
-        new = e * value
+        new = e * value * he_so
         pages_txt = ", ".join(sorted(set(re.findall(r"tr\.\d+", item["C"]))))
         changed = old is None or abs(new - old) > max(0.005, 0.001 * abs(old))
         text = f"Theo bản vẽ: {fmt(old)} → {fmt(new)}" if changed else "Khớp bản vẽ"

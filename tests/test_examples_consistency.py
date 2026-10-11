@@ -59,7 +59,7 @@ _SKIP_DIR_NAMES = {
 
 def _skip_audit(path):
     parts = set(path.replace("\\", "/").split("/"))
-    return os.path.getsize(path) > _HEAVY_BYTES or bool(parts & _SKIP_DIR_NAMES)
+    return (os.path.getsize(path) > _HEAVY_BYTES or bool(parts & _SKIP_DIR_NAMES))
 
 
 class FormulaCoverageTest(unittest.TestCase):
