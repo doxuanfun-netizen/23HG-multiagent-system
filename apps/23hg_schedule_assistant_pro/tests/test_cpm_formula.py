@@ -12,12 +12,13 @@ import openpyxl
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "1_Scripts_TuDongHoa"))
+from _libreoffice import calc_available  # noqa: E402
 import build_cpm_formula as bf  # noqa: E402
 import cpm_engine as ce  # noqa: E402
 
 D = dt.date
 START = dt.datetime(2024, 1, 1)
-HAVE_SOFFICE = bool(shutil.which("soffice") or shutil.which("libreoffice"))
+HAVE_SOFFICE = calc_available()
 
 
 def d(x):
