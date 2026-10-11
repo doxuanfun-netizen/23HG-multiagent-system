@@ -78,7 +78,18 @@ def find_row(ws, rows: List[int], pattern: str) -> Optional[int]:
     return next((r for r in rows if re.search(pattern, ws.cell(r, 2).value, re.I)), None)
 
 
+def concrete_offset(ws) -> int:
+    """
+    Bố cục sheet bê tông: file của đơn vị có cột E = khối lượng; file sinh từ repo không có cột D phụ nên lệch trái
+    1 cột (D = khối lượng). Chỉ số cột trong code là theo bố cục E; cột >= 4 cộng thêm độ lệch này.
+    """
+    col = next((c for c in range(1, 10) if str(ws.cell(1, c).value or "").strip().upper().startswith("KL")), 5)
+    return col - 5
+
+
 def apply_concrete(ws, cfg: dict, pages, flags: List[NghiVan]) -> List[int]:
+    off = concrete_offset(ws)
+    C = lambda n: n + off if n >= 4 else n                      # noqa: E731
     rows = data_rows(ws)
     sheet = ws.title
     note_col = ws.max_column + 1
@@ -95,13 +106,19 @@ def apply_concrete(ws, cfg: dict, pages, flags: List[NghiVan]) -> List[int]:
             flags.append(NghiVan(sheet, r, ws.cell(r, 2).value, text, _fmt(old), _fmt(new)))
 
     matched = set()
+    has = lambda pattern: any(re.search(pattern, ws.cell(r, 2).value, re.I) for r in rows)   # noqa: E731
     for rule in cfg["be_tong"]:
+        if rule.get("chi_khi_co") and not has(rule["chi_khi_co"]):
+            continue
+        if rule.get("chi_khi_khong_co") and has(rule["chi_khi_khong_co"]):
+            continue
         hits = [r for r in rows if re.search(rule["mau"], ws.cell(r, 2).value, re.I) and r not in matched]
         if not hits:
-            flags.append(NghiVan(sheet, None, rule["mau"], "Không tìm thấy dòng đợt đổ ứng với hạng mục bản vẽ này"))
+            if not rule.get("khong_bat_buoc"):
+                flags.append(NghiVan(sheet, None, rule["mau"], "Không tìm thấy dòng đợt đổ ứng với hạng mục bản vẽ này"))
             continue
         matched.update(hits)
-        olds = [_num(ws.cell(r, 5).value) for r in hits]
+        olds = [_num(ws.cell(r, C(5)).value) for r in hits]
         if rule.get("chia_theo_ty_le_cu"):
             news = _split(_value(rule["E"], {} if isinstance(rule["E"], (int, float)) else pages),
                           [o or 0.0 for o in olds])
@@ -109,8 +126,8 @@ def apply_concrete(ws, cfg: dict, pages, flags: List[NghiVan]) -> List[int]:
             v = round(_value(rule["E"], pages), 2)
             news = [v] * len(hits)
         for r, old, new in zip(hits, olds, news):
-            ws.cell(r, 5).value = new
-            ws.cell(r, 5).fill = FILL_SUA
+            ws.cell(r, C(5)).value = new
+            ws.cell(r, C(5)).fill = FILL_SUA
             if rule.get("B"):
                 ws.cell(r, 2).value = rule["B"]
             if rule.get("doi_mac"):
@@ -122,13 +139,13 @@ def apply_concrete(ws, cfg: dict, pages, flags: List[NghiVan]) -> List[int]:
             note(r, text, flag=changed or bool(rule.get("nghi_van")), old=old, new=new)
     for r in rows:
         if r not in matched:
-            note(r, "Chưa đối chiếu bản vẽ (không có quy tắc cho dòng này)", old=_num(ws.cell(r, 5).value))
+            note(r, "Chưa đối chiếu bản vẽ (không có quy tắc cho dòng này)", old=_num(ws.cell(r, C(5)).value))
 
     # cấp phối: chỉ có cấp phối cho các mác trong 'cap_phoi_co_san'; mác khác đang dùng cấp phối C30
     for r in rows:
         grades = set(re.findall(r"\b(C\d{2}|M\d{3})\b", ws.cell(r, 2).value))
         missing = grades - set(cfg.get("cap_phoi_co_san", []))
-        if missing and not ws.cell(r, 8).value:
+        if missing and not ws.cell(r, C(8)).value:
             note(r, f"Mác {', '.join(sorted(missing))} chưa có cấp phối riêng — đang dùng cấp phối C30 "
                     f"(0,425 t XM; 0,555 m³ cát; 0,700 m³ đá / m³). Nhập cấp phối được duyệt.")
 
@@ -138,11 +155,11 @@ def apply_concrete(ws, cfg: dict, pages, flags: List[NghiVan]) -> List[int]:
     prev = None
     for r in rows:
         for col, step in steps.items():
-            c = get_column_letter(src[col])
+            c = get_column_letter(C(src[col]))
             cur, before = f"{c}{r}", (f"{c}{prev}" if prev else None)
             n = f"ROUNDUP({cur}/{step},0)"
             cond = f"{n}>ROUNDUP({before}/{step},0)" if before else f"{n}>0"
-            ws.cell(r, col).value = f'=IF({cur}="","",IF({cond},"Lần " & {n},""))'
+            ws.cell(r, C(col)).value = f'=IF({cur}="","",IF({cond},"Lần " & {n},""))'
         prev = r
     flags.append(NghiVan(sheet, None, "Cột Q/R/S", f"Sửa công thức số lần: cát chia {ts['cat_m3']} m³, đá chia "
                                                    f"{ts['da_m3']} m³ (dòng 4–73 cũ chia ngược 350/200); lần 1 lấy khi "
@@ -157,16 +174,17 @@ def apply_concrete(ws, cfg: dict, pages, flags: List[NghiVan]) -> List[int]:
 def concrete_events(ws, rows: List[int], cfg: dict) -> List[Tuple[int, int, int]]:
     """(dòng, cột Q/R/S, lần) — tính lại đúng như công thức trong file."""
     ts = cfg["tan_suat"]
+    off = concrete_offset(ws)
     cum = {14: 0.0, 15: 0.0, 16: 0.0}
-    ratio = {14: (8, 11), 15: (9, 12), 16: (10, 13)}       # cọc nhồi (H/I/J) hoặc thường (K/L/M)
+    ratio = {14: (8, 11), 15: (9, 12), 16: (10, 13)}       # cọc nhồi (H/I/J) hoặc thường (K/L/M), bố cục E
     steps = {14: ts["xi_mang_tan"], 15: ts["cat_m3"], 16: ts["da_m3"]}
     out = []
     for r in rows:
-        e = _num(ws.cell(r, 5).value) or 0.0
+        e = _num(ws.cell(r, 5 + off).value) or 0.0
         for c in (14, 15, 16):
             a, b = ratio[c]
-            k = _num(ws.cell(r, a).value) or 0.0
-            k = k if k > 0 else (_num(ws.cell(r, b).value) or 0.0)
+            k = _num(ws.cell(r, a + off).value) or 0.0
+            k = k if k > 0 else (_num(ws.cell(r, b + off).value) or 0.0)
             before = cum[c]
             cum[c] = round(before + e * k, 2)
             for n in range(_lan(before, steps[c]) + 1, _lan(cum[c], steps[c]) + 1):   # mỗi lần một sự kiện
@@ -272,6 +290,16 @@ def apply_steel(ws, groups: List[Tuple[str, List[SteelRow]]], cfg: dict, flags: 
         if rng.min_row >= 3:
             ws.unmerge_cells(str(rng))
     ws.delete_rows(3, ws.max_row)
+    if not any(a for a, _ in offsets):
+        # file chưa có bảng ngày lùi (lắp dựng thép trước ngày đổ bê tông, ngày) — dùng bảng của file đơn vị
+        offsets = [("Coc", 1), ("Be", 3), ("Than", 2), ("Dam", 4), ("HoanThien", 2), (None, None)]
+        ws.cell(1, 40, "LOẠI HẠNG MỤC (OFFSET)")
+        ws.cell(1, 41, "DÒNG BÊ TÔNG ĐỐI CHIẾU")
+        ws.cell(1, 43, "LOẠI HẠNG MỤC")
+        ws.cell(1, 44, "LÙI (ngày)")
+        ws.cell(1, 13, "N/T/N\nLẮP DỰNG")
+        flags.append(NghiVan(ws.title, None, "Ngày lắp dựng", "Thêm bảng ngày lắp dựng thép trước ngày đổ bê tông (cọc 1, "
+                                                              "bệ 3, thân 2, dầm 4, hoàn thiện 2 ngày) — chỉnh theo tiến độ."))
     for i, (a, b) in enumerate(offsets):
         ws.cell(2 + i, 43, a)
         ws.cell(2 + i, 44, b)
