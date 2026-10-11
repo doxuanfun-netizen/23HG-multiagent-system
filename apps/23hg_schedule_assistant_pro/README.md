@@ -109,7 +109,7 @@ python 1_Scripts_TuDongHoa\build_cpm_formula.py --recalc   # tạo lại bảng 
 python -m unittest discover -s tests -v
 ```
 
-55 unit test tự động (tương thích CI đa nền tảng Linux/macOS/Windows), chạy dưới 1 giây. Bao gồm: cú pháp script, kiểm tra ribbon và tính hợp lệ macro, tính toàn vẹn gói OpenXML, kịch bản installer, bộ tính CPM thuần (55 mạng ngẫu nhiên đối chiếu VBA Core).
+55 unit test tự động (tương thích CI đa nền tảng Linux/macOS/Windows), chạy khoảng 11–14 giây khi có LibreOffice Calc; các test Calc tự bỏ qua nếu máy thiếu Calc. Bao gồm: cú pháp script, kiểm tra ribbon và tính hợp lệ macro, tính toàn vẹn gói OpenXML, kịch bản installer, bộ tính CPM thuần (55 mạng ngẫu nhiên đối chiếu VBA Core).
 
 Kiểm thử chạy thực tế trên Excel (Windows COM):
 ```

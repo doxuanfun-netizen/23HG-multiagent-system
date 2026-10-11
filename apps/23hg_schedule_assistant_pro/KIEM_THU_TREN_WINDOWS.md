@@ -60,7 +60,8 @@ Chạy script kiểm thử COM tự động trên Microsoft Excel:
 python 1_Scripts_TuDongHoa\kiem_tay_windows\chay_cau_noi_com.py
 ```
 
-**Kết quả thực tế ghi nhận ngày 11/10/2026 trên Microsoft Excel 16.0 (Office 365/2016):**
+**Kết quả ghi nhận ngày 11/10/2026 trên Microsoft Excel 16.0 (Office 365/2016):**
+> Lưu ý: chưa có log đầu ra đính kèm trong repo. Người chạy trên Windows cần đính kèm log console thật.
 - `VBA ExportTasksToMSPDI result: True` (Tạo file XML dung lượng ~37 KB, chứa đủ WBS, Tasks, Predecessors).
 - `VBA ImportTasksFromMSPDI result: True` (Đọc ngược file XML vào bảng tính TIEN_DO thành công).
 - `VBA ExportTasksToXER result: True` (Tạo file Primavera P6 XER dung lượng ~7.5 KB với các bảng `%T/PROJECT`, `%T/PROJWBS`, `%T/TASK`, `%T/TASKPRED`).

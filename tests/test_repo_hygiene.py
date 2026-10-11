@@ -14,6 +14,7 @@ Khi test (2) đỏ: đồng bộ các bản sao (xem sync_same_named_copies tron
 import collections
 import hashlib
 import os
+import re
 import subprocess
 import unittest
 
@@ -162,6 +163,30 @@ class RepoHygieneTest(unittest.TestCase):
         bad = diverged_copies(existing, _md5)
         self.assertEqual(bad, {}, "bản sao cùng tên bị lệch nhau: "
                                   + "; ".join(f"{proj}/{name} ({len(v)} bản)" for (proj, name), v in bad.items()))
+
+
+class PersonalPathTest(unittest.TestCase):
+    """Không để đường dẫn cá nhân hoặc tên đơn vị lọt vào file văn bản đã track."""
+    TEXT_SUFFIXES = (".json", ".jsonl", ".md", ".txt", ".csv", ".py", ".bat", ".bas", ".vba", ".xml", ".html")
+    # Placeholder như `C:\\Users\\...` hay `C:\\Users\\<Tên_User>` không tính là đường dẫn cá nhân.
+    PATTERNS = [re.compile(r"C[oô]ng ty \d{3}", re.IGNORECASE),
+                re.compile(r"[A-Za-z]:\\+Users\\+(?![.<])[^\\\s\"']+", re.IGNORECASE)]
+    # File này khai báo chính đường dẫn cần cấm (để kiểm tra nó không xuất hiện), nên được miễn.
+    ALLOWED_FILES = {"apps/23hg_schedule_assistant_pro/tests/test_static.py"}
+
+    def test_no_personal_paths_in_tracked_text_files(self):
+        files = tracked_files()
+        if files is None:
+            self.skipTest("không phải bản checkout git")
+        hits = []
+        for rel in files:
+            if (not rel.lower().endswith(self.TEXT_SUFFIXES) or rel in self.ALLOWED_FILES
+                    or not os.path.isfile(os.path.join(ROOT, rel))):
+                continue
+            with open(os.path.join(ROOT, rel), "rb") as f:
+                text = f.read().decode("utf-8", errors="ignore")
+            hits += [rel for pat in self.PATTERNS if pat.search(text)]
+        self.assertEqual(hits, [], "Có đường dẫn cá nhân hoặc tên đơn vị trong file đã track")
 
 
 if __name__ == "__main__":
