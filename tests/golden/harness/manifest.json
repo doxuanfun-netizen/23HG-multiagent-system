@@ -25,130 +25,125 @@
       ]
     },
     {
-      "id": "bbs_don_vi_khoi_luong_thep",
-      "title": "Khối lượng đơn vị theo Ø (D²/162) so với cột 'Trọng lượng 1m' của BBS đã duyệt",
+      "id": "quy_uoc_kg_m_ho_so_km19",
+      "title": "Khối lượng đơn vị thép theo quy ước hồ sơ Km19 (bảng solver cắt thép)",
       "source_type": "approved_dossier",
       "status": "active",
-      "approved_ref": "examples/HO_SO_CAU_KM19_529/02_XUONG_TIEN_CHE_COT_THEP/04_Thong_Ke_Thep_Chi_Tiet_BBS_396_Dong.xlsx, sheet THONG_KE_THEP_CHI_TIET, cột 'Trọng lượng 1m (kg/m)'. Chủ dự án cho biết đã duyệt; số văn bản và ngày duyệt: chưa cung cấp.",
-      "producer": "tools.steel_qs:rebar_unit_mass",
+      "approved_ref": "Chủ dự án chọn quy ước ngày 11/10/2026: dùng bảng của solver cắt thép (vd. Ø14 = 1,208 kg/m).",
+      "producer": "tools.cutting_stock_solver:rebar_unit_weight_kg_m",
       "checks": [
         {
           "args": [
             8
           ],
           "expected": 0.395,
-          "tol": 0.0005
+          "tol": 1e-09
         },
         {
           "args": [
             10
           ],
           "expected": 0.617,
-          "tol": 0.0005
+          "tol": 1e-09
         },
         {
           "args": [
             12
           ],
           "expected": 0.888,
-          "tol": 0.0005
+          "tol": 1e-09
         },
         {
           "args": [
             14
           ],
-          "expected": 1.21,
-          "tol": 0.005
+          "expected": 1.208,
+          "tol": 1e-09
         },
         {
           "args": [
             16
           ],
-          "expected": 1.58,
-          "tol": 0.005
+          "expected": 1.578,
+          "tol": 1e-09
         },
         {
           "args": [
             18
           ],
-          "expected": 2.0,
-          "tol": 0.005
+          "expected": 1.998,
+          "tol": 1e-09
         },
         {
           "args": [
             20
           ],
-          "expected": 2.47,
-          "tol": 0.005
+          "expected": 2.466,
+          "tol": 1e-09
         },
         {
           "args": [
             22
           ],
-          "expected": 2.98,
-          "tol": 0.005
+          "expected": 2.984,
+          "tol": 1e-09
         },
         {
           "args": [
             25
           ],
-          "expected": 3.85,
-          "tol": 0.005
+          "expected": 3.853,
+          "tol": 1e-09
         },
         {
           "args": [
             28
           ],
-          "expected": 4.83,
-          "tol": 0.005
+          "expected": 4.834,
+          "tol": 1e-09
         },
         {
           "args": [
             32
           ],
-          "expected": 6.31,
-          "tol": 0.005
+          "expected": 6.313,
+          "tol": 1e-09
         }
       ]
     },
     {
-      "id": "bbs_tong_hop_theo_duong_kinh",
-      "title": "Tổng chiều dài và khối lượng thép thanh theo Ø (không gồm cáp DƯL) so với sheet tổng hợp của BBS đã duyệt",
+      "id": "bbs_theo_hang_muc_vs_ban_ve_tham_dinh",
+      "title": "Khối lượng thép theo hạng mục từ BBS so với tổng trên bản vẽ thẩm định",
       "source_type": "approved_dossier",
       "status": "active",
       "kind": "table",
-      "approved_ref": "examples/HO_SO_CAU_KM19_529/02_XUONG_TIEN_CHE_COT_THEP/04_Thong_Ke_Thep_Chi_Tiet_BBS_396_Dong.xlsx, sheet TONG_HOP_THEP_THEO_DUONG_KINH, cột 'Tổng chiều dài (m)' và 'Tổng trọng lượng (kg)'. File chưa lưu giá trị công thức nên số trong fixtures/bbs_km19_tong_hop_theo_duong_kinh.csv được tính lại bằng LibreOffice, không sửa tay. Sheet này không có dòng Ø8. Chủ dự án cho biết đã duyệt; số văn bản và ngày duyệt: chưa cung cấp.",
-      "producer": "tests.golden.harness.producers:bbs_theo_duong_kinh",
+      "approved_ref": "HSTK Cầu Km19+529.080 có dấu thẩm định (OCR: 05_DU_LIEU_GOC_SCAN_MARKER/du_lieu.json); trang ghi trong cột 'nguon' của fixture. Dung sai 0,3% do bản vẽ dùng kg/m làm tròn (1,21) còn hồ sơ dùng bảng solver (1,208). Mố M2: chủ dự án quyết định 11/10/2026 tính thêm W6, W7, W9 mà tr.40 ghi 0 kg (237,05 kg).",
+      "producer": "tests.golden.harness.producers:bbs_theo_hang_muc",
       "args": [
         "examples/HO_SO_CAU_KM19_529/02_XUONG_TIEN_CHE_COT_THEP/04_Thong_Ke_Thep_Chi_Tiet_BBS_396_Dong.xlsx",
         "THONG_KE_THEP_CHI_TIET"
       ],
-      "expected_csv": "tests/golden/harness/fixtures/bbs_km19_tong_hop_theo_duong_kinh.csv",
+      "expected_csv": "tests/golden/harness/fixtures/km19_thep_theo_hang_muc_ban_ve_tham_dinh.csv",
       "tol": {
-        "tong_dai_m": 0.01,
-        "tong_kg": 0.5
+        "tong_kg": {
+          "tuyet_doi": 5.0,
+          "tuong_doi": 0.003
+        }
       }
-    },
-    {
-      "id": "bbs_10_dong_bat_thuong",
-      "title": "10 dòng BBS có Ø không phải thép thanh và chiều dài 2–4 mm",
-      "source_type": "approved_dossier",
-      "status": "pending",
-      "reason": "10 dòng Dầm ngang và Bản liên tục nhiệt: Ø 54–260 mm, chiều dài 1 thanh 0,001–0,004 m, tổng ~81.890 kg (~9% tổng BBS); bộ đọc BBS loại cả 10 dòng. Bản vẽ thẩm tra ghi liên tục nhiệt 4.458,97 kg × 2 = 8.917,94 kg (HSTK trang 112) và dầm ngang 2.763,12 kg (trang 96), nên các dòng này có vẻ là lỗi nhập liệu. Sheet tổng hợp không có các dòng này và không có Ø8 (~215 kg): 801.796 kg so với tổng chi tiết 883.902 kg. Chờ chủ dự án cấp BBS đã sửa."
     },
     {
       "id": "payment_03a_vs_approved",
       "title": "Mẫu 03a so với bảng khối lượng thực hiện đã ký",
       "source_type": "approved_dossier",
       "status": "pending",
-      "reason": "Chưa có Mẫu 03a đã ký. File 03a trong repo không dùng làm chuẩn được: công thức khối lượng và đơn giá trỏ sai dòng sang sheet QS_DIEN_GIAI_CHI_TIET ở 15/18 mục (vd. 'Cốt thép mố và trụ' lấy dòng 'Bê tông xà mũ')."
+      "reason": "Chưa có Mẫu 03a đã ký. File 03a trong repo đã sửa tham chiếu sang dòng hạng mục QS và khối lượng theo bản vẽ thẩm định (11/10/2026), nhưng tỷ lệ hoàn thành kỳ này chưa có biên bản nghiệm thu (đánh dấu NGHI VẤN) — không dùng làm chuẩn."
     },
     {
       "id": "bridge_estimate_vs_approved",
       "title": "Dự toán cầu G_XD so với bản đã duyệt",
       "source_type": "approved_dossier",
       "status": "pending",
-      "reason": "Chưa có dự toán cầu đã duyệt. Dự toán trong repo có dòng tổng hạng mục nhập tay, không bằng tổng dòng con (hạng mục 4: 108,766 t so với 118,97 t; 14: 224,652 t so với 128,1 t; 17: 361,6 t so với 90,63 t), và cốt thép mố M1/M2 ghi 'theo trang 31/40' là 23,45 t/31,85 t trong khi trang đó ghi 7,959 t/19,649 t."
+      "reason": "Chưa có dự toán cầu đã duyệt. Dự toán trong repo đã sửa khối lượng theo bản vẽ thẩm định (11/10/2026: G_XD 33,97 → 26,78 tỷ, chủ yếu do thép dầm Super-T 361,6 → 89,69 t), nhưng đơn giá chưa đối chiếu và còn hạng mục có trên bản vẽ mà dự toán chưa có (sheet NGHI_VAN) — không dùng làm chuẩn."
     }
   ]
 }

@@ -10,7 +10,7 @@ thanh toán 03a, tiến độ CPM, KCS, As-Built. Giữ file này dưới 200 d�
 - Test gốc (như CI): `python -m unittest discover -s tests -t . -q`
 - Tự kiểm tra solver + CPM (như CI): `python run_state_graph.py --solver-test`
 - Test apps: `cd apps/23hg_schedule_assistant_pro && python -m unittest discover -s tests -p "test_*.py"`
-- Khung đối chiếu hồ sơ duyệt: `python tests/golden/harness/runner.py` (đang FAIL có chủ đích, xem bên dưới)
+- Khung đối chiếu hồ sơ duyệt: `python -m tests.golden.harness.runner` (còn FAIL có lý do, xem bên dưới)
 - Quét lỗi công thức Excel: `python -m tools.audit_excels_static <thư mục>`
 - Kiểm tra trước khi push (một lần cho mỗi bản clone): `git config core.hooksPath .githooks`
 
@@ -27,13 +27,16 @@ thanh toán 03a, tiến độ CPM, KCS, As-Built. Giữ file này dưới 200 d�
 - File Excel trong repo thường KHÔNG có giá trị công thức lưu sẵn. Muốn đọc giá trị: tính lại bản sao
   bằng LibreOffice (`soffice --headless --convert-to xlsx`) hoặc `tools/excel_eval.py`; không sửa file gốc.
 
-## Điểm đang mở (chờ chủ dự án quyết định — đừng tự chọn)
+## Quyết định của chủ dự án (11/10/2026) và điểm còn mở
 
-- Ba quy ước khối lượng đơn vị thép đang cùng tồn tại: `tools/steel_qs.py` dùng D²/162,
-  `tools/cutting_stock_solver.py` tra bảng π·d²/4·ρ (vd. Ø14 = 1,208), BBS Km19 dùng bảng làm tròn
-  (Ø14 = 1,21). Harness đang báo lệch ở ca `bbs_don_vi_khoi_luong_thep`.
-- Thanh dài hơn cây 11,7 m cần vùng cho phép nối; chưa có thì solver để vào `unplanned` và bảng cắt
-  thép báo "CHƯA ĐỦ". Không tự đặt vùng nối.
+- Hồ sơ Km19 dùng kg/m theo bảng của solver cắt thép (`rebar_unit_weight_kg_m`, vd. Ø14 = 1,208).
+  `tools/steel_qs.py` (D²/162) giữ cho mẫu QS khác — đừng trộn hai quy ước trong một hồ sơ.
+- Thanh dài hơn 11,7 m trong BBS Km19 đã gồm nối chồng 40d: cắt số đoạn tối thiểu, tổng đoạn = chiều dài
+  BBS (`noi_trong_chieu_dai=True` trong `examples/generate_rebarcut_dedicated_package.py`).
+- BBS, dự toán, 03a sửa theo bản vẽ có dấu thẩm định; sai khác thì đánh dấu NGHI VẤN (cột + sheet
+  `NGHI_VAN`, cột "Đã soát / Ghim") để chủ dự án soát. Không tự "chốt" thay chủ dự án.
+- Tr.40 Mố M2 bản vẽ ghi 0 kg cho W6/W7/W9: chủ dự án quyết định TÍNH (237,05 kg) — `tinh_dong_ban_ve_ghi_0`.
+- Còn mở: tỷ lệ hoàn thành 03a chưa có biên bản; hạng mục bản vẽ có mà dự toán chưa có (sheet `NGHI_VAN`).
 - Pháp lý: chưa văn bản nào được đối chiếu bản gốc — xem `workflows/LEGAL_STATUS.md`.
 
 ## Riêng tư và vệ sinh repo
