@@ -14,7 +14,10 @@ Sửa file theo dõi tần suất thí nghiệm (bê tông, cốt thép, tổng 
 from __future__ import annotations
 
 import copy
+import datetime as _dt
+import json
 import math
+import os
 import re
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
@@ -22,7 +25,10 @@ from typing import Dict, List, Optional, Tuple
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from tools.estimate_reconcile import NghiVan, resolve_f
+from tools.estimate_reconcile import NghiVan, resolve_f, write_flag_sheet
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_CONFIG = os.path.join(ROOT, "examples", "data", "km19_tan_suat_theo_ban_ve.json")
 
 FILL_SUA = PatternFill("solid", fgColor="FFF2CC")
 FILL_NGHI_VAN = PatternFill("solid", fgColor="F8CBAD")
@@ -261,7 +267,6 @@ def steel_rows_from_bbs(sections, cfg: dict, ws_bt, bt_rows: List[int], flags: L
                 out.append(mk(r, name, r.n_per * r.n_ck, rule["loai"] if rule else "", bt(pattern)))
             groups.append((name.upper(), out))
     if bt_dates:
-        import datetime as _dt
         far = _dt.datetime.max
 
         def when(g):
@@ -512,3 +517,40 @@ def apply_dm(ws, bt_sheet: str, steel_sheet: str, conc_events, steel_events, fla
                                                              f"(trước đây báo #VALUE!). Giờ bắt đầu/kết thúc lấy theo dòng "
                                                              f"mẫu cũ — chỉnh theo thực tế."))
     return len(events)
+
+
+def apply_ban_ve(wb, config: str = DEFAULT_CONFIG, ngay: Optional[str] = None,
+                 bt_dates: Optional[Dict[int, object]] = None) -> dict:
+    """Sửa cả workbook tần suất theo bản vẽ: bê tông, thép từ BBS, TH_Thep_BQD_GLC/Bang_Nhap_Thep (nếu có), tổng hợp,
+    DM (nếu có) và sheet NGHI_VAN. Dùng chung cho bộ sinh (tools/generate_tan_suat_thi_nghiem_excel.py) và script sửa
+    file của đơn vị (examples/sua_tan_suat_km19_theo_ban_ve.py). bt_dates: {dòng bê tông: ngày đổ} để xếp thép theo
+    thời gian; không có thì giữ thứ tự hạng mục."""
+    from tools.bbs_reconcile import load_pages, read_bbs
+
+    with open(config, encoding="utf-8") as f:
+        cfg = json.load(f)
+    pages = load_pages(os.path.join(ROOT, cfg["du_lieu_ban_ve"]))
+    _, sections = read_bbs(os.path.join(ROOT, cfg["bbs"]))
+    flags: List[NghiVan] = []
+    ws_bt = wb[cfg["sheet_be_tong"]]
+    bt_rows = apply_concrete(ws_bt, cfg, pages, flags)
+    conc_ev = concrete_events(ws_bt, bt_rows, cfg)
+    groups = steel_rows_from_bbs(sections, cfg, ws_bt, bt_rows, flags, bt_dates)
+    steel_total, rowmap, steel_ev = apply_steel(wb[cfg["sheet_thep"]], groups, cfg, flags)
+
+    if cfg.get("sheet_thep_bqd_glc") in wb.sheetnames:
+        th_total, first, last = apply_th_bqd(wb[cfg["sheet_thep_bqd_glc"]], cfg["sheet_thep"], rowmap, flags)
+        update_bang_nhap(wb, th_total, first, last)
+    cap_bbs = round(sum(s.L * s.n * s.unit for s in rowmap.values() if s.key == "cap") / 1000, 3)
+    cap_ban_ve = resolve_f(cfg["cap_dul_ban_ve_tan"], pages)[0]
+    apply_tong_hop(wb[cfg["sheet_tong_hop"]], cfg["sheet_thep"], steel_total, cfg, flags, cap_ban_ve, cap_bbs)
+    n_dm = apply_dm(wb["DM"], cfg["sheet_be_tong"], cfg["sheet_thep"], conc_ev, steel_ev, flags) if "DM" in wb.sheetnames else 0
+    if "BBLM" in wb.sheetnames:
+        flags.append(NghiVan("BBLM", 4, "Nút chọn phiếu", "Nút xoay (spinner) chọn số phiếu không giữ được khi công cụ lưu "
+                                                          "file — nhập số thứ tự phiếu vào ô N4, hoặc chép sheet BBLM từ "
+                                                          "file gốc sang."))
+    ngay = ngay or _dt.date.today().strftime("%d/%m/%Y")
+    write_flag_sheet(wb, flags, [], f"NGHI VẤN TẦN SUẤT THÍ NGHIỆM — sửa theo bản vẽ thẩm định ngày {ngay} (soát và "
+                                    f"ghim ở cột I)")
+    return {"nghi_van": len(flags), "dong_thep": len(rowmap), "dm": n_dm, "lan_bt": len(conc_ev), "lan_thep": len(steel_ev),
+            "cap_bbs": cap_bbs, "cap_ban_ve": cap_ban_ve}
