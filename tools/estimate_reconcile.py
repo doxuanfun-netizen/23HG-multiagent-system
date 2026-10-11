@@ -10,7 +10,8 @@ Số liệu bản vẽ lấy tự động từ dữ liệu OCR (du_lieu.json) th
   {"tong": [{"he_so": 3, ...}, ...]}                       → tổng có hệ số, ghi thành công thức Excel để soát được
 So nhãn sau khi bỏ dấu, viết hoa và bỏ khoảng trắng (OCR hay dính chữ: 'Cốt thepD<=10').
 
-Dòng diễn giải QS có dạng J = E × F × G × H × I. Dòng sửa: E = số cấu kiện, F = khối lượng bản vẽ, G = H = I = 1,
+Dòng diễn giải QS có dạng J = E × F × G × H × I. Dòng sửa: E = số cấu kiện, F = khối lượng bản vẽ, G = H = 1,
+I = hệ số ghi trong cấu hình (mặc định 1),
 cột C ghi nguồn trang, cột M ghi nghi vấn, cột N giữ khối lượng cũ.
 """
 
@@ -168,14 +169,15 @@ def apply_qs(ws, cfg: dict, pages: Dict[int, dict], sheet_label: str, note: str)
             value, f_cell = resolve_f(item["F"], pages)
         else:
             value, f_cell = 0.0, 0
+        he_so = item.get("I", 1)                  # hệ số (vd. nở thành cọc 1,12 — chủ dự án quyết định)
         ws.cell(r, 3).value = item["C"]
-        for c, v in zip(range(5, 10), (e, f_cell, 1, 1, 1)):
+        for c, v in zip(range(5, 10), (e, f_cell, 1, 1, he_so)):
             ws.cell(r, c).value = v
             ws.cell(r, c).fill = FILL_SUA
         ws.cell(r, 10).value = f"=E{r}*F{r}*G{r}*H{r}*I{r}"
         ws.cell(r, 10).fill = FILL_SUA
         ws.cell(r, 14).value = round(old, 3) if old is not None else None
-        new = e * value
+        new = e * value * he_so
         pages_txt = ", ".join(sorted(set(re.findall(r"tr\.\d+", item["C"]))))
         changed = old is None or abs(new - old) > max(0.005, 0.001 * abs(old))
         text = f"Theo bản vẽ: {fmt(old)} → {fmt(new)}" if changed else "Khớp bản vẽ"
