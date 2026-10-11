@@ -40,6 +40,8 @@ Phát hành theo **[MIT License](LICENSE)**. Tác giả & duy trì: **Nguyễn B
 > 📘 **Tài liệu hữu ích cho người mới:** Xem ngay [Cẩm nang Hướng dẫn Viết Prompt & Câu Lệnh Thực Chiến](docs/HUONG_DAN_VIET_PROMPT.md) để biết cách ra lệnh chính xác cho AI và chạy các tác vụ kỹ thuật chuẩn xác.
 >
 > 🌟 **CHIẾN TÍCH THỰC CHIẾN (OCTOBER 2026):** Xem ngay [Báo cáo Bóc tách CAD & Vạch trần sai lệch 4,5 km cống Thoát nước thải Cụm B9](docs/CASE_STUDY_CAD_TAKEOFF_B9_THOAT_NUOC_THAI.md) kèm [Bộ hồ sơ Master Excel 100% công thức sống](examples/BOC_TACH_THOAT_NUOC_THAI_B9_CAD_TAKEOFF/README.md) — 23HG quét 100% hình học 990 hố ga, 967 tuyến cống, phát hiện 1.285 dimension bị gán `DIMLFAC = 0.8` làm hụt 4.466m cống và ép TVTK phải cập nhật lại hồ sơ!
+>
+> 🚀 **PHÂN HỆ ĐIỀU HÀNH DOANH NGHIỆP (ENTERPRISE GOLDEN MASTER v4.1.0):** Trải nghiệm ngay [23HG Schedule Assistant Pro](apps/23hg_schedule_assistant_pro/README.md) — Giao diện Điều hành Excel C-Suite, Live Gantt Canvas, Quản trị EVM 5D, Cầu nối 2 chiều MS Project (XML) & Primavera P6 (XER), và Ribbon 34 macro lệnh bản quyền tại thư mục `apps/23hg_schedule_assistant_pro/`. Xem [Hồ sơ Nghiệm thu Bàn giao](apps/23hg_schedule_assistant_pro/BAN_GIAO_DANH_GIA_DU_AN.md).
 
 ---
 

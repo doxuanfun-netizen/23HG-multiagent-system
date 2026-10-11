@@ -1,0 +1,4 @@
+# Chi can khi chay cac script build/audit trong 1_Scripts_TuDongHoa.
+# Viec cai dat Add-in cho nguoi dung cuoi KHONG can Python.
+openpyxl==3.1.5
+pywin32>=306; sys_platform == "win32"

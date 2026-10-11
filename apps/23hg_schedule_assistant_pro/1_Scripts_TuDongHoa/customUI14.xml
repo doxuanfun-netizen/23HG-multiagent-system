@@ -1,0 +1,73 @@
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui">
+  <ribbon>
+    <tabs>
+      <tab id="tab_23hg_assistant" label="23HG SCHEDULE ASSISTANT" insertAfterMso="TabHome">
+        
+        <!-- NHÓM 1: TIẾN ĐỘ CPM & GANTT -->
+        <group id="grp_cpm" label="TIẾN ĐỘ CPM &amp; GANTT">
+          <button id="btn_run_cpm" label="Cập Nhật Tiến Độ" size="large" onAction="CapNhatTienDo" imageMso="CalculateSheet" screentip="23HG Turbo CPM" supertip="Tính toán Forward/Backward pass và vẽ lại Gantt Canvas siêu tốc." />
+          <button id="btn_crit" label="Đường Găng (CPM)" size="large" onAction="ToDuongGang" imageMso="ViewNextPage" screentip="Đường găng dự án" supertip="Làm nổi bật các công tác găng có Total Float = 0." />
+          <button id="btn_open" label="Tiến Độ Gantt" size="large" onAction="MoBangTienDo" imageMso="ViewGanttChart" screentip="Bảng tiến độ Gantt" supertip="Mở sheet TIEN_DO - bảng tiến độ Gantt và CPM chính của dự án." />
+          <separator id="sep_cpm1" />
+          <button id="btn_scale_day" label="Thang Ngày" size="normal" onAction="ChuyenThangTG_Ngay" imageMso="CalendarToolSelectDate" screentip="Xem theo Ngày" />
+          <button id="btn_scale_month" label="Thang Tháng" size="normal" onAction="ChuyenThangTG_Thang" imageMso="CalendarToolSelectDate" screentip="Xem theo Tháng" />
+          <button id="btn_scale_quarter" label="Thang Quý" size="normal" onAction="ChuyenThangTG_Quy" imageMso="CalendarToolSelectDate" screentip="Xem theo Quý" />
+          <button id="btn_scale_year" label="Thang Năm" size="normal" onAction="ChuyenThangTG_Nam" imageMso="CalendarToolSelectDate" screentip="Xem theo Năm" />
+          <separator id="sep_cpm2" />
+          <button id="btn_add_task" label="Thêm Công Tác" size="normal" onAction="ThemCongTac" imageMso="TableRowsInsertBelowExcel" screentip="Thêm công tác mới" supertip="Chèn dòng công tác mới tại vị trí chọn, tự động đánh lại STT và cập nhật CPM." />
+          <button id="btn_del_task" label="Xóa Công Tác" size="normal" onAction="XoaCongTac" imageMso="TableRowsDeleteExcel" screentip="Xóa công tác được chọn" supertip="Xóa dòng công tác được chọn sau khi xác nhận, tự động cập nhật mạng CPM." />
+          <button id="btn_indent" label="Thụt Lề WBS" size="normal" onAction="IndentWBS" imageMso="IndentClassic" screentip="Thụt lề WBS" supertip="Tăng cấp thụt dòng phân cấp công việc." />
+          <button id="btn_outdent" label="Giảm Thụt Lề" size="normal" onAction="OutdentWBS" imageMso="OutdentClassic" screentip="Giảm thụt lề WBS" supertip="Giảm cấp thụt dòng phân cấp công việc." />
+        </group>
+
+        <!-- NHÓM 2: QUẢN TRỊ 5D (EVM & XMTB) -->
+        <group id="grp_evm" label="QUẢN TRỊ 5D (EVM &amp; XMTB)">
+          <button id="btn_baseline" label="Lưu Baseline" size="large" onAction="LuuBaseline" imageMso="Lock" screentip="Đóng băng tiến độ gốc" supertip="Lưu trữ mốc phê duyệt tĩnh để theo dõi sai lệch tiến độ và chi phí." />
+          <button id="btn_evm" label="Quản Trị EVM 5D" size="large" onAction="PhanTichEVM" imageMso="ChartInsert" screentip="Earned Value Management" supertip="Báo cáo PV, EV, AC, SV, CV, SPI, CPI thời gian thực." />
+          <button id="btn_res" label="Cân Bằng XMTB" size="large" onAction="CanBangTaiNguyenXMTB" imageMso="AutoSum" screentip="Resource Leveling" supertip="San phẳng đỉnh tải xe máy thiết bị không làm trễ dự án." />
+          <separator id="sep_evm1" />
+          <button id="btn_ngay_nghi" label="Lịch &amp; Mùa Mưa" size="normal" onAction="NgayNghiLe" imageMso="CalendarToolSelectDate" screentip="Xem lịch làm việc &amp; mùa mưa" supertip="Mở sheet NGAY_NGHI_LE quản lý lịch 6 ngày/tuần và hệ số thời tiết K_tt." />
+        </group>
+
+        <!-- NHÓM 3: ĐIỀU HƯỚNG DỰ ÁN -->
+        <group id="grp_nav" label="ĐIỀU HƯỚNG DỰ ÁN">
+          <button id="btn_boq" label="Tiên Lượng BoQ" size="large" onAction="BoQTienDo" imageMso="DatabaseInsert" screentip="Bảng khối lượng BoQ" supertip="Bóc tách khối lượng và dự toán chi phí trực tiếp." />
+          <button id="btn_cashflow" label="Tiến Độ Giải Ngân" size="large" onAction="TienDoGiaiNgan" imageMso="TableFormulaSum" screentip="Dòng tiền &amp; S-Curve" supertip="Kế hoạch tạm ứng 20%, thu hồi tạm ứng và giữ bảo hành 5%." />
+          <button id="btn_qlcl" label="Kế Hoạch QLCL" size="large" onAction="KeHoachQLCL" imageMso="TaskComplete" screentip="Hồ sơ QLCL NĐ 207" supertip="Kế hoạch quản lý chất lượng và danh mục biên bản nghiệm thu." />
+          <separator id="sep_nav1" />
+          <button id="btn_equip" label="Huy Động XMTB" size="normal" onAction="HuyDongXMTB" imageMso="ToolProperties" screentip="Ma trận xe máy thiết bị" />
+          <button id="btn_calc_boq" label="Tính Ngày Từ BoQ" size="normal" onAction="TinhNgayTuBoQ" imageMso="Calculator" screentip="Tính thời lượng từ BoQ" supertip="Đồng bộ thời lượng từ khối lượng BoQ chia năng suất ca máy sang bảng Tiến độ." />
+          <button id="btn_dinh_muc" label="Định Mức Ca Máy" size="normal" onAction="CapNhatDM" imageMso="DatabaseInsert" screentip="Định mức ca máy TT 38/2026" supertip="Mở cơ sở dữ liệu định mức năng suất thiết bị Thông tư 38/2026/TT-BXD." />
+          <button id="btn_doi_chieu" label="Đối Chiếu QLCL" size="normal" onAction="DoiChieuHoSo" imageMso="ReviewAcceptChange" screentip="Đối soát hồ sơ nghiệm thu" supertip="Kiểm tra liên kết nghiệm thu theo Nghị định 207/2026/NĐ-CP." />
+        </group>
+
+        <!-- NHÓM 4: CẦU NỐI TIẾN ĐỘ -->
+        <group id="grp_interop" label="CẦU NỐI TIẾN ĐỘ">
+          <button id="btn_export_mspdi" label="Xuất MS Project (XML)" size="large" onAction="XuatMSProjectXML" imageMso="FileSaveAsOtherCodes" screentip="Xuất Microsoft Project XML (MSPDI)" supertip="Xuất toàn bộ 37 công tác, quan hệ FS/SS/FF và WBS sang file XML chuẩn quốc tế." />
+          <button id="btn_import_mspdi" label="Nhập MS Project (XML)" size="large" onAction="NhapMSProjectXML" imageMso="FileOpenDatabase" screentip="Nhập tiến độ từ MS Project XML" supertip="Đọc file MSPDI XML, chuyển đổi mạng CPM và vẽ lại Gantt tự động." />
+          <separator id="sep_interop1" />
+          <button id="btn_export_p6" label="Xuất Primavera (XER)" size="normal" onAction="XuatPrimaveraXER" imageMso="FileSaveAsExcelXlsx" screentip="Xuất file Primavera P6 (.xer)" supertip="Xuất dữ liệu theo định dạng text chuẩn Primavera P6 XER." />
+          <button id="btn_import_p6" label="Nhập Primavera (XER)" size="normal" onAction="NhapPrimaveraXER" imageMso="FileOpenDatabase" screentip="Nhập file Primavera P6 (.xer)" />
+          <button id="btn_info_mpp" label="Cầu Nối File .MPP" size="normal" onAction="HuongDanFileMPP" imageMso="Help" screentip="Hướng dẫn xử lý file .mpp" supertip="Chiến lược 2 bước: chuyển đổi .mpp sang XML không phụ thuộc Java." />
+        </group>
+
+        <!-- NHÓM 5: XUẤT BẢN BÁO CÁO -->
+        <group id="grp_export" label="XUẤT BẢN BÁO CÁO">
+          <button id="btn_export_clean" label="Xuất XLSX Sạch" size="large" onAction="XuatXlsxClean" imageMso="FileSaveAsExcelXlsx" screentip="Xuất nộp CĐT / TVGS" supertip="Tạo bản sao XLSX sạch 100% không chứa mã macro, sẵn sàng gửi nộp Chủ đầu tư và TVGS." />
+          <button id="btn_export_pdf" label="Xuất PDF A3 Ngang" size="large" onAction="XuatPdfA3BaoCao" imageMso="FileSaveAsPdfOrXps" screentip="Xuất bản in A3 ngang" supertip="Bố cục chuẩn khổ A3 ngang sắc nét chuẩn hồ sơ dự thầu và trình ký Chủ đầu tư." />
+        </group>
+
+        <!-- NHÓM 6: BẢN QUYỀN HỆ THỐNG -->
+        <group id="grp_license" label="BẢN QUYỀN HỆ THỐNG">
+          <button id="btn_license" label="Bản Quyền NBT" size="large" onAction="QuanLyBanQuyen" imageMso="SignatureLineInsert" screentip="Bản quyền 23HG SYSTEM" supertip="Thông tin chứng nhận bản quyền tác giả NBT." />
+          <separator id="sep_license1" />
+          <button id="btn_print_preview" label="Xem Trang In A3" size="normal" onAction="InTienDo" imageMso="PrintPreview" screentip="Xem trước bản in A3" supertip="Thiết lập trang in A3 ngang và mở cửa sổ xem trước bản in." />
+          <button id="btn_format_ui" label="Chuẩn Hóa Giao Diện" size="normal" onAction="ChuanHoaGiaoDien" imageMso="ViewNormalViewExcel" screentip="Chuẩn hóa giao diện" supertip="Tối ưu tỷ lệ hiển thị 85%, bật khung lưới ô và căn chỉnh chuẩn bảng tính." />
+          <button id="btn_project_info" label="Thông Tin Dự Án" size="normal" onAction="ThongTinDuAn" imageMso="Info" screentip="Thông tin gói thầu &amp; dự án" supertip="Xem tổng quan gói thầu, chiều dài tuyến L=5.5km, ngày khởi công và hoàn thành." />
+          <button id="btn_help" label="Trợ Giúp Vận Hành" size="normal" onAction="TroGiup" imageMso="Help" screentip="Cẩm nang vận hành" supertip="Mở sheet HUONG_DAN - cẩm nang vận hành chi tiết hệ thống 23HG SYSTEM." />
+        </group>
+
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>
