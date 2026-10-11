@@ -165,7 +165,7 @@ class Km19ReproducibleTest(unittest.TestCase):
         self.assertEqual(actions["Mố M1"], THAY)                           # BBS cũ lấy nhầm số của mố M2
         self.assertEqual(actions["Trụ T1, T2 (Xà mũ trụ)"], THAY)
         self.assertEqual(actions["Trụ T1 (Thân trụ)"], KHOP)
-        self.assertEqual(actions["Dầm chủ Super-T (15 phiến L=38.2m)"], THAY)          # 3 S1B1 + 3 S1B2 + 9 S1G
+        self.assertEqual(actions["Dầm chủ Super-T (15 phiến L=38.2m)"], THAY)   # 2 S1B1 + 3 S1B2 + 1 S1B3 + 9 S1G
         self.assertEqual(actions["Bản liên tục nhiệt (Link Slab)"], THAY)              # bảng dưới tr.112
         self.assertEqual(actions["Bản mặt cầu (Deck Slab)"], KHOP)
         self.assertEqual(actions["Gờ lan can BTCT"], THAY)
