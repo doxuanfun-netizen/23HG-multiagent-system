@@ -160,7 +160,9 @@ class Km19ReproducibleTest(unittest.TestCase):
     def test_km19_actions(self):
         cfg = load_config(KM19_CONFIG)
         _, secs = read_bbs(KM19_BBS_GOC)
-        _, reports, _ = reconcile(secs, cfg, load_pages(os.path.join(ROOT, cfg["du_lieu_ban_ve"])))
+        _, reports, flags = reconcile(secs, cfg, load_pages(os.path.join(ROOT, cfg["du_lieu_ban_ve"])))
+        beam_flags = [f.noi_dung for f in flags if f.hang_muc.startswith("Dầm chủ")]
+        self.assertFalse([f for f in beam_flags if f.startswith("Số cấu kiện cần xác nhận")])  # chủ dự án đã xác nhận
         actions = {r.hang_muc: r.hanh_dong for r in reports}
         self.assertEqual(actions["Mố M1"], THAY)                           # BBS cũ lấy nhầm số của mố M2
         self.assertEqual(actions["Trụ T1, T2 (Xà mũ trụ)"], THAY)

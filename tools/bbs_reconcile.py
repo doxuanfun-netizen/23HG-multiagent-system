@@ -282,7 +282,8 @@ def reconcile(sections: List[Section], config: dict, pages: Dict[int, dict]):
                                   f"mất/đọc sai dòng — nhập bổ sung theo PDF" + (f". Dòng đọc sai: {detail}" if detail else "")]))
             reports.append(ItemReport(name, pages_txt, action, old_kg, broken_kg, drawing,
                                       ghi_chu=item.get("ghi_chu_he_so", "")))
-            if item.get("ghi_chu_he_so"):                  # một mục cho cả hạng mục, không lặp ở từng dòng
+            # một mục cho cả hạng mục, không lặp ở từng dòng; chủ dự án đã xác nhận ('da_xac_nhan') thì không còn nghi vấn
+            if item.get("ghi_chu_he_so") and not item.get("da_xac_nhan"):
                 flags.append(NghiVan(name, "", "Số cấu kiện cần xác nhận: " + item["ghi_chu_he_so"], "", "", pages_txt))
             flags.append(NghiVan(name, "", f"{action}: BBS cũ {_fmt(old_kg)}"
                                            + (f" (+ {len(broken)} dòng lỗi {_fmt(broken_kg)})" if broken else "")
