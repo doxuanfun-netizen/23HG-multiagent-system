@@ -92,6 +92,59 @@ def _row_ok(length, qty, unit, kg) -> bool:
     return abs(length / 1000.0 * qty * unit - kg) <= max(ROW_ABS_TOL, ROW_REL_TOL * kg)
 
 
+def _integer_qty(length, unit, kg) -> Optional[float]:
+    """Số thanh suy từ khối lượng ghi: kg ÷ (dài × kg/m), chỉ nhận khi ra số nguyên (sai lệch ≤ làm tròn)."""
+    if not (UNIT_RANGE[0] <= unit <= UNIT_RANGE[1]) or length <= 0 or kg <= 0:
+        return None
+    n = round(kg / (length / 1000.0 * unit))
+    return float(n) if n >= 1 and _row_ok(length, n, unit, kg) else None
+
+
+def _apply_fixes(rows: List[DrawingRow], fixes, stated: Optional[float]) -> List[DrawingRow]:
+    """
+    Sửa lỗi OCR một ô (số lượng trống/đọc sai, khối lượng đọc sai) bằng chính phép tính của bản vẽ. Mỗi dòng lỗi có
+    vài cách sửa (hoặc để nguyên); chỉ nhận tổ hợp làm Σ dòng KHỚP tổng ghi trên bản vẽ, ưu tiên tổ hợp
+    để lại ít dòng sai nhất. Không có tổ hợp nào khớp thì
+    giữ nguyên số OCR (kèm lỗi) và bỏ các dòng phải suy số lượng. Dòng đã sửa có ghi chú để đánh dấu nghi vấn.
+    """
+    if not fixes:
+        return rows
+    derived = {id(row) for row, cands in fixes if cands[0][0] == "SL" and cands[0][1] is None}
+    unfixed = [r for r in rows if id(r) not in derived]
+    if stated is None or len(fixes) > 8:
+        return unfixed
+    tol = max(TABLE_ABS_TOL, TABLE_REL_TOL * stated)
+    base = sum(r.total_kg for r in rows if id(r) not in {id(row) for row, _ in fixes})
+
+    def contrib(row, fix):
+        if fix is None:
+            return row.total_kg
+        kind, val, _ = fix
+        return round((val if kind == "KG" else row.kg) * row.multiplier, 2)
+
+    options = [cands if id(row) in derived else [None] + cands for row, cands in fixes]
+    best = None
+    for combo in itertools.product(*options):
+        if abs(round(base + sum(contrib(row, f) for (row, _), f in zip(fixes, combo)), 2) - stated) <= tol:
+            n = sum(f is None for f in combo)          # ưu tiên tổ hợp sửa hết các dòng sai phép tính
+            if best is None or n < best[0]:
+                best = (n, combo)
+    if best is None:
+        return unfixed
+    for (r, _), f in zip(fixes, best[1]):
+        if f is None:
+            continue
+        kind, val, note = f
+        if kind == "SL" and val is not None:
+            r.quantity = val
+        elif kind == "KG":
+            r.kg = val
+            r.total_kg = round(val * r.multiplier, 2)
+        r.issues = [i for i in r.issues if not i.startswith("dài×SL×kg/m")]
+        r.notes.append(note + " — Σ bảng sau sửa khớp tổng bản vẽ")
+    return rows
+
+
 def _blocks(header: Sequence[str], rows: Sequence[Sequence]) -> List[range]:
     """Tách bảng ghép cạnh nhau (vd. bản mặt cầu | liên tục nhiệt): mỗi khối bắt đầu ngay trước một cột Ø."""
     dia_cols = [i for i in range(len(header))
@@ -156,6 +209,7 @@ def _parse_block(page: int, title: str, header, rows, values, cols: range) -> Op
         mark_col = cand[-1] if cand else None
 
     out: List[DrawingRow] = []
+    fixes = []
     stated = None
     for r, v in data:
         text = " ".join(norm(r[i]) for i in cols if i < len(r))
@@ -166,8 +220,23 @@ def _parse_block(page: int, title: str, header, rows, values, cols: range) -> Op
             continue
         d = _diameter(r[dia_col], plain[dia_col]) if dia_col < len(r) else None
         vals = [(_num(v[c]) if c < len(v) else None) for c in (L, q, u, k)]
+        fix = None                           # sửa đề xuất, chỉ áp dụng nếu cả bảng khớp tổng (xem _apply_fixes)
+        if d is not None and vals[0] and vals[1] is None and vals[2] and vals[3]:
+            n = _integer_qty(vals[0], vals[2], vals[3])
+            if n is None:
+                continue
+            vals[1], fix = n, [("SL", None, f"số lượng trống trên OCR, suy = khối lượng ghi ÷ (dài × kg/m) = {n:g}")]
         if d is None or vals[0] is None or vals[1] is None:
             continue
+        if fix is None and not _row_ok(*vals) and vals[0] and vals[2] and vals[3]:
+            fix = []                         # các cách sửa có thể: đọc sai số lượng, hoặc đọc sai khối lượng
+            n = _integer_qty(vals[0], vals[2], vals[3])
+            if n is not None:
+                fix.append(("SL", n, f"OCR đọc SL = {vals[1]:g}, phép tính bản vẽ cho {n:g} (khối lượng ghi ÷ dài ÷ kg/m)"))
+            kg = round(vals[0] / 1000 * vals[1] * vals[2], 2)
+            if UNIT_RANGE[0] <= vals[2] <= UNIT_RANGE[1] and kg > 0:
+                fix.append(("KG", kg, f"OCR đọc khối lượng = {vals[3]:g}, dài × SL × kg/m = {kg:,.2f}"))
+            fix = fix or None
         mult = _num(v[mult_col]) if mult_col is not None and mult_col < len(v) else None
         if mult is not None and not (1 <= mult <= 500 and abs(mult - round(mult)) <= 0.01):
             mult = None                          # hệ số số cấu kiện phải là số nguyên hợp lý
@@ -191,6 +260,9 @@ def _parse_block(page: int, title: str, header, rows, values, cols: range) -> Op
         if total is not None and abs(total - row.total_kg) > max(ROW_ABS_TOL, ROW_REL_TOL * total):
             row.issues.append(f"khối lượng × hệ số = {row.total_kg:,.2f} ≠ tổng ghi {total:,.2f}")
         out.append(row)
+        if fix is not None:
+            fixes.append((row, fix))
+    out = _apply_fixes(out, fixes, stated)
     t = DrawingTable(page, title, out, stated)
     if not out:
         t.issues.append("không đọc được dòng thép nào")

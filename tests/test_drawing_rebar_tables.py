@@ -103,6 +103,40 @@ class ColumnMappingTest(unittest.TestCase):
         self.assertEqual([r.mark for r in good_rows(t1)], ["A", "B"])
 
 
+class OcrRepairTest(unittest.TestCase):
+    """Lỗi OCR một ô được sửa bằng phép tính của chính bản vẽ — chỉ khi Σ dòng sau sửa khớp tổng ghi trên bản vẽ."""
+    HDR = ["TÊN THANH", "ĐƯỜNG KÍNH", "SỐ THANH", "CHIỀU DÀI MM", "KG/M", "KHỐI LƯỢNG KG"]
+
+    def _t(self, rows, total):
+        return table(self.HDR, [["A", "D16", "10", "1000", "1.580", "15.80"], ["B", "D16", "10", "2000", "1.580", "31.60"]]
+                     + rows + [["TỔNG KHỐI LƯỢNG THÉP", "", "", "", "", str(total)]])
+
+    def test_misread_quantity_fixed_when_total_matches(self):
+        """Dầm S1B1 tr.88: OCR đọc G6a SL = 6, khối lượng ghi 664,44 = 11,7 × 9 × 6,31."""
+        (t1,) = parse_table(88, self._t([["G6a", "D32", "6", "11700", "6.310", "664.44"]], 711.84))
+        self.assertTrue(table_usable(t1), t1.issues)
+        self.assertEqual(t1.rows[-1].quantity, 9)
+        self.assertIn("Σ bảng sau sửa khớp", t1.rows[-1].notes[0])
+
+    def test_blank_quantity_derived_when_total_matches(self):
+        (t1,) = parse_table(94, self._t([["G6b", "D32", "", "6860", "6.310", "129.86"]], 177.26))
+        self.assertTrue(table_usable(t1), t1.issues)
+        self.assertEqual([r.quantity for r in t1.rows], [10, 10, 3])
+
+    def test_misread_weight_fixed_when_total_matches(self):
+        """Dầm S1B2 tr.91: 'Thanh neo' 8 × 110 mm × 2,47 = 2,17 kg, OCR đọc 217."""
+        (t1,) = parse_table(91, self._t([["N", "D20", "8", "110", "2.470", "217"]], 49.57))
+        self.assertTrue(table_usable(t1), t1.issues)
+        self.assertEqual(t1.rows[-1].kg, 2.17)
+
+    def test_no_repair_when_total_does_not_confirm_it(self):
+        (t1,) = parse_table(1, self._t([["G6a", "D32", "6", "11700", "6.310", "664.44"]], 900.00))
+        self.assertFalse(table_usable(t1))
+        self.assertEqual(t1.rows[-1].quantity, 6)
+        (t2,) = parse_table(1, self._t([["G6b", "D32", "", "6860", "6.310", "129.86"]], 900.00))
+        self.assertEqual([r.mark for r in t2.rows], ["A", "B"])          # dòng phải suy SL bị bỏ
+
+
 class PartialTableTest(unittest.TestCase):
     def _t(self, stated):
         return table(["TÊN THANH", "ĐƯỜNG KÍNH", "CHIỀU DÀI MM", "SỐ LƯỢNG", "KG/M", "KHỐI LƯỢNG KG"],
@@ -132,6 +166,12 @@ class RealDossierPagesTest(unittest.TestCase):
         expected = {44: 16177.83, 48: 32558.52, 55: 16177.83, 59: 35186.85, 64: 2507.53, 66: 4705.88,
                     68: 4828.66, 70: 3671.07, 96: 2763.12, 126: 3964.44}
         for page, total in expected.items():
+            t = page_rebar_table(self.pages[page])
+            self.assertTrue(table_usable(t), f"tr.{page}: {t.issues}")
+            self.assertAlmostEqual(t.rows_total_kg, total, delta=0.05, msg=f"tr.{page}")
+
+    def test_super_t_beam_pages_repaired_to_drawing_totals(self):
+        for page, total in {88: 6071.25, 91: 6065.28, 94: 5920.08}.items():
             t = page_rebar_table(self.pages[page])
             self.assertTrue(table_usable(t), f"tr.{page}: {t.issues}")
             self.assertAlmostEqual(t.rows_total_kg, total, delta=0.05, msg=f"tr.{page}")

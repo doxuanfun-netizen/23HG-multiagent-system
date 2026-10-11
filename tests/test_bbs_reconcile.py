@@ -74,10 +74,12 @@ class ReconcileRulesTest(unittest.TestCase):
         }
         cfg = {"khop": {"tuong_doi": 0.003, "tuyet_doi_kg": 5.0}, "hang_muc": [
             {"ten": "Mố X", "trang": [{"so": 1, "he_so": 1, "bo_phan": "Mố X"}]},
-            {"ten": "Thân Y", "trang": [{"so": 2, "he_so": 1, "bo_phan": "Thân Y"}]},
+            {"ten": "Thân Y", "trang": [{"so": 2, "he_so": 1, "bo_phan": "Thân Y"}],
+             "tong_hop": {"trang": 9, "kg": 200.0}},                                    # bảng tổng hợp lệch
             {"ten": "Dầm Z", "trang": [{"so": 3, "he_so": None, "bo_phan": "Dầm Z"}], "ghi_chu_he_so": "chưa biết số phiến"},
             {"ten": "LTN", "tong_ban_ve_kg": 500.0, "trang_tham_chieu": [9], "ghi_chu": "nhập theo PDF"},
-            {"ten": "Khe", "moi": True, "chen_sau": "Mố X", "trang": [{"so": 4, "he_so": 2, "bo_phan": "Khe"}]},
+            {"ten": "Khe", "moi": True, "chen_sau": "Mố X", "trang": [{"so": 4, "he_so": 2, "bo_phan": "Khe"}],
+             "ghi_chu_he_so": "2 khe theo bố trí chung"},
         ]}
         titles, cls.old_sections = read_bbs(bbs)
         cls.sections, cls.reports, cls.flags = reconcile(cls.old_sections, cfg, pages)
@@ -119,6 +121,15 @@ class ReconcileRulesTest(unittest.TestCase):
         self.assertEqual([r.placeholder for r in rows], [True])
         self.assertTrue(any("đã loại" in f.noi_dung for f in self.flags if f.hang_muc == "LTN"))
 
+    def test_summary_sheet_mismatch_is_flagged_once(self):
+        msgs = [f.noi_dung for f in self.flags if f.hang_muc == "Thân Y"]
+        self.assertEqual(len([m for m in msgs if "bảng tổng hợp tr.9" in m]), 1, msgs)
+
+    def test_member_count_note_is_one_item_flag_not_per_row(self):
+        rows = self.items["Khe"]
+        self.assertFalse(any("2 khe theo bố trí chung" in n for r in rows for n in r.nghi_van))
+        self.assertEqual(len([f for f in self.flags if f.hang_muc == "Khe" and "2 khe theo bố trí chung" in f.noi_dung]), 1)
+
     def test_new_item_inserted_after_its_anchor(self):
         self.assertEqual(list(self.items)[:2], ["Mố X", "Khe"])
         self.assertEqual([r.n_ck for r in self.items["Khe"]], [2, 2])           # hệ số 2 cấu kiện
@@ -154,7 +165,10 @@ class Km19ReproducibleTest(unittest.TestCase):
         self.assertEqual(actions["Mố M1"], THAY_MOT_PHAN)                  # BBS cũ lấy nhầm số của mố M2
         self.assertEqual(actions["Trụ T1, T2 (Xà mũ trụ)"], THAY)
         self.assertEqual(actions["Trụ T1 (Thân trụ)"], KHOP)
-        self.assertEqual(actions["Dầm chủ Super-T (15 phiến L=38.2m)"], GIU)
+        self.assertEqual(actions["Dầm chủ Super-T (15 phiến L=38.2m)"], THAY)          # 3 S1B1 + 3 S1B2 + 9 S1G
+        self.assertEqual(actions["Bản liên tục nhiệt (Link Slab)"], GIU)
+        beam = next(r for r in reports if r.hang_muc.startswith("Dầm chủ"))
+        self.assertAlmostEqual(beam.ban_ve_kg, 89690.31, places=2)                  # = tr.175: 77,743 + 11,947 t
 
 
 if __name__ == "__main__":

@@ -123,11 +123,6 @@
         "examples/HO_SO_CAU_KM19_529/02_XUONG_TIEN_CHE_COT_THEP/04_Thong_Ke_Thep_Chi_Tiet_BBS_396_Dong.xlsx",
         "THONG_KE_THEP_CHI_TIET"
       ],
-      "kwargs": {
-        "bo_qua": [
-          "Dầm chủ Super-T (15 phiến L=38.2m)"
-        ]
-      },
       "expected_csv": "tests/golden/harness/fixtures/km19_thep_theo_hang_muc_ban_ve_tham_dinh.csv",
       "tol": {
         "tong_kg": {
@@ -137,25 +132,18 @@
       }
     },
     {
-      "id": "dam_super_t_vs_ban_ve_tham_dinh",
-      "title": "Thép thường dầm Super-T trong BBS so với bản vẽ thẩm định",
-      "source_type": "approved_dossier",
-      "status": "pending",
-      "reason": "Bản vẽ tr.88/91 ghi khoảng 6.071,25 kg (S1B1) và 6.065,28 kg (S1B2) cho 1 phiến; BBS giữ 361,6 t cho 15 phiến (~24 t/phiến). Chưa biết số phiến mỗi loại và bảng OCR tr.88 thiếu ~13% — cần chủ dự án xác nhận từ PDF."
-    },
-    {
       "id": "payment_03a_vs_approved",
       "title": "Mẫu 03a so với bảng khối lượng thực hiện đã ký",
       "source_type": "approved_dossier",
       "status": "pending",
-      "reason": "Chưa có Mẫu 03a đã ký. File 03a trong repo không dùng làm chuẩn được: công thức khối lượng và đơn giá trỏ sai dòng sang sheet QS_DIEN_GIAI_CHI_TIET ở 15/18 mục (vd. 'Cốt thép mố và trụ' lấy dòng 'Bê tông xà mũ')."
+      "reason": "Chưa có Mẫu 03a đã ký. File 03a trong repo đã sửa tham chiếu sang dòng hạng mục QS và khối lượng theo bản vẽ thẩm định (11/10/2026), nhưng tỷ lệ hoàn thành kỳ này chưa có biên bản nghiệm thu (đánh dấu NGHI VẤN) — không dùng làm chuẩn."
     },
     {
       "id": "bridge_estimate_vs_approved",
       "title": "Dự toán cầu G_XD so với bản đã duyệt",
       "source_type": "approved_dossier",
       "status": "pending",
-      "reason": "Chưa có dự toán cầu đã duyệt. Dự toán trong repo có dòng tổng hạng mục nhập tay, không bằng tổng dòng con (hạng mục 4: 108,766 t so với 118,97 t; 14: 224,652 t so với 128,1 t; 17: 361,6 t so với 90,63 t), và cốt thép mố M1/M2 ghi 'theo trang 31/40' là 23,45 t/31,85 t trong khi trang đó ghi 7,959 t/19,649 t."
+      "reason": "Chưa có dự toán cầu đã duyệt. Dự toán trong repo đã sửa khối lượng theo bản vẽ thẩm định (11/10/2026: G_XD 33,97 → 26,78 tỷ, chủ yếu do thép dầm Super-T 361,6 → 89,69 t), nhưng đơn giá chưa đối chiếu và còn hạng mục có trên bản vẽ mà dự toán chưa có (sheet NGHI_VAN) — không dùng làm chuẩn."
     }
   ]
 }

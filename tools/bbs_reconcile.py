@@ -214,6 +214,7 @@ def reconcile(sections: List[Section], config: dict, pages: Dict[int, dict]):
         gaps = {pg["so"]: (0.0 if t is not None and table_usable(t) else (partial_gap_kg(t) if t is not None else None))
                 for pg, t in info}
         lookup = old_lookup(valid)
+        _check_summary(name, item, drawing, flags, abs_tol, rel_tol)
 
         # 1) khớp: giữ BBS (so cả theo Ø nếu bản vẽ đọc đủ)
         if valid and drawing is not None and not broken and _close(old_kg, drawing, abs_tol, rel_tol):
@@ -246,8 +247,6 @@ def reconcile(sections: List[Section], config: dict, pages: Dict[int, dict]):
                     if not r.mark or r.mark.isdigit():
                         row.nghi_van.append(f"OCR không đọc được ký hiệu thanh (STT {r.stt or '?'}) — xem PDF {src}")
                     row.nghi_van.extend(f"{n} — xem PDF {src}" for n in r.notes)
-                    if pg.get("he_so", 1) != 1 and item.get("ghi_chu_he_so"):
-                        row.nghi_van.append(item["ghi_chu_he_so"])
                     new_rows.append(row)
                 gap = gaps[pg["so"]]
                 if gap:
@@ -261,6 +260,8 @@ def reconcile(sections: List[Section], config: dict, pages: Dict[int, dict]):
                                   f"mất/đọc sai dòng — nhập bổ sung theo PDF" + (f". Dòng đọc sai: {detail}" if detail else "")]))
             reports.append(ItemReport(name, pages_txt, action, old_kg, broken_kg, drawing,
                                       ghi_chu=item.get("ghi_chu_he_so", "")))
+            if item.get("ghi_chu_he_so"):                  # một mục cho cả hạng mục, không lặp ở từng dòng
+                flags.append(NghiVan(name, "", "Số cấu kiện cần xác nhận: " + item["ghi_chu_he_so"], "", "", pages_txt))
             flags.append(NghiVan(name, "", f"{action}: BBS cũ {_fmt(old_kg)}"
                                            + (f" (+ {len(broken)} dòng lỗi {_fmt(broken_kg)})" if broken else "")
                                            + f"; bản vẽ {_fmt(drawing)}", _fmt(old_kg + broken_kg), _fmt(drawing), pages_txt))
@@ -296,6 +297,18 @@ def reconcile(sections: List[Section], config: dict, pages: Dict[int, dict]):
     for rep in reports:
         rep.bbs_moi_kg = sum(r.kg for sec in new_sections for r in sec.items.get(rep.hang_muc, []) if not r.is_cable)
     return new_sections, reports, flags
+
+
+def _check_summary(name: str, item: dict, drawing: Optional[float], flags: List[NghiVan], abs_tol: float,
+                   rel_tol: float) -> None:
+    """Đối chiếu tổng các trang chi tiết với bảng tổng hợp toàn cầu ('tong_hop': {trang, kg}); lệch → nghi vấn."""
+    th = item.get("tong_hop")
+    if not th or drawing is None:
+        return
+    if not _close(drawing, th["kg"], abs_tol, rel_tol):
+        flags.append(NghiVan(name, "", f"Tổng các trang chi tiết {_fmt(drawing)} ≠ bảng tổng hợp tr.{th['trang']} "
+                                       f"{_fmt(th['kg'])} (lệch {_fmt(th['kg'] - drawing)}). {th.get('ghi_chu', '')}".strip(),
+                             _fmt(drawing), _fmt(th["kg"]), f"tr.{th['trang']}"))
 
 
 def _with_conv(r: BbsRow) -> BbsRow:
