@@ -75,6 +75,39 @@ class TestScheduleAssistantProIntegration(unittest.TestCase):
             fp = os.path.join(APP_DIR, fn)
             self.assertTrue(os.path.exists(fp), f"Tệp {fn} phải tồn tại trong apps/23hg_schedule_assistant_pro")
 
+    def test_bridge_km19_showcase_model_and_xml(self):
+        """Kiểm tra dự án mẫu Cầu Km19+529.080 đồng bộ trong phân hệ 23HG Schedule Assistant Pro."""
+        bridge_xlsx = os.path.join(APP_DIR, "2_BaoCao_XuatBan", "23HG_DU_AN_MAU_CAU_KM19_529_PRO.xlsx")
+        bridge_xml = os.path.join(APP_DIR, "2_BaoCao_XuatBan", "Du_An_Mau_Cau_Km19_529.xml")
+        bridge_master = os.path.join(ROOT, "examples", "HO_SO_CAU_KM19_529", "00_BAN_CHI_HUY_MASTER", "23HG_MASTER_TIEN_DO_EVM_CAU_KM19_PRO.xlsx")
+
+        self.assertTrue(os.path.exists(bridge_xlsx), "File dự án mẫu Cầu Km19 phải tồn tại trong 2_BaoCao_XuatBan")
+        self.assertTrue(os.path.exists(bridge_xml), "File MSPDI XML Cầu Km19 phải tồn tại trong 2_BaoCao_XuatBan")
+        self.assertTrue(os.path.exists(bridge_master), "File Master Tiến độ EVM Cầu Km19 phải tồn tại trong 00_BAN_CHI_HUY_MASTER")
+
+        # Kiểm tra 9 sheet chuẩn doanh nghiệp
+        wb = openpyxl.load_workbook(bridge_xlsx, read_only=True)
+        expected_sheets = [
+            "NGAY_NGHI_LE",
+            "DB_DINH_MUC",
+            "BOQ_TIEN_DO",
+            "TIEN_DO",
+            "EVM_5D_QUAN_TRI",
+            "HUY_DONG_XMTB",
+            "TIEN_DO_GIAI_NGAN",
+            "KE_HOACH_QLCL",
+            "HUONG_DAN",
+        ]
+        for name in expected_sheets:
+            self.assertIn(name, wb.sheetnames, f"Sheet {name} phải có trong dự án mẫu Cầu Km19")
+
+        # Kiểm tra cấu trúc XML MSPDI
+        import xml.etree.ElementTree as ET
+        tree = ET.parse(bridge_xml)
+        root = tree.getroot()
+        tasks = [elem for elem in root.iter() if elem.tag.endswith("Task")]
+        self.assertEqual(len(tasks), 37, "File XML phải chứa đúng 37 công tác tiến độ")
+
 
 if __name__ == "__main__":
     unittest.main()

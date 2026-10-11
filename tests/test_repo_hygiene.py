@@ -31,6 +31,8 @@ ALLOWED_LARGE_PREFIXES = {
 ALLOWED_LARGE = {
     "examples/HO_SO_CAU_KM19_529/02_XUONG_TIEN_CHE_COT_THEP/01_To_Hop_Cat_Thep_11m7_RebarCut.xlsx":
         "bảng tổ hợp cắt thép RebarCut theo từng loại thép",
+    "examples/HO_SO_CAU_KM19_529/03_KINH_TE_QS_DU_TOAN_THANH_TOAN/BANG_BOC_TACH_CHI_TIET_HA_BO_MO_TRU_COC_KM19.xlsx":
+        "bảng bóc tách hạ bộ mố trụ cọc Km19 kèm hình ảnh trích xuất bản vẽ chi tiết",
 }
 # Windows giới hạn đường dẫn 260 ký tự cho TOÀN BỘ đường dẫn (mặc định, git không bật long paths): runner CI dùng
 # tiền tố 51 ký tự, máy người dùng thường 55–70. Đường dẫn dài nhất đã có là 188 ký tự, nên khóa ở 190: không file nào

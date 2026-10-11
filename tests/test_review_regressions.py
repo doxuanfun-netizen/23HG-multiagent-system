@@ -139,7 +139,7 @@ class LetEvaluationTest(unittest.TestCase):
 
 class BridgeWorkbookLinksTest(unittest.TestCase):
     def test_super_t_subtotals_use_current_detail_rows(self):
-        path = ROOT / 'examples/HO_SO_CAU_KM19_529/BANG_BOC_TACH_CHI_TIET_DAM_SUPER_T_38.2M_KM19.xlsx'
+        path = ROOT / 'examples/HO_SO_CAU_KM19_529/03_KINH_TE_QS_DU_TOAN_THANH_TOAN/BANG_BOC_TACH_CHI_TIET_DAM_SUPER_T_38.2M_KM19.xlsx'
         evaluator = WorkbookEvaluator(str(path))
         evaluator._cached = {sheet: {} for sheet in evaluator.sheetnames}
         sheet = '00_DIEN_GIAI_HINH_HOC_CAD'
@@ -152,7 +152,7 @@ class BridgeWorkbookLinksTest(unittest.TestCase):
         self.assertAlmostEqual(evaluator.value(sheet, 51, 9), 25.84)
 
     def test_dashboard_tracks_detail_quantities_and_units(self):
-        folder = ROOT / 'examples/HO_SO_CAU_KM19_529'
+        folder = ROOT / 'examples/HO_SO_CAU_KM19_529/03_KINH_TE_QS_DU_TOAN_THANH_TOAN'
         names = ('BANG_BOC_TACH_TOAN_BO_BAN_VE_CAU_KM19.xlsx',
                  'BANG_BOC_TACH_CHI_TIET_TOAN_BO_BAN_VE_CAU_KM19.xlsx')
         for name in names:

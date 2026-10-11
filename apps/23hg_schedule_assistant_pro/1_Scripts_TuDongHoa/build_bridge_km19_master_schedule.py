@@ -14,12 +14,16 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter as L
 import xml.etree.ElementTree as ET
 
-# Output paths
-OUT_BRIDGE_ASBUILT = r"C:\Users\baotu\Downloads\HSTK Cầu Km19+529.080_Marker\01_HIEN_TRUONG_QLCL_KCS\So_Do_Tien_Do_Truc_Quan_AsBuilt_Cau_Km19.xlsx"
-OUT_MASTER_DOSSIER = r"C:\Users\baotu\Downloads\HSTK Cầu Km19+529.080_Marker\00_BAN_CHI_HUY_MASTER\Ho_So_KCS_QS_TienDo_Cau_Km19+529.080.xlsx"
-OUT_EQUIPMENT_PLAN = r"C:\Users\baotu\Downloads\HSTK Cầu Km19+529.080_Marker\04_CO_GIOI_THIET_BI_VA_DAU_DIEZEL\260920_TDTC_CaXe_CaMay_DauDiezel_Cau_Km19+529.080.xlsx"
-OUT_XML_PROJECT = r"C:\Users\baotu\Downloads\HSTK Cầu Km19+529.080_Marker\00_BAN_CHI_HUY_MASTER\Tien_Do_Thi_Cong_Cau_Km19+529.080.xml"
-REPO_DIR = r"d:\Code\23HG-multiagent-system-main\23HG-multiagent-system-main\examples\HO_SO_CAU_KM19_529"
+# Output paths: Sử dụng đường dẫn tương đối từ gốc repository (không lưu đường dẫn máy cá nhân)
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+APP_DIR = os.path.join(REPO_ROOT, "apps", "23hg_schedule_assistant_pro")
+OUTPUT_DIR = os.path.join(APP_DIR, "2_BaoCao_XuatBan")
+REPO_DIR = os.path.join(REPO_ROOT, "examples", "HO_SO_CAU_KM19_529")
+
+OUT_BRIDGE_ASBUILT = os.path.join(OUTPUT_DIR, "23HG_DU_AN_MAU_CAU_KM19_529_PRO.xlsx")
+OUT_MASTER_DOSSIER = os.path.join(REPO_DIR, "00_BAN_CHI_HUY_MASTER", "23HG_MASTER_TIEN_DO_EVM_CAU_KM19_PRO.xlsx")
+OUT_EQUIPMENT_PLAN = os.path.join(REPO_DIR, "04_CO_GIOI_THIET_BI_VA_DAU_DIEZEL", "260920_TDTC_CaXe_CaMay_DauDiezel_Cau_Km19+529.080.xlsx")
+OUT_XML_PROJECT = os.path.join(OUTPUT_DIR, "Du_An_Mau_Cau_Km19_529.xml")
 
 # Import CPM engine
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -907,7 +911,7 @@ def export_mspdi_xml():
 
     # Copy to repo mirror
     if os.path.exists(REPO_DIR):
-        repo_xml = os.path.join(REPO_DIR, "Tien_Do_Thi_Cong_Cau_Km19+529.080.xml")
+        repo_xml = os.path.join(REPO_DIR, "00_BAN_CHI_HUY_MASTER", "Tien_Do_Thi_Cong_Cau_Km19+529.080.xml")
         tree.write(repo_xml, encoding="utf-8", xml_declaration=True)
         print(f"Đã đồng bộ sang Repo: {repo_xml}")
 
