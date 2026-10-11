@@ -21,11 +21,16 @@ Lộ trình: [ROADMAP.md](ROADMAP.md). Lịch sử thay đổi, các phát hiệ
 │   ├── audit_master_v3.py                          Kiểm tra và đồng bộ .xlam (cần Excel)
 │   ├── reset_and_deploy.py                         Triển khai Add-in (cần Excel)
 │   ├── cpm_engine.py        Bộ tính CPM chuẩn (Python thuần)
+│   ├── build_bridge_km19_master_schedule.py   Động cơ sinh Sổ tính & MSPDI XML Cầu Km19
 │   ├── build_cpm_formula.py Tạo bảng CPM bằng công thức Excel
 │   ├── cpm_report.py        Xuất kết quả CPM tham chiếu ra CSV
 │   ├── cpm_compare.py       So ngày lưu trong file với bộ tính chuẩn
 │   └── _archive/            Script thử nghiệm và build lịch sử (không cần để chạy)
 ├── 2_BaoCao_XuatBan/        Bản phát hành gửi CĐT/TVGS (+ _archive/)
+│   ├── 23HG_DU_AN_MAU_CAU_KM19_529_PRO.xlsx   Dự án mẫu Cầu Km19+529.080 (3 nhịp Super-T, 37 công tác)
+│   ├── Du_An_Mau_Cau_Km19_529.xml             MSPDI XML Cầu Km19 (tương thích MS Project/Primavera)
+│   ├── Du_An_Mau_TuyenDuong_5.5km.xml         MSPDI XML Dự án Tuyến đường 5.5km
+│   └── Du_An_Mau_TuyenDuong_5.5km.xer         Primavera XER Dự án Tuyến đường 5.5km
 ├── 3_LuuTru_PhienBanCu/     Phiên bản cũ và các bản sao lưu
 ├── 4_CPM_CONG_THUC_THU_NGHIEM/   Bản nháp CPM bằng công thức và CSV tham chiếu
 └── tests/                   Bộ kiểm thử tự động

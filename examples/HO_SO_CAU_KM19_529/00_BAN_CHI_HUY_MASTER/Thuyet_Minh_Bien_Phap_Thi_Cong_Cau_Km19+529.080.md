@@ -43,11 +43,17 @@
   5. Đổ bê tông bằng phương pháp rút ống Tremie liên tục, ống ngập sâu trong bê tông từ $2.0	ext{m}$ đến $4.0	ext{m}$.
 
 #### CHƯƠNG 4: THI CÔNG KẾT CẤU PHẦN DƯỚI (MỐ M1, M2 & TRỤ T1, T2)
-- Đào hố móng bệ mố trụ ngàm vào đá, đập đầu 26 cọc nhồi nhô lên $1.0	ext{m}$, rửa sạch và để thép cọc neo sâu $40D$ vào bệ.
+- Đào hố móng bệ mố trụ ngàm vào đá, đập đầu 26 cọc nhồi nhô lên $1.0\text{m}$, ngàm đầu cọc $0.15\text{m}$ vào bệ, rửa sạch và để cốt thép cọc neo sâu $40D$ vào kết cấu bệ.
 - Đổ bê tông lót mác C10 dày 10cm.
-- Lắp dựng ván khuôn thép tấm lớn, cốt thép đáy bệ $\Phi 32$ và đổ bê tông bệ móng mác C30 ($517.48	ext{ m}^3$).
-- Thi công thân đặc trụ T1 (cao 14.5m) và T2 (cao 11.4m) theo từng phân đợt $3.0 - 4.0	ext{m}$ bằng hệ đà giáo giàn giáo leo an toàn.
-- Đổ bê tông xà mũ trụ T1, T2 mác C30, căn chỉnh cao độ đá kê gối và lắp ụ chống xô sai số $\le 2	ext{mm}$.
+- **Bệ mố M1, M2:** Bê tông C30 khối tích $74.50\text{ m}^3/\text{bệ}$, ván khuôn thành bệ $46.56\text{ m}^2/\text{bệ}$.
+- **Bệ trụ T1, T2 (Chuẩn hóa ZERO VÁT):** Khối hộp chữ nhật đặc phẳng $11.60\text{m} \times 8.00\text{m} \times 2.00\text{m}$, thể tích thực tế trừ 8 đầu cọc ngàm là $184.243\text{ m}^3/\text{bệ}$ (Tổng 2 bệ $= 368.486\text{ m}^3$). Ván khuôn thành phẳng $78.40\text{ m}^2/\text{bệ}$ (Tổng $= 156.80\text{ m}^2$). Tuyệt đối không cộng vát loe vào bệ trụ.
+- **Thân trụ T1, T2 (Phân tầng 3 Đốt thi công & 2 Đoạn vát chuyển tiếp 300mm):**
+  * Tiết diện vuốt thon khí động học giảm cản dòng lũ: Phần chữ nhật trung tâm $B_1 = 3.50\text{m}$ cố định, 2 đầu bo tròn bán nguyệt đường kính $D = W$.
+  * **Trụ T1 (Bờ Nam Km19+487.08, $H_{\text{thân}} = 23.35\text{m}$):** $V_{\text{thân}} = 234.922\text{ m}^3$, ván khuôn $309.608\text{ m}^2$. Gồm Đốt 3 chân loe bệ ($H_c = 3.65\text{m}, V = 55.39\text{ m}^3$), Đoạn vát 2-3 ($h = 0.3\text{m}, V = 3.90\text{ m}^3$), Đốt 2 thân giữa ($H_2 = 9.7\text{m}, V = 104.89\text{ m}^3$), Đoạn vát 1-2 ($h = 0.3\text{m}, V = 2.68\text{ m}^3$) và Đốt 1 đỉnh thân ($H_1 = 9.7\text{m}, V = 68.07\text{ m}^3$).
+  * **Trụ T2 (Lòng sông Km19+529.08, $H_{\text{thân}} = 25.45\text{m}$):** $V_{\text{thân}} = 266.791\text{ m}^3$, ván khuôn $342.121\text{ m}^2$. Đốt 3 chân loe sâu lòng sông $H_c = 5.75\text{m}$ ($V = 87.26\text{ m}^3$, cao hơn T1 $2.10\text{m}$).
+  * Cạnh biên thân trụ vát mép tam giác $100 \times 100\text{mm}$ chống sứt vỡ góc theo tiêu chuẩn thiết kế.
+  * Thi công thân trụ bằng hệ ván khuôn leo định hình kết hợp giàn giáo sàn công tác an toàn phân đợt theo từng đốt thi công.
+- **Xà mũ trụ T1, T2:** Kích thước thân chính hình thang $L_{\text{đỉnh}} = 12.30\text{m}, L_{\text{đáy}} = 11.894\text{m}, W = 2.71\text{m}, H = 1.60\text{m}$ kết hợp 2 cánh vát hẫng, 4 tường tai và 4 ụ chống xô dầm Super-T mỗi xà mũ. Thể tích $64.43 - 72.51\text{ m}^3/\text{xà mũ}$, ván khuôn $127.49\text{ m}^2/\text{xà mũ}$. Căn chỉnh tim mốc và cao độ đá kê gối sai số $\le 2\text{mm}$.
 
 #### CHƯƠNG 5: ĐÚC DẦM SUPER-T L=38.2M & CĂNG KÉO CÁP DỰ ỨNG LỰC
 - Lắp dựng ván khuôn thép định hình dầm Super-T tại bãi đúc.
@@ -72,6 +78,6 @@
 
 #### CHƯƠNG 8: KẾ HOẠCH AN TOÀN HSE & PHÒNG CHỐNG THIÊN TAI
 - 100% công nhân trên công trường trang bị đầy đủ PPE (mũ bảo hộ, áo phản quang, giày mũi thép).
-- Thi công trên cao (thân trụ T1, T2 cao 14.5m và trên dầm Super-T): Bắt buộc đeo dây an toàn 2 móc, căng lưới an toàn chống rơi dưới gầm cầu.
+- Thi công trên cao (thân trụ T1, T2 cao 23.35m và 25.45m, thi công xà mũ và trên dầm Super-T): Bắt buộc đeo dây an toàn 2 móc, căng lưới an toàn chống rơi dưới gầm cầu.
 - Kiểm định an toàn nghiêm ngặt giá lao dầm 78.88 tấn và cẩu trục 50 tấn trước khi đưa vào vận hành.
 - Phương án phòng chống lũ quét miền núi: Định kỳ khơi thông dòng chảy suối dưới cầu, rút thiết bị lên cao độ an toàn khi có cảnh báo mưa lũ cấp 6 trở lên.
