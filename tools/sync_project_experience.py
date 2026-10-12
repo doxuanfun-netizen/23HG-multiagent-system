@@ -203,7 +203,7 @@ def sync_all_historical_experiences(store: Optional[ProjectExperienceStore] = No
             "SKILL-CAD-AUTOMATION",
             "Tự động hóa điều khiển CAD & Giải mã TCVN3",
             "AUTOMATION",
-            "Điều khiển AutoCAD trực tiếp qua MCP cad-mcp/autocad-mcp, bóc tách bê tông ván khuôn và đào đắp.",
+            "Điều khiển AutoCAD trực tiếp qua MCP cad-mcp (23HG CAD AUTOMATION MCP PRO v2.0.0), bóc tách bê tông ván khuôn và đào đắp.",
             "Khi người dùng yêu cầu bóc tách trực tiếp từ bản vẽ DWG/DXF",
             "Quét layer KET_CAU, tính diện tích Shoelace và xuất bảng tính Excel",
             "skills.aec_cad_automation.scripts.cad_takeoff_engine"

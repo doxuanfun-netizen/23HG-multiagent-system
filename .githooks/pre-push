@@ -13,7 +13,10 @@ echo "[pre-push] 1/3 Bộ test gốc (như CI)..."
 echo "[pre-push] 2/3 Tự kiểm tra solver + CPM (như CI)..."
 "$PY" run_state_graph.py --solver-test > /dev/null
 
-echo "[pre-push] 3/3 Bộ test apps/23hg_schedule_assistant_pro (test LibreOffice tự bỏ qua nếu thiếu Calc)..."
+echo "[pre-push] 3/4 Bộ test apps/23hg_schedule_assistant_pro (test LibreOffice tự bỏ qua nếu thiếu Calc)..."
 (cd apps/23hg_schedule_assistant_pro && "$PY" -m unittest discover -s tests -p "test_*.py" -q)
+
+echo "[pre-push] 4/4 Bộ test apps/23hg_cad_automation_mcp_pro (74 test CAD Controller, Scorer, Whitelist)..."
+(cd apps/23hg_cad_automation_mcp_pro/02_MA_NGUON_VIET_HOA_100_PHAN_TRAM/cad_cowork_mcp && "$PY" -m unittest discover -s tests -p "test_*.py" -q)
 
 echo "[pre-push] OK"

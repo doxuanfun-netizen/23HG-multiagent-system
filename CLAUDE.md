@@ -56,6 +56,7 @@ thanh toán 03a, tiến độ CPM, KCS, As-Built. Giữ file này dưới 200 d�
   đừng đọc nguyên văn; dùng `du_lieu.json` theo trang, `chia_doan.jsonl` theo đoạn, `kiem_tra_so_lieu.md`
   cho mục nghi ngờ.
 - `apps/23hg_schedule_assistant_pro/` — phân hệ Excel/VBA có bộ test riêng.
+- `apps/23hg_cad_automation_mcp_pro/` — phân hệ điều khiển AutoCAD qua MCP Native COM (139 API, QS Takeoff, 74 test).
 - `tests/golden/` — số liệu chuẩn và khung đối chiếu. `workflows/` — quy trình, trạng thái pháp lý.
 
 ## Git

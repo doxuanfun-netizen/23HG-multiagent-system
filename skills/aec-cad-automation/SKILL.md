@@ -1,6 +1,6 @@
 ---
 name: aec-cad-automation
-description: Tự động hóa điều khiển AutoCAD/CAD trực tiếp qua giao thức MCP (autocad-mcp và cad-mcp), bóc tách khối lượng hình học bê tông, ván khuôn, cốt thép BBS và đào đắp mặt cắt ngang từ bản vẽ DWG/DXF không cần xuất file trung gian. Hỗ trợ giải mã font TCVN3/VNI sang Unicode và xuất bảng tính Excel 100% công thức sống.
+description: Tự động hóa điều khiển AutoCAD/CAD trực tiếp qua giao thức MCP (cad-mcp — 23HG CAD AUTOMATION MCP PRO v2.0.0, Native COM Interop), bóc tách khối lượng hình học bê tông, ván khuôn, cốt thép BBS và đào đắp mặt cắt ngang từ bản vẽ DWG/DXF không cần xuất file trung gian. Hỗ trợ giải mã font TCVN3/VNI sang Unicode và xuất bảng tính Excel 100% công thức sống.
 ---
 
 # Tự động hóa CAD & Đo bóc Khối lượng Toàn diện (AEC-CAD Takeoff)
@@ -10,7 +10,7 @@ description: Tự động hóa điều khiển AutoCAD/CAD trực tiếp qua gia
 ```text
 [ Giao diện AI: Claude Desktop / Windsurf / Cursor / Antigravity ]
                                │
-                               ▼ (Giao thức MCP: cad-mcp / autocad-mcp)
+                               ▼ (Giao thức MCP: cad-mcp — 23HG CAD AUTOMATION MCP PRO v2.0.0)
                [ MCP Server điều khiển AutoCAD (Local) ]
                                │
                                ▼ (API / COM Interop: win32com / ezdxf)
@@ -30,20 +30,38 @@ Cung cấp khả năng cho AI Agent tương tác trực tiếp 2 chiều với p
 
 ## 2. Công cụ MCP Khả dụng & Lệnh Thực thi
 
-Agent có thể sử dụng các công cụ từ 2 kênh MCP:
+Agent sử dụng duy nhất kênh MCP `cad-mcp` (23HG CAD AUTOMATION MCP PRO
+v2.0.0, Native COM Interop — Zero-Plugin / Zero-DLL / Zero NETLOAD).
+Kênh `autocad-mcp` (Slacker-LLC) đã ngừng tham chiếu: server MCP PRO không
+expose các tool `autocad_status`, `list_open_drawings`, `draw_geometry`,
+`query_geometry` — thay bằng document/query/view API dưới đây.
 
-### A. Kênh `cad-mcp` (GsLc API)
-- `smart_cad_command`: Lệnh chính để thực thi từng thao tác CAD (vẽ circle, line, polyline, move, query layer, zoom...).
+### A. Lệnh thao tác hình học & truy vấn (qua `smart_cad_command` + `batch_execute`)
+- `smart_cad_command`: lệnh chính cho mọi thao tác đơn (vẽ circle/line/polyline, move, query layer, zoom...).
   - Cú pháp tham số: camelCase (ví dụ: `startPoint: [x, y, z]`, `endPoint: [x, y, z]`).
-  - Điểm tọa độ: Mảng `[x, y, z]` (mặc định z=0).
-- `batch_execute`: Thực thi chuỗi lệnh phụ thuộc liên tiếp để tăng tốc độ.
-- `query_api_commands`: Tra cứu cú pháp lệnh API trước khi gọi.
+  - Điểm tọa độ: mảng `[x, y, z]` (mặc định z=0).
+  - Lệnh phá hoại (ERASE, EXPLODE, xóa layer, `ssget`...) bắt buộc `confirm: true` hoặc `dry_run: true`.
+- `batch_execute`: chuỗi lệnh phụ thuộc liên tiếp (DAG `depends_on`, tham chiếu `${cmd_id.handle}`),
+  hỗ trợ `dry_run`, `use_transaction`, `stop_on_error`.
+- `query_api_commands`: tra cứu danh mục 139 lệnh API (`command_name` hoặc `category`).
+- Nhóm document: `api_open_document`, `api_close_document`, `api_save_document`,
+  `api_get_document_info`, `api_get_drawing_extents` (thay cho `list_open_drawings` cũ).
+- Nhóm query: `api_query_by_layer`, `api_query_by_type`, `api_query_by_window`,
+  `api_get_entity_info`, `api_select_by_filter`, `api_get_selection_set`.
+- Nhóm view/layer: `api_zoom_extents`, `api_zoom_object`, `api_list_layers`,
+  `api_create_layer`, `api_get_current_view`.
 
-### B. Kênh `autocad-mcp` (Slacker-LLC)
-- `autocad_status`: Kiểm tra trạng thái kết nối với phiên bản AutoCAD đang mở.
-- `list_open_drawings`: Liệt kê các bản vẽ DWG đang mở.
-- `list_layers`: Đọc danh sách tất cả các layer trong bản vẽ.
-- `draw_geometry` / `query_geometry`: Vẽ và trích xuất hình học 2D/3D.
+### B. Động cơ bóc tách khối lượng QS Takeoff Native COM (4 tool chuyên dụng)
+- `cad_get_units`: đọc `INSUNITS`/`MEASUREMENT`/`DIMLFAC`/`LUNITS`; cảnh báo lệch 1000 lần
+  khi `INSUNITS = 0` hoặc `DIMLFAC != 1.0`.
+- `cad_quantity_by_layer`: bóc dài tim tuyến (m) + diện tích kín (m²) theo layer;
+  `area_mode: separate` chống cộng trùng polyline kín vs hatch; fix `AcDb2d/3dPolyline`
+  `.Length = 0` bằng khoảng cách đỉnh; trả `diagnostics.skipped_entities`.
+- `cad_count_blocks`: đếm block/thiết bị theo tên + layer, nhận diện Dynamic Block
+  (`EffectiveName`), đọc Attributes, phát hiện Xref và scale phi đồng nhất.
+- `cad_export_boq`: xuất Excel `.xlsx` đa sheet (tổng hợp + chi tiết layer + block)
+  100% công thức sống — Zero Dead Numbers; hoặc CSV.
+- `cad_disconnect`: giải phóng COM, dọn tiến trình nền AutoCAD.
 
 ---
 

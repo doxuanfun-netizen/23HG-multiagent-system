@@ -38,7 +38,7 @@ flowchart TD
 | Agent ID | Tên chuyên môn | Công nghệ / Mô hình AI tuyển chọn tốt nhất | Vai trò cốt lõi trong hệ thống |
 | :--- | :--- | :--- | :--- |
 | **`aec_master_director`** | **Giám đốc Dự án & Tổng Chỉ huy** | Mô hình suy luận cấp cao (Reasoning LLM) | Lập kế hoạch Modular WBS, phân công tác tử, kiểm duyệt chéo chống số chết. |
-| **`aec_cad_extractor`** | **Kỹ sư Trích xuất Bản vẽ CAD** | **CAD MCP / GsLc API** + `ezdxf` + TCVN3 Decoder | Đọc DWG/DXF, quét layer, bảng thống kê thép BBS trong CAD, bóc tọa độ đỉnh và tính diện tích mặt cắt hình học (Shoelace). |
+| **`aec_cad_extractor`** | **Kỹ sư Trích xuất Bản vẽ CAD** | **CAD MCP PRO v2.0.0 (`cad-mcp`)** + `ezdxf` + TCVN3 Decoder | Đọc DWG/DXF, quét layer, bảng thống kê thép BBS trong CAD, bóc tọa độ đỉnh và tính diện tích mặt cắt hình học (Shoelace). |
 | **`aec_office_extractor`** | **Kỹ sư Bóc tách Office & Word** | `openpyxl` + `win32com` + `python-docx` | Đọc toàn bộ bảng tính thiết kế gốc (.xlsx, .xls), bóc tách cây công thức, phân biệt số sống/chết, đọc biểu mẫu KCS Word. |
 | **`aec_markdown_ingestor`** | **Kỹ sư Hồ sơ Thiết kế & Tiêu chuẩn** | Markdown Semantic Parser + Chunking | Đọc thuyết minh BPTC, chỉ dẫn kỹ thuật, trích xuất mác bê tông, mác thép, quy chuẩn TCVN, QCVN, ASTM. |
 | **`aec_data_aggregator`** | **Trọng tài Hợp nhất & Trưởng ban Dữ liệu** | Data Fusion Engine + Cross-modal Diff | Đối chiếu chéo CAD vs Excel vs Markdown, phát hiện lệch pha dữ liệu, giải mã font TCVN3, đồng bộ Blackboard State chuẩn. |
