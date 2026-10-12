@@ -5,7 +5,7 @@ VÍ DỤ THỰC THI CHUỖI TÁC TỬ THU NHẬN & HỢP NHẤT DỮ LIỆU ĐA 
 Tuân thủ Kiến trúc Hệ thống MCP 3 Thành Phần:
 [ Giao diện AI: Claude Desktop / Windsurf / Cursor / Antigravity ]
                                |
-                               ▼ (Giao thức MCP: cad-mcp / autocad-mcp)
+                               ▼ (Giao thức MCP: cad-mcp — 23HG CAD AUTOMATION MCP PRO v2.0.0)
                [ MCP Server điều khiển AutoCAD (Local) ]
                                |
                                ▼ (API / COM Interop: win32com / ezdxf)

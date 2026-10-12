@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "cad-mcp": {
+      "command": "python",
+      "args": [
+        "-m",
+        "cad_cowork_mcp"
+      ],
+      "env": {
+        "PYTHONIOENCODING": "utf-8"
+      }
+    }
+  }
+}
