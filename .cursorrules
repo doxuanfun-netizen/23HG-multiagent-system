@@ -1,0 +1,7 @@
+# 23HG MULTIAGENT SYSTEM - RULES
+
+## Code & File Search Guidelines
+- Always prioritize using `rg` (ripgrep) for searching code, text patterns, and symbols instead of `grep`, `findstr`, or `Select-String`.
+- For listing files, use `rg --files`.
+- If searching through ignored or hidden files, use `rg -u "keyword"` or `rg -uu "keyword"`.
+- Keep searches fast, targeted, and respect project conventions in CLAUDE.md.

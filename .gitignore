@@ -64,3 +64,4 @@ agents/RUNTIME_STATE.json
 
 # Hồ sơ dự án gốc trên máy (AEC_PROJECTS_DIR mặc định) — không đưa lên git
 du_lieu_du_an/
+examples/HO_SO_*/

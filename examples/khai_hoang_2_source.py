@@ -23,9 +23,17 @@ import sys as _sys
 _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _paths import project_path  # noqa: E402 — thư mục dự án (AEC_PROJECTS_DIR)
 
-SOURCE_DIR = project_path(r"Cầu thôn Khai Hoang 2, Km 14+363.65_Marker\Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
+_SCAN_DIR = project_path(r"Cầu thôn Khai Hoang 2, Km 14+363.65_Marker\05_DU_LIEU_GOC_SCAN_MARKER")
+_NESTED_DIR = project_path(r"Cầu thôn Khai Hoang 2, Km 14+363.65_Marker\Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
+_FLAT_DIR = project_path(r"Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
+if os.path.exists(os.path.join(_SCAN_DIR, "bang_so_lieu.json")):
+    SOURCE_DIR = _SCAN_DIR
+elif os.path.exists(os.path.join(_NESTED_DIR, "bang_so_lieu.json")):
+    SOURCE_DIR = _NESTED_DIR
+else:
+    SOURCE_DIR = _FLAT_DIR
 TABLES_JSON = os.path.join(SOURCE_DIR, "bang_so_lieu.json")
-THKL_XLSX = os.path.join(SOURCE_DIR, "THKL G9 - CHUẨN.xlsx")
+THKL_XLSX = os.path.join(SOURCE_DIR, "THKL G9 - CHUẨN.xlsx") if os.path.exists(os.path.join(SOURCE_DIR, "THKL G9 - CHUẨN.xlsx")) else os.path.join(_FLAT_DIR, "THKL G9 - CHUẨN.xlsx")
 THKL_SHEET = "Cau 15m"
 
 # Trọng lượng đơn vị thép tròn (kg/m) = 0.00617 × D², TCVN 1651
@@ -95,7 +103,7 @@ DUPLICATE_MARK_RENAMES = {"D2B": "D2D"}
 
 
 def _num(text) -> Optional[float]:
-    """Số VN/US trên bản vẽ → float. '8.467,00'→8467, '3,850'→3.85, '1,000.00'→1000, '5.3'→5.3."""
+    """Số VN/US trên bản vẽ → float. '8.467,00'→8467, '7,900,00'→7900, '2.260.00'→2260."""
     if text is None:
         return None
     s = str(text).strip().replace(" ", "")
@@ -107,6 +115,18 @@ def _num(text) -> Optional[float]:
             s = s.replace(".", "").replace(",", ".")      # 8.467,00
         else:
             s = s.replace(",", "")                        # 1,000.00
+    elif s.count(",") >= 2:
+        parts = s.split(",")
+        if len(parts[-1]) in (1, 2):
+            s = "".join(parts[:-1]) + "." + parts[-1]     # 7,900,00 → 7900.00
+        else:
+            s = "".join(parts)
+    elif s.count(".") >= 2:
+        parts = s.split(".")
+        if len(parts[-1]) in (1, 2):
+            s = "".join(parts[:-1]) + "." + parts[-1]     # 2.260.00 → 2260.00
+        else:
+            s = "".join(parts)
     elif "," in s:
         s = s.replace(",", ".")                           # 3,850 → 3.850 ; 7262 giữ nguyên
     try:
@@ -120,6 +140,8 @@ def _length_mm(text) -> Optional[float]:
     s = str(text or "").strip()
     if re.fullmatch(r"\d{1,3}(\.\d{3})+", s):
         return float(s.replace(".", ""))
+    if re.fullmatch(r"\d{1,3}(,\d{3})+", s):
+        return float(s.replace(",", ""))
     return _num(s)
 
 
