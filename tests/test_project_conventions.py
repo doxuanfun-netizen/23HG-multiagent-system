@@ -43,13 +43,12 @@ class ClaudeMdTest(unittest.TestCase):
 
 
 class PrePushHookTest(unittest.TestCase):
-    def test_hook_runs_ci_steps_and_apps_suite(self):
+    def test_hook_runs_ci_steps(self):
         hook = _read(HOOK)
         ci = "\n".join(_read(p) for p in glob.glob(os.path.join(ROOT, ".github", "workflows", "*.yml")))
         for step in ("unittest discover -s tests -t .", "run_state_graph.py --solver-test"):
             self.assertIn(step, ci, f"CI không còn bước '{step}' — cập nhật hook và test này")
             self.assertIn(step, hook)
-        self.assertIn("apps/23hg_schedule_assistant_pro", hook)
         self.assertTrue(hook.startswith("#!/bin/sh"))
 
     @unittest.skipIf(os.name == "nt", "quyền thực thi không áp dụng trên Windows")

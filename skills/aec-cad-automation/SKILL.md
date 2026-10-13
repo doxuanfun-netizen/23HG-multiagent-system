@@ -1,6 +1,6 @@
 ---
 name: aec-cad-automation
-description: Tự động hóa điều khiển AutoCAD/CAD trực tiếp qua giao thức MCP (cad-mcp — 23HG CAD AUTOMATION MCP PRO v2.0.0, Native COM Interop), bóc tách khối lượng hình học bê tông, ván khuôn, cốt thép BBS và đào đắp mặt cắt ngang từ bản vẽ DWG/DXF không cần xuất file trung gian. Hỗ trợ giải mã font TCVN3/VNI sang Unicode và xuất bảng tính Excel 100% công thức sống.
+description: Tự động hóa điều khiển AutoCAD/CAD trực tiếp qua giao thức MCP (cad-mcp — 23HG CAD AUTOMATION MCP PRO, repo riêng, Native COM Interop), bóc tách khối lượng hình học bê tông, ván khuôn, cốt thép BBS và đào đắp mặt cắt ngang từ bản vẽ DWG/DXF không cần xuất file trung gian. Hỗ trợ giải mã font TCVN3/VNI sang Unicode và xuất bảng tính Excel 100% công thức sống.
 ---
 
 # Tự động hóa CAD & Đo bóc Khối lượng Toàn diện (AEC-CAD Takeoff)
@@ -10,7 +10,7 @@ description: Tự động hóa điều khiển AutoCAD/CAD trực tiếp qua gia
 ```text
 [ Giao diện AI: Claude Desktop / Windsurf / Cursor / Antigravity ]
                                │
-                               ▼ (Giao thức MCP: cad-mcp — 23HG CAD AUTOMATION MCP PRO v2.0.0)
+                               ▼ (Giao thức MCP: cad-mcp — 23HG CAD AUTOMATION MCP PRO, repo riêng)
                [ MCP Server điều khiển AutoCAD (Local) ]
                                │
                                ▼ (API / COM Interop: win32com / ezdxf)

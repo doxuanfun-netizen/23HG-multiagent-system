@@ -6,7 +6,7 @@ KIẾN TRÚC HỆ THỐNG MCP 3 THÀNH PHẦN (3-TIER MCP ARCHITECTURE):
 
 [ Giao diện AI: Claude Desktop / Windsurf / Cursor / Antigravity ]
                                |
-                               ▼ (Giao thức MCP: cad-mcp — 23HG CAD AUTOMATION MCP PRO v2.0.0)
+                               ▼ (Giao thức MCP: cad-mcp — 23HG CAD AUTOMATION MCP PRO, repo riêng)
                [ MCP Server điều khiển AutoCAD (Local) ]
                                |
                                ▼ (API / COM Interop: win32com / ezdxf)
@@ -286,7 +286,7 @@ class AECCadExtractor:
     """
     TÁC TỬ AEC CAD EXTRACTOR
     Hỗ trợ Kiến trúc Hệ thống MCP 3 Thành Phần:
-    - Giao tiếp MCP Server cad-mcp (23HG CAD AUTOMATION MCP PRO v2.0.0, Native COM)
+    - Giao tiếp MCP Server cad-mcp (23HG CAD AUTOMATION MCP PRO, repo riêng, Native COM)
     - Tương tác trực tiếp AutoCAD qua COM Interop
     - Quét đệ quy thư mục hồ sơ bản vẽ (hỗ trợ hàng chục đến hàng trăm file DWG/DXF)
     - Đối soát 2 chiều với Hồ sơ thiết kế (Excel BoQ / Markdown)

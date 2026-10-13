@@ -34,9 +34,10 @@ from tools.pho_bang_master_builder import (
 from tools.package_dispatcher import AECPackageDispatcher
 
 
-BASE_MARKDOWN_DIR = r"D:\Tú\Trường PTTHNT LCTH&THCS Phố Bảng\1. Hồ sơ KCS PDF\Hồ sơ markdown"
+# Đường dẫn dữ liệu trên máy người chạy: lấy từ tham số dòng lệnh hoặc biến môi trường, không ghi cứng trong repo.
+BASE_MARKDOWN_DIR = os.environ.get("AEC_PHO_BANG_DIR", "")            # thư mục "Hồ sơ markdown" của 25 dự án
 DL_DIR = os.environ.get("AEC_DL_DIR", os.path.join(os.path.expanduser("~"), "Downloads", "Documents", "Trường liên cấp phố bảng_Marker"))
-MASTER_XLSM_PATH = r"D:\Tú\Trường PTTHNT LCTH&THCS Phố Bảng\1. Trường liên cấp Phố Bảng 02.08.26.xlsm"
+MASTER_XLSM_PATH = os.environ.get("AEC_PHO_BANG_MASTER_XLSM", "")    # file Master .xlsm của dự án
 
 
 def export_single_project(proj: ProjectDefinition, base_dir: str = BASE_MARKDOWN_DIR) -> Dict[str, Any]:
@@ -177,17 +178,24 @@ if __name__ == "__main__":
     parser.add_argument("--index", "-i", type=int, help="Chỉ định STT dự án cần chạy (1-25)")
     parser.add_argument("--all", "-a", action="store_true", help="Chạy toàn bộ 25 dự án")
     parser.add_argument("--range", "-r", type=str, help="Dải STT cần chạy (vd: 1-5, 6-10)")
+    parser.add_argument("--base-dir", default=BASE_MARKDOWN_DIR,
+                        help="thư mục 'Hồ sơ markdown' (mặc định: biến môi trường AEC_PHO_BANG_DIR)")
+    parser.add_argument("--master-xlsm", default=MASTER_XLSM_PATH,
+                        help="file Master .xlsm (mặc định: biến môi trường AEC_PHO_BANG_MASTER_XLSM)")
     args = parser.parse_args()
+    if not args.base_dir or not args.master_xlsm:
+        parser.error("cần --base-dir và --master-xlsm (hoặc đặt AEC_PHO_BANG_DIR và AEC_PHO_BANG_MASTER_XLSM)")
+    BASE_MARKDOWN_DIR, MASTER_XLSM_PATH = args.base_dir, args.master_xlsm
 
     if args.index:
-        run_batch_export(indices=[args.index])
+        run_batch_export(indices=[args.index], base_dir=args.base_dir)
     elif args.range:
         parts = args.range.split("-")
         start_i, end_i = int(parts[0]), int(parts[1])
-        run_batch_export(indices=list(range(start_i, end_i + 1)))
+        run_batch_export(indices=list(range(start_i, end_i + 1)), base_dir=args.base_dir)
     elif args.all:
-        run_batch_export()
+        run_batch_export(base_dir=args.base_dir)
     else:
         # Mặc định chạy thử dự án số 1
         print("Chạy thử nghiệm dự án số 1:")
-        run_batch_export(indices=[1])
+        run_batch_export(indices=[1], base_dir=args.base_dir)

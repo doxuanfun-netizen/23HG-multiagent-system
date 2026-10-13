@@ -17,6 +17,7 @@ import os
 import re
 import subprocess
 import unittest
+import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MAX_TRACKED_BYTES = 1024 * 1024            # 1 MB
@@ -172,7 +173,7 @@ class PersonalPathTest(unittest.TestCase):
     PATTERNS = [re.compile(r"C[oô]ng ty \d{3}", re.IGNORECASE),
                 re.compile(r"[A-Za-z]:\\+Users\\+(?![.<])[^\\\s\"']+", re.IGNORECASE)]
     # File này khai báo chính đường dẫn cần cấm (để kiểm tra nó không xuất hiện), nên được miễn.
-    ALLOWED_FILES = {"apps/23hg_schedule_assistant_pro/tests/test_static.py"}
+    ALLOWED_FILES = set()
 
     def test_no_personal_paths_in_tracked_text_files(self):
         files = tracked_files()
@@ -187,6 +188,39 @@ class PersonalPathTest(unittest.TestCase):
                 text = f.read().decode("utf-8", errors="ignore")
             hits += [rel for pat in self.PATTERNS if pat.search(text)]
         self.assertEqual(hits, [], "Có đường dẫn cá nhân hoặc tên đơn vị trong file đã track")
+
+
+class OfficeMetadataTest(unittest.TestCase):
+    """File Office đã track không mang đường dẫn máy cá nhân, tên đơn vị hay liên kết ngoài tới máy khác.
+
+    Excel tự ghi thư mục lưu cuối cùng (absPath) vào xl/workbook.xml, và giữ liên kết ngoài khi chép sheet từ file
+    mẫu — test văn bản ở trên không thấy được vì nằm trong gói zip. Khi đỏ: chạy
+    `python -m tools.office_scrub <file>` (thêm `--lien-ket-ngoai` nếu là liên kết ngoài không ô nào dùng).
+    """
+    SUFFIXES = (".xlsx", ".xlsm", ".xlam", ".docx")
+
+    def test_no_machine_paths_inside_office_files(self):
+        files = tracked_files()
+        if files is None:
+            self.skipTest("không phải bản checkout git")
+        patterns = PersonalPathTest.PATTERNS + [re.compile(r"<x15ac:absPath\b"),
+                                                re.compile(r"C[oô]ng%20ty%20\d{3}", re.IGNORECASE)]
+        hits = []
+        for rel in files:
+            path = os.path.join(ROOT, rel)
+            if not rel.lower().endswith(self.SUFFIXES) or not os.path.isfile(path):
+                continue
+            with zipfile.ZipFile(path) as z:
+                for name in z.namelist():
+                    if not name.endswith((".xml", ".rels")):
+                        continue
+                    if name.startswith("xl/externalLinks/"):
+                        hits.append(f"{rel}!{name} (liên kết ngoài)")
+                        break
+                    text = z.read(name).decode("utf-8", errors="ignore")
+                    if any(p.search(text) for p in patterns):
+                        hits.append(f"{rel}!{name}")
+        self.assertEqual(hits, [], "File Office còn đường dẫn máy cá nhân / tên đơn vị / liên kết ngoài")
 
 
 if __name__ == "__main__":

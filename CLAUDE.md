@@ -5,11 +5,9 @@ thanh toán 03a, tiến độ CPM, KCS, As-Built. Giữ file này dưới 200 d�
 
 ## Lệnh thường dùng
 
-- Cài: `pip install -r requirements.txt`. Test apps cần thêm LibreOffice Calc (`libreoffice-calc`);
-  thiếu Calc thì các test đó tự bỏ qua.
+- Cài: `pip install -r requirements.txt`.
 - Test gốc (như CI): `python -m unittest discover -s tests -t . -q`
 - Tự kiểm tra solver + CPM (như CI): `python run_state_graph.py --solver-test`
-- Test apps: `cd apps/23hg_schedule_assistant_pro && python -m unittest discover -s tests -p "test_*.py"`
 - Khung đối chiếu hồ sơ duyệt: `python -m tests.golden.harness.runner` (còn FAIL có lý do, xem bên dưới)
 - Quét lỗi công thức Excel: `python -m tools.audit_excels_static <thư mục>`
 - Kiểm tra trước khi push (một lần cho mỗi bản clone): `git config core.hooksPath .githooks`
@@ -43,7 +41,8 @@ thanh toán 03a, tiến độ CPM, KCS, As-Built. Giữ file này dưới 200 d�
 ## Riêng tư và vệ sinh repo
 
 - Không đưa tên đơn vị/người bên thứ ba, đường dẫn máy cá nhân (`C:\Users\...`, `D:\...`) vào file
-  đã track. `tests/test_repo_hygiene.py` có kiểm tra.
+  đã track. `tests/test_repo_hygiene.py` có kiểm tra, kể cả bên trong file Office (absPath Excel tự ghi, liên kết
+  ngoài): sửa bằng `python -m tools.office_scrub <file>` (thêm `--lien-ket-ngoai` nếu cần).
 - File đã track ≤ 1 MB (ngoại lệ ghi trong `ALLOWED_LARGE*` của test vệ sinh); đường dẫn ≤ 190 ký tự
   (giới hạn Windows); các bản cùng tên trong một dự án `examples/<dự án>/` phải giống hệt nhau.
 - Không commit nguyên file mẫu của bên thứ ba; chỉ trích số liệu kỹ thuật đã ẩn danh.
@@ -55,8 +54,10 @@ thanh toán 03a, tiến độ CPM, KCS, As-Built. Giữ file này dưới 200 d�
 - `examples/HO_SO_CAU_KM19_529/05_DU_LIEU_GOC_SCAN_MARKER/` — HSTK đã OCR làm đầu vào. File lớn:
   đừng đọc nguyên văn; dùng `du_lieu.json` theo trang, `chia_doan.jsonl` theo đoạn, `kiem_tra_so_lieu.md`
   cho mục nghi ngờ.
-- `apps/23hg_schedule_assistant_pro/` — phân hệ Excel/VBA có bộ test riêng.
-- `apps/23hg_cad_automation_mcp_pro/` — phân hệ điều khiển AutoCAD qua MCP Native COM (139 API, QS Takeoff, 74 test).
+- Phân hệ sống ở repo riêng (private, không gộp vào đây): tiến độ Excel/VBA
+  `https://github.com/baotuhg/23HG_TIEN_DO_THI_CONG_PRO`, máy chủ MCP `cad-mcp` điều khiển AutoCAD
+  `https://github.com/baotuhg/23HG_CAD_AUTOMATION_MCP_PRO`, cắt thép Excel/VBA
+  `https://github.com/baotuhg/23HG-RebarCut_V6`. Repo này chỉ nói chuyện với chúng qua file/giao thức.
 - `tests/golden/` — số liệu chuẩn và khung đối chiếu. `workflows/` — quy trình, trạng thái pháp lý.
 
 ## Git

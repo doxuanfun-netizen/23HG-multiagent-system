@@ -33,7 +33,7 @@ Nếu để các tác tử nghiệp vụ (Cắt thép 1D, Dự toán G_XD, Lập
 ```text
 [ Giao diện AI: Claude Desktop / Windsurf / Cursor / Antigravity ]
                                │
-                               ▼ (Giao thức MCP: cad-mcp — 23HG CAD AUTOMATION MCP PRO v2.0.0)
+                               ▼ (Giao thức MCP: cad-mcp — 23HG CAD AUTOMATION MCP PRO, repo riêng)
                [ MCP Server điều khiển AutoCAD (Local) ]
                                │
                                ▼ (API / COM Interop: win32com / ezdxf)
@@ -45,7 +45,7 @@ Nếu để các tác tử nghiệp vụ (Cắt thép 1D, Dự toán G_XD, Lập
    - Các nền tảng trợ lý AI chuyên gia: Google Antigravity, Claude Desktop, Cursor, Windsurf.
    - Tiếp nhận lệnh từ kỹ sư, điều phối tác tử và gửi yêu cầu truy vấn bản vẽ qua giao thức mở MCP.
 2. **Tầng 2 - MCP Server Cục bộ (Local MCP Server Bridge):**
-   - Đóng vai trò cầu nối chuẩn hóa (chạy server `cad-mcp` — 23HG CAD AUTOMATION MCP PRO v2.0.0, Native COM Interop).
+   - Đóng vai trò cầu nối chuẩn hóa (chạy server `cad-mcp` — 23HG CAD AUTOMATION MCP PRO, repo riêng, Native COM Interop).
    - Cung cấp các công cụ: `smart_cad_command`, `batch_execute`, `query_api_commands`, QS Takeoff (`cad_get_units`, `cad_quantity_by_layer`, `cad_count_blocks`, `cad_export_boq`) + document/query/view API (`api_open_document`, `api_get_document_info`, `api_list_layers`).
 3. **Tầng 3 - Tương tác AutoCAD & Tệp Bản vẽ DWG (API / COM Interop):**
    - **Chế độ Phiên hoạt động (Active Session):** Kết nối trực tiếp vào phần mềm AutoCAD đang mở trên máy tính qua COM Interop (`win32com.client.Dispatch("AutoCAD.Application")`), đọc đối tượng từ `ModelSpace` (Text, MText, Polyline, Block, Dim).
