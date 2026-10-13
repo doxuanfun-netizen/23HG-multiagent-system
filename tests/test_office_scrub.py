@@ -11,7 +11,7 @@ import openpyxl
 from tools.office_scrub import ScrubError, inspect, scrub
 
 ABS = ('<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">'
-       '<mc:Choice Requires="x15"><x15ac:absPath url="C:\\Users\\ai_do\\Downloads\\Du_an\\" '
+       '<mc:Choice Requires="x15"><x15ac:absPath url="E:\\Du_an\\ai_do\\Ban_ve\\" '
        'xmlns:x15ac="http://schemas.microsoft.com/office/spreadsheetml/2010/11/ac"/></mc:Choice>'
        '</mc:AlternateContent>')
 EXT_XML = ('<externalLink xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
