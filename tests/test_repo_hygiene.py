@@ -172,7 +172,7 @@ class PersonalPathTest(unittest.TestCase):
     PATTERNS = [re.compile(r"C[oô]ng ty \d{3}", re.IGNORECASE),
                 re.compile(r"[A-Za-z]:\\+Users\\+(?![.<])[^\\\s\"']+", re.IGNORECASE)]
     # File này khai báo chính đường dẫn cần cấm (để kiểm tra nó không xuất hiện), nên được miễn.
-    ALLOWED_FILES = {"apps/23hg_schedule_assistant_pro/tests/test_static.py"}
+    ALLOWED_FILES = set()
 
     def test_no_personal_paths_in_tracked_text_files(self):
         files = tracked_files()

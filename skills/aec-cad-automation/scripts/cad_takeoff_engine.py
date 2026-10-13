@@ -6,7 +6,7 @@ AEC CAD QUANTITY TAKEOFF ENGINE (CÔNG CỤ ĐO BÓC KHỐI LƯỢNG CAD TỰ Đ
 Tuân thủ Kiến trúc Hệ thống MCP 3 Thành Phần:
 [ Giao diện AI: Claude / Cursor / Antigravity ]
                      │
-                     ▼ (Giao thức MCP: cad-mcp — 23HG CAD AUTOMATION MCP PRO v2.0.0)
+                     ▼ (Giao thức MCP: cad-mcp — 23HG CAD AUTOMATION MCP PRO, repo riêng)
      [ MCP Server điều khiển AutoCAD (Local) ]
                      │
                      ▼ (API / COM Interop: win32com / ezdxf)

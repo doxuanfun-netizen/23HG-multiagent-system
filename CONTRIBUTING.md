@@ -29,8 +29,8 @@ CI (GitHub Actions) chạy hai lệnh đầu trên Ubuntu và Windows cho mọi 
 gộp khi CI xanh.
 
 Bật kiểm tra tự động trước khi push (một lần cho mỗi bản clone): `git config core.hooksPath .githooks`.
-Hook `.githooks/pre-push` chạy hai lệnh CI ở trên và bộ test `apps/23hg_schedule_assistant_pro`
-(CI chưa chạy bộ này). Quy ước chi tiết cho người và AI xem `CLAUDE.md`.
+Hook `.githooks/pre-push` chạy hai lệnh CI ở trên. Các phân hệ tiến độ, CAD MCP và cắt thép Excel nằm ở
+repo riêng và có bộ test riêng ở đó. Quy ước chi tiết cho người và AI xem `CLAUDE.md`.
 
 ## 3. Quy tắc bắt buộc khi viết code
 

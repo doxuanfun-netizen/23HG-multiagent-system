@@ -41,9 +41,7 @@ Phát hành theo **[MIT License](LICENSE)**. Tác giả & duy trì: **Nguyễn B
 >
 > 🌟 **Ví dụ thực tế (10/2026):** [Báo cáo bóc tách CAD và sai lệch 4,5 km cống thoát nước thải cụm B9](docs/CASE_STUDY_CAD_TAKEOFF_B9_THOAT_NUOC_THAI.md) kèm [bộ hồ sơ Master Excel tính bằng công thức](examples/BOC_TACH_THOAT_NUOC_THAI_B9_CAD_TAKEOFF/README.md) — quét hình học 990 hố ga, 967 tuyến cống, phát hiện 1.285 dimension bị gán `DIMLFAC = 0.8` làm hụt 4.466 m cống; đã đề nghị tư vấn thiết kế cập nhật hồ sơ.
 >
-> 🚀 **PHÂN HỆ ĐIỀU HÀNH DOANH NGHIỆP (ENTERPRISE v4.1.0):** Trải nghiệm ngay [23HG Schedule Assistant Pro](apps/23hg_schedule_assistant_pro/README.md) — Giao diện Điều hành Excel C-Suite, Live Gantt Canvas, Quản trị EVM 5D, Cầu nối 2 chiều MS Project (XML) & Primavera P6 (XER), và Ribbon 34 macro lệnh tại thư mục `apps/23hg_schedule_assistant_pro/`. Xem [Hồ sơ Nghiệm thu Bàn giao](apps/23hg_schedule_assistant_pro/BAN_GIAO_DANH_GIA_DU_AN.md).
->
-> ⚡ **HỆ SINH THÁI TỰ ĐỘNG HÓA CAD NATIVE COM (23HG CAD AUTOMATION MCP PRO v2.0.0):** Trải nghiệm ngay [23HG CAD Automation MCP Pro](apps/23hg_cad_automation_mcp_pro/README.md) — Cầu nối thông minh kết nối Claude Desktop, Cursor IDE, Google Antigravity và Windsurf điều khiển AutoCAD hai chiều trực tiếp qua Native COM Interop (139 lệnh API, Batch Snapshot, Live BoQ Excel 100% công thức sống, Zero-Plugin / Zero-DLL) tại thư mục `apps/23hg_cad_automation_mcp_pro/`. Xem [Hướng dẫn Vận hành A-Z](apps/23hg_cad_automation_mcp_pro/05_HUONG_DAN_SU_DUNG_VA_DANH_MUC_LENH/HUONG_DAN_SU_DUNG_A_TOI_Z.md) và [Danh mục 135 Lệnh CAD](apps/23hg_cad_automation_mcp_pro/05_HUONG_DAN_SU_DUNG_VA_DANH_MUC_LENH/DANH_MUC_135_LENH_CAD_TIENG_VIET.md).
+> 🧩 **Phân hệ ở repo riêng (private):** tiến độ thi công Excel/VBA `baotuhg/23HG_TIEN_DO_THI_CONG_PRO` (23HG Schedule Assistant Pro), máy chủ MCP `cad-mcp` điều khiển AutoCAD `baotuhg/23HG_CAD_AUTOMATION_MCP_PRO`, cắt thép Excel/VBA `baotuhg/23HG-RebarCut_V6`. Các phân hệ này từng nằm trong `apps/` của repo này và đã được tách ra (13/10/2026); repo này chỉ giữ lõi điều phối và các bộ tính Python.
 
 ---
 
