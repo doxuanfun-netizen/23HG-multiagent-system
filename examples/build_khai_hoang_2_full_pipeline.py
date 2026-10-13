@@ -41,7 +41,11 @@ from generate_khai_hoang_2_project import generate_khai_hoang_2_master_package
 
 USER_DOWNLOAD_DIR = os.path.join(os.path.expanduser("~"), "Downloads", r"Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
 SYSTEM_PROJECT_DIR = os.path.join(ROOT_DIR, "du_lieu_du_an", "Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
-SOURCE_JSON = os.path.join(USER_DOWNLOAD_DIR, "bang_so_lieu.json")
+_SCAN_JSON_USER = os.path.join(USER_DOWNLOAD_DIR, "05_DU_LIEU_GOC_SCAN_MARKER", "bang_so_lieu.json")
+_SCAN_JSON_SYS = os.path.join(SYSTEM_PROJECT_DIR, "05_DU_LIEU_GOC_SCAN_MARKER", "bang_so_lieu.json")
+_ROOT_JSON_USER = os.path.join(USER_DOWNLOAD_DIR, "bang_so_lieu.json")
+_ROOT_JSON_SYS = os.path.join(SYSTEM_PROJECT_DIR, "bang_so_lieu.json")
+SOURCE_JSON = next((p for p in (_SCAN_JSON_USER, _ROOT_JSON_USER, _SCAN_JSON_SYS, _ROOT_JSON_SYS) if os.path.exists(p)), _ROOT_JSON_USER)
 
 # Unit weights (TCVN 1651:2018)
 UNIT_WEIGHT = {
@@ -447,85 +451,134 @@ def generate_kcs_word_dossier(docx_out_path):
     doc.save(docx_out_path)
 
 def generate_machine_diesel_workbook(path: str):
-    wb = openpyxl.Workbook()
-    ws1 = wb.active
-    ws1.title = "01_TienDo_CaMay_Master"
-    ws1.views.sheetView[0].showGridLines = True
+    """
+    Tạo tệp Gói A 5 sheets Vincons chuẩn xác 100% theo bản mẫu gốc (62 dòng x 76 cột A..BU):
+    - Sheet 01 (01_TienDo_CaMay_Master): Layout 3 tầng hợp nhất trên cùng 1 sheet
+      + 15 cột A..O + 61 cột Gantt ngày P..BU công thức sống
+      + Dòng 35: Tổng nhân công trên công trường = SUMPRODUCT sống
+      + Tầng 2 (Dòng 36..48): 11 máy cơ giới thi công cầu nền xanh lá = IF/OR sống
+      + Tầng 3 (Dòng 50..62): Bảng tính dầu Diezel tiêu thụ theo ngày = SUM & phép nhân sống
+    - Sheet 02..05: Liên kết 100% công thức sống từ Sheet 01.
+    """
+    from tools.generate_bep_an_3tier_schedule import build_bep_an_3tier_fleet_workbook
 
-    # Title
-    ws1["B2"] = "DỰ ÁN: ĐƯỜNG TỪ TRUNG TÂM ĐỒNG VĂN ĐI MỐC 450/456, HUYỆN MÈO VẠC, HÀ GIANG"
-    ws1["B2"].font = Font(name="Times New Roman", size=13, bold=True, color="1F497D")
-    ws1["B3"] = "BẢNG KẾ HOẠCH CA XE, CA MÁY & TIÊU THỤ DẦU DIEZEL (20/10/2026 - 20/02/2027)"
-    ws1["B3"].font = Font(name="Times New Roman", size=12, bold=True)
-    ws1["B4"] = "Công trình: Cầu thôn Khai Hoang 2, Km14+363.65 | Tổng thời gian: 124 ngày | Đội thi công cơ giới & Bãi đúc dầm"
-    ws1["B4"].font = Font(name="Times New Roman", size=10, italic=True)
-
-    # Sheet 2: Danh mục MMTB & Định mức
-    ws2 = wb.create_sheet(title="02_TongHop_CaXe_CaMay_MMTB")
-    ws2.views.sheetView[0].showGridLines = True
-    ws2["B2"] = "BẢNG TỔNG HỢP CA XE CA MÁY VÀ ĐỊNH MỨC TIÊU HAO NHIÊN LIỆU DIEZEL"
-    ws2["B2"].font = Font(name="Times New Roman", size=13, bold=True, color="1F497D")
-
-    h2 = ["STT", "Tên thiết bị thi công / Cơ giới", "Công suất / Trọng tải", "Định mức dầu (lít/ca)", "Tổng số ca máy", "Tổng lít dầu diezel", "Ghi chú công năng"]
-    for c, h in enumerate(h2, start=2):
-        cell = ws2.cell(row=5, column=c, value=h)
-        cell.font = Font(name="Times New Roman", size=10, bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor="1F497D")
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-
-    equipments = [
-        (1, "Máy xúc đào bánh xích", "1.25 m3 (PC200/300)", 105.0, 48, "Đào hố móng đá M1, M2, đường công vụ"),
-        (2, "Máy xúc lốp đào & san gạt", "0.65 m3 (PC140)", 75.0, 36, "San bãi đúc, đào rãnh & hoàn thiện tứ nón"),
-        (3, "Ô tô tự đổ 3 chân", "15 Tấn (Howo)", 65.0, 85, "Vận chuyển đất đá, cát sỏi mỏ về công trường"),
-        (4, "Cần cẩu bánh xích", "50 Tấn (Kobelco)", 85.0, 28, "Lao lắp dầm T15m & cẩu bốc xếp cấu kiện"),
-        (5, "Cần cẩu tự hành (xe cẩu thùng)", "12 Tấn (Dongfeng)", 55.0, 42, "Bốc dỡ thép cây, cốp pha bãi đúc & mố"),
-        (6, "Máy khoan cấy neo đá chuyên dụng", "Khoan búa căn / xoay đập", 45.0, 32, "Khoan cấy 98 lỗ neo D32 vào nền đá mố"),
-        (7, "Trạm trộn bê tông di động", "45 m3/h", 50.0, 56, "Sản xuất bê tông dầm C40, bệ thân mố C30"),
-        (8, "Xe bồn vận chuyển bê tông", "7 m3 (Hyundai)", 60.0, 62, "Vận chuyển bê tông từ trạm ra vị trí đổ"),
-        (9, "Máy bơm bê tông tĩnh áp lực cao", "90 m3/h", 70.0, 26, "Bơm bê tông thân mố, tường ngực & mặt cầu"),
-        (10, "Máy lu rung mặt đường", "14 Tấn (Hamm)", 65.0, 22, "Lu lèn đường công vụ, móng đường đầu cầu"),
-        (11, "Máy rải thảm bê tông nhựa", "Bề rộng 4.5m - 6.0m", 60.0, 12, "Rải thảm mặt cầu BTNC 19 dày 7cm"),
-        (12, "Máy phát điện Diesel dự phòng", "150 kVA (Cummins)", 90.0, 124, "Cấp điện liên tục 124 ngày cho toàn công trường"),
+    d_st = datetime.date(2026, 10, 20)
+    tasks_26 = [
+        {"stt": 1, "code": "G1-01", "name": "Định vị tim mốc VN2000, giải phóng mặt bằng & xây dựng lán trại công trường",
+         "unit": "m2", "qty": 450.0, "norm": 150.0, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=0), "finish": d_st + datetime.timedelta(days=3),
+         "mach": "Dụng cụ cơ giới nhỏ + toàn đạc", "crew": 6, "critical": False},
+        {"stt": 2, "code": "G1-02", "name": "San ủi bến bãi đúc dầm T15m & đường công vụ phục vụ thi công cầu",
+         "unit": "m2", "qty": 850.0, "norm": 212.5, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=2), "finish": d_st + datetime.timedelta(days=6),
+         "mach": "Máy đào 0.8m3 + Lu rung 10T", "crew": 6, "critical": False},
+        {"stt": 3, "code": "G1-03", "name": "Đào đất đá hố móng mố M1 & tường chắn bằng máy đào 0.8m3 kết hợp phá đá",
+         "unit": "m3", "qty": 1813.0, "norm": 302.17, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=5), "finish": d_st + datetime.timedelta(days=10),
+         "mach": "Máy đào 0.8m3 + Ô tô 7T + Máy bơm nước hố móng D80", "crew": 8, "critical": True},
+        {"stt": 4, "code": "G1-04", "name": "Đào đất đá hố móng mố M2 & bệ phản áp bằng máy đào 0.8m3 kết hợp thủ công",
+         "unit": "m3", "qty": 1813.97, "norm": 302.33, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=7), "finish": d_st + datetime.timedelta(days=12),
+         "mach": "Máy đào 0.8m3 + Ô tô 7T + Máy bơm nước hố móng D80", "crew": 8, "critical": True},
+        {"stt": 5, "code": "G1-05", "name": "Đệm cát & Đổ bê tông lót móng C10 (M100) dày 10cm mố M1, M2 & tường chắn",
+         "unit": "m3", "qty": 58.70, "norm": 14.68, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=11), "finish": d_st + datetime.timedelta(days=14),
+         "mach": "Máy trộn 350L + đầm bàn", "crew": 8, "critical": False},
+        {"stt": 6, "code": "G1-06", "name": "Gia công lắp dựng cốt thép bệ mố, thân mố M1, M2 mác CB400-V (PD-04)",
+         "unit": "tấn", "qty": 21.66, "norm": 3.61, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=13), "finish": d_st + datetime.timedelta(days=18),
+         "mach": "Máy uốn cắt thép CNC RebarCut", "crew": 12, "critical": True},
+        {"stt": 7, "code": "G1-07", "name": "Lắp dựng ván khuôn định hình phủ phim bệ mố & thân mố M1, M2",
+         "unit": "m2", "qty": 285.0, "norm": 57.0, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=16), "finish": d_st + datetime.timedelta(days=20),
+         "mach": "Giàn giáo thép + ván ép phủ phim", "crew": 10, "critical": True},
+        {"stt": 8, "code": "G1-08", "name": "Đổ bê tông bệ mố, thân mố M1, M2 đá 1x2 mác C30 bằng bơm bê tông",
+         "unit": "m3", "qty": 462.66, "norm": 115.67, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=19), "finish": d_st + datetime.timedelta(days=22),
+         "mach": "Máy trộn 350L + bơm bê tông + đầm dùi", "crew": 14, "critical": True},
+        {"stt": 9, "code": "G1-09", "name": "Gia công cốt thép tường cánh mố M1, M2 mác CB400-V (PD-07)",
+         "unit": "tấn", "qty": 14.99, "norm": 3.00, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=22), "finish": d_st + datetime.timedelta(days=26),
+         "mach": "Máy uốn cắt thép RebarCut", "crew": 10, "critical": True},
+        {"stt": 10, "code": "G1-10", "name": "Ván khuôn & Đổ bê tông tường cánh, gờ chắn bánh mố M1, M2 mác C30",
+         "unit": "m3", "qty": 156.11, "norm": 39.03, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=25), "finish": d_st + datetime.timedelta(days=28),
+         "mach": "Máy trộn 350L + đầm dùi", "crew": 12, "critical": True},
+        {"stt": 11, "code": "G1-11", "name": "Gia công cốt thép 04 đốt tường chắn BTCT mác CB400-V",
+         "unit": "tấn", "qty": 10.27, "norm": 2.05, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=26), "finish": d_st + datetime.timedelta(days=30),
+         "mach": "Máy uốn cắt thép RebarCut", "crew": 10, "critical": True},
+        {"stt": 12, "code": "G1-12", "name": "Ván khuôn & Đổ bê tông 04 đốt tường chắn, bệ phản áp mác C25",
+         "unit": "m3", "qty": 271.40, "norm": 67.85, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=29), "finish": d_st + datetime.timedelta(days=32),
+         "mach": "Máy trộn 350L + đầm dùi", "crew": 12, "critical": True},
+        {"stt": 13, "code": "G1-13", "name": "Đổ bê tông đá kê gối C35, lắp đặt 08 gối cầu cao su cốt bản thép",
+         "unit": "bộ", "qty": 8.0, "norm": 2.0, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=32), "finish": d_st + datetime.timedelta(days=35),
+         "mach": "Máy trộn vữa 80L + Sika Grout", "crew": 6, "critical": False},
+        {"stt": 14, "code": "G1-14", "name": "Lắp dựng bệ đúc & gia công ván khuôn thép đúc 04 phiến dầm T L=15m",
+         "unit": "bộ", "qty": 2.0, "norm": 0.4, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=15), "finish": d_st + datetime.timedelta(days=19),
+         "mach": "Cẩu tự hành 25T + máy hàn 400A", "crew": 8, "critical": False},
+        {"stt": 15, "code": "G1-15", "name": "Gia công & lắp dựng cốt thép 04 phiến dầm T L=15m (Dầm biên & Dầm giữa)",
+         "unit": "tấn", "qty": 9.56, "norm": 1.37, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=19), "finish": d_st + datetime.timedelta(days=25),
+         "mach": "Máy uốn cắt CNC + máy hàn", "crew": 12, "critical": True},
+        {"stt": 16, "code": "G1-16", "name": "Đổ bê tông 04 phiến dầm T L=15m đá 1x2 mác C40 & dưỡng hộ ẩm",
+         "unit": "m3", "qty": 37.40, "norm": 7.48, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=24), "finish": d_st + datetime.timedelta(days=28),
+         "mach": "Máy trộn 500L + đầm dùi/bàn", "crew": 16, "critical": True},
+        {"stt": 17, "code": "G1-17", "name": "Cẩu lắp vận chuyển & lao lắp 04 phiến dầm T L=15m vào vị trí gối",
+         "unit": "phiến", "qty": 4.0, "norm": 0.8, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=35), "finish": d_st + datetime.timedelta(days=39),
+         "mach": "Cần cẩu bánh xích 50T (2 cẩu)", "crew": 14, "critical": True},
+        {"stt": 18, "code": "G1-18", "name": "Gia công cốt thép & đổ bê tông mối nối ướt, dầm ngang, bản mặt cầu C40",
+         "unit": "m3", "qty": 22.58, "norm": 4.52, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=38), "finish": d_st + datetime.timedelta(days=42),
+         "mach": "Máy trộn bê tông 350L + đầm dùi", "crew": 12, "critical": True},
+        {"stt": 19, "code": "G1-19", "name": "Lắp dựng cốt thép, ván khuôn & đổ bê tông 02 bản quá độ đầu mố C30",
+         "unit": "m3", "qty": 18.18, "norm": 3.64, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=40), "finish": d_st + datetime.timedelta(days=44),
+         "mach": "Máy trộn 350L + đầm bàn", "crew": 8, "critical": False},
+        {"stt": 20, "code": "G1-20", "name": "Thi công lớp phòng nước & thảm bê tông nhựa chặt BTNC 19 mặt cầu dày 7cm",
+         "unit": "tấn", "qty": 21.50, "norm": 4.30, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=43), "finish": d_st + datetime.timedelta(days=47),
+         "mach": "Lu rung 10T + đầm thước", "crew": 12, "critical": True},
+        {"stt": 21, "code": "G1-21", "name": "Lắp đặt 02 bộ khe co giãn răng lược thép L=9.0m hai đầu mố M1, M2",
+         "unit": "bộ", "qty": 2.0, "norm": 0.4, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=46), "finish": d_st + datetime.timedelta(days=50),
+         "mach": "Máy hàn điện 250A + vữa không co", "crew": 6, "critical": False},
+        {"stt": 22, "code": "G1-22", "name": "Gia công lắp dựng hệ thống lan can thép mạ kẽm & gờ lan can BTCT C30",
+         "unit": "md", "qty": 36.0, "norm": 6.0, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=47), "finish": d_st + datetime.timedelta(days=52),
+         "mach": "Máy hàn + bulông neo M22", "crew": 8, "critical": False},
+        {"stt": 23, "code": "G1-23", "name": "Thi công xây đá hộc gia cố mái taluy, tứ nón mố M1 và mố M2 vữa M100",
+         "unit": "m3", "qty": 115.0, "norm": 14.38, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=44), "finish": d_st + datetime.timedelta(days=51),
+         "mach": "Máy trộn vữa 80L + búa đẽo đá", "crew": 12, "critical": False},
+        {"stt": 24, "code": "G1-24", "name": "Đắp đất mang mố, sau lưng tường cánh đầm chặt K95, K98 & tầng lọc",
+         "unit": "m3", "qty": 1055.34, "norm": 131.92, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=48), "finish": d_st + datetime.timedelta(days=55),
+         "mach": "Máy đầm cóc 70kg + lu rung 10T", "crew": 8, "critical": False},
+        {"stt": 25, "code": "G1-25", "name": "Thi công kết cấu áo đường đầu cầu (CPĐD loại I, II & mặt đường)",
+         "unit": "m3", "qty": 308.0, "norm": 51.33, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=52), "finish": d_st + datetime.timedelta(days=57),
+         "mach": "Lu rung 10T + ô tô tự đổ", "crew": 10, "critical": False},
+        {"stt": 26, "code": "G1-26", "name": "Lắp đặt biển báo an toàn giao thông, sơn kẻ đường, thử tải cầu & bàn giao",
+         "unit": "hệ", "qty": 1.0, "norm": 0.2, "shifts": 1,
+         "start": d_st + datetime.timedelta(days=56), "finish": d_st + datetime.timedelta(days=60),
+         "mach": "Ô tô tải thử tải + máy phát điện", "crew": 8, "critical": False},
     ]
 
-    thin = Side(style="thin", color="CCCCCC")
-    border = Border(left=thin, right=thin, top=thin, bottom=thin)
-
-    row = 6
-    for eq in equipments:
-        ws2.cell(row, 2, eq[0]).alignment = Alignment(horizontal="center")
-        ws2.cell(row, 3, eq[1])
-        ws2.cell(row, 4, eq[2]).alignment = Alignment(horizontal="center")
-        ws2.cell(row, 5, eq[3]).number_format = "#,##0.0"
-        ws2.cell(row, 6, eq[4]).number_format = "#,##0"
-        ws2.cell(row, 7, f"=E{row}*F{row}").number_format = "#,##0.0"
-        ws2.cell(row, 8, eq[5])
-        for c in range(2, 9):
-            ws2.cell(row, c).border = border
-        row += 1
-
-    # Total row
-    ws2.cell(row, 2, "TỔNG CỘNG").alignment = Alignment(horizontal="center")
-    ws2.cell(row, 3, "")
-    ws2.cell(row, 4, "")
-    ws2.cell(row, 5, "")
-    ws2.cell(row, 6, f"=SUM(F6:F{row-1})").number_format = "#,##0"
-    ws2.cell(row, 7, f"=SUM(G6:G{row-1})").number_format = "#,##0.0"
-    ws2.cell(row, 8, "Nhiên liệu cấp theo 4 kỳ thi công")
-    for c in range(2, 9):
-        cell = ws2.cell(row, c)
-        cell.font = Font(name="Times New Roman", size=10, bold=True)
-        cell.fill = PatternFill("solid", fgColor="D9E1F2")
-        cell.border = border
-
-    for ws in [ws1, ws2]:
-        for col in ws.columns:
-            col_letter = get_column_letter(col[0].column)
-            ws.column_dimensions[col_letter].width = 18
-    ws2.column_dimensions["C"].width = 34
-    ws2.column_dimensions["H"].width = 45
-
-    wb.save(path)
+    build_bep_an_3tier_fleet_workbook(
+        output_path=path,
+        project_name="Cầu thôn Khai Hoang 2, Km 14+363.65 (Nhịp dầm T L=15m, Mố BTCT)",
+        short_name="Cau_Khai_Hoang_2",
+        custom_tasks=tasks_26,
+        start_date=d_st,
+        finish_date=d_st + datetime.timedelta(days=60),
+        project_type="bridge",
+    )
 
 def run_pipeline():
     print("=" * 80)
@@ -614,105 +667,187 @@ def run_pipeline():
     create_master_rebar_dashboard(master_rebar_excel, summary_rows)
     print(f"  [V] Đã tạo Master Dashboard RebarCut: {master_rebar_excel}")
 
-    # 4. Xuất Master 14 Sheet Workbook & MS Project XML (20/10/2026 -> 20/02/2027)
-    print("\n[BƯỚC 3/6] Xuất Hệ thống 14 Sheet Master và Tiến độ CPM MS Project XML...")
+    # 4. Xuất Master 15 Sheet Workbook & MS Project XML (20/10/2026 -> 20/02/2027)
+    print("\n[BƯỚC 3/6] Xuất Hệ thống 15 Sheet Master và Tiến độ CPM MS Project XML...")
     master_excel_path = os.path.join(USER_DOWNLOAD_DIR, "Ho_So_KCS_QS_TienDo_Cau_Khai_Hoang_2.xlsx")
     xml_path = os.path.join(USER_DOWNLOAD_DIR, "Tien_Do_Thi_Cong_Cau_Khai_Hoang_2.xml")
     generate_khai_hoang_2_master_package(master_excel_path, xml_path)
 
-    # 5. Xuất Hồ sơ Ca xe máy dầu Diezel & Word KCS
-    print("\n[BƯỚC 4/6] Xuất Kế hoạch Ca xe ca máy dầu Diezel & Bộ Biên bản KCS Word...")
+    # 5. Xuất Hồ sơ Ca xe máy dầu Diezel (5 sheets chuẩn Vincons), Word KCS & Thuyết minh/Báo cáo Audit
+    print("\n[BƯỚC 4/6] Xuất Kế hoạch Ca xe ca máy dầu Diezel (5 Sheets), Bộ Biên bản KCS Word & Báo cáo Audit...")
     diesel_path = os.path.join(USER_DOWNLOAD_DIR, "TDTC_CaXe_CaMay_DauDiezel_Cau_Khai_Hoang_2.xlsx")
     generate_machine_diesel_workbook(diesel_path)
-    print(f"  [V] Đã tạo file Ca xe máy dầu Diezel: {diesel_path}")
+    print(f"  [V] Đã tạo file Ca xe máy dầu Diezel (5 Sheets): {diesel_path}")
 
     docx_path = os.path.join(USER_DOWNLOAD_DIR, "Ho_So_Bien_Ban_Nghiem_Thu_KCS_Cau_Khai_Hoang_2.docx")
     generate_kcs_word_dossier(docx_path)
-    print(f"  [V] Đã tạo file Word KCS (22 biên bản): {docx_path}")
+    print(f"  [V] Đã tạo file Word KCS: {docx_path}")
 
-    # 6. Đóng gói 3 Tầng hồ sơ: Macro Master, Vi mô 14 bộ, Hub & Spoke 5 gói vệ tinh
-    print("\n[BƯỚC 5/6] Đóng gói 3 Tầng hồ sơ theo cấu trúc chuẩn hệ thống 23HG...")
+    from generate_khai_hoang_2_docs import write_and_sync as write_docs_and_sync
+    write_docs_and_sync()
+
+    # 6. Đóng gói hồ sơ bằng AECPackageDispatcher & Chuyển sang chuẩn DREAM TEAM 6 PHÂN HỆ (0% Trùng Lặp)
+    print("\n[BƯỚC 5/6] Đóng gói hồ sơ & Tái cấu trúc chuẩn DREAM TEAM 6 PHÂN HỆ (0% Trùng Lặp)...")
+    from tools.package_dispatcher import AECPackageDispatcher
+    from tools.generate_khai_hoang_2_elite_qlcl import build_tan_suat_khai_hoang_2, build_visual_asbuilt_khai_hoang_2
+
+    # Bảo toàn các file .xlsm VBA Pro & RebarCut V6 trước khi dọn thư mục
+    def _find_existing(candidates):
+        return next((p for p in candidates if os.path.isfile(p)), None)
+
+    pro_xlsm_src = _find_existing([
+        os.path.join(USER_DOWNLOAD_DIR, "00_BAN_CHI_HUY_MASTER", "23HG_DU_AN_MAU_TIEN_DO_CAU_KHAI_HOANG_2_PRO.xlsm"),
+        os.path.join(SYSTEM_PROJECT_DIR, "00_BAN_CHI_HUY_MASTER", "23HG_DU_AN_MAU_TIEN_DO_CAU_KHAI_HOANG_2_PRO.xlsm"),
+        os.path.join(USER_DOWNLOAD_DIR, "BO_HO_SO_01_MACRO_MASTER_14_SHEET", "23HG_DU_AN_MAU_TIEN_DO_CAU_KHAI_HOANG_2_PRO.xlsm"),
+        os.path.join(SYSTEM_PROJECT_DIR, "BO_HO_SO_01_MACRO_MASTER_14_SHEET", "23HG_DU_AN_MAU_TIEN_DO_CAU_KHAI_HOANG_2_PRO.xlsm"),
+    ])
+    pro_xml_src = _find_existing([
+        os.path.join(USER_DOWNLOAD_DIR, "00_BAN_CHI_HUY_MASTER", "Tien_Do_Thi_Cong_Cau_Khai_Hoang_2_Pro.xml"),
+        os.path.join(SYSTEM_PROJECT_DIR, "00_BAN_CHI_HUY_MASTER", "Tien_Do_Thi_Cong_Cau_Khai_Hoang_2_Pro.xml"),
+        os.path.join(USER_DOWNLOAD_DIR, "BO_HO_SO_01_MACRO_MASTER_14_SHEET", "Tien_Do_Thi_Cong_Cau_Khai_Hoang_2_Pro.xml"),
+        os.path.join(SYSTEM_PROJECT_DIR, "BO_HO_SO_01_MACRO_MASTER_14_SHEET", "Tien_Do_Thi_Cong_Cau_Khai_Hoang_2_Pro.xml"),
+    ])
+    rebar_v6_candidates = [
+        os.path.join(SYSTEM_PROJECT_DIR, "02_XUONG_TIEN_CHE_COT_THEP", "RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm"),
+        os.path.join(USER_DOWNLOAD_DIR, "02_XUONG_TIEN_CHE_COT_THEP", "RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm"),
+        os.path.join(rebarcut_dir_sys, "RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm"),
+        os.path.join(rebarcut_dir_user, "RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm"),
+    ]
+    best_rebar_v6 = next((p for p in rebar_v6_candidates if os.path.isfile(p) and os.path.getsize(p) > 3000000), _find_existing(rebar_v6_candidates))
+
+    pro_xlsm_path = os.path.join(USER_DOWNLOAD_DIR, "23HG_DU_AN_MAU_TIEN_DO_CAU_KHAI_HOANG_2_PRO.xlsm")
+    if pro_xlsm_src and os.path.abspath(pro_xlsm_src) != os.path.abspath(pro_xlsm_path):
+        shutil.copy2(pro_xlsm_src, pro_xlsm_path)
+    pro_xml_path = os.path.join(USER_DOWNLOAD_DIR, "Tien_Do_Thi_Cong_Cau_Khai_Hoang_2_Pro.xml")
+    if pro_xml_src and os.path.abspath(pro_xml_src) != os.path.abspath(pro_xml_path):
+        shutil.copy2(pro_xml_src, pro_xml_path)
+    if best_rebar_v6:
+        rebar_v6_user = os.path.join(rebarcut_dir_user, "RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm")
+        if os.path.abspath(best_rebar_v6) != os.path.abspath(rebar_v6_user):
+            shutil.copy2(best_rebar_v6, rebar_v6_user)
+
+    # Bảo toàn thư mục CSV_XUAT_XUONG nếu đang nằm trong 02_XUONG_TIEN_CHE_COT_THEP
+    for cand_csv_dir in [
+        os.path.join(USER_DOWNLOAD_DIR, "02_XUONG_TIEN_CHE_COT_THEP", "CSV_XUAT_XUONG"),
+        os.path.join(SYSTEM_PROJECT_DIR, "02_XUONG_TIEN_CHE_COT_THEP", "CSV_XUAT_XUONG"),
+    ]:
+        if os.path.isdir(cand_csv_dir):
+            dst_csv_dir = os.path.join(rebarcut_dir_user, "CSV_XUAT_XUONG")
+            if os.path.abspath(cand_csv_dir) != os.path.abspath(dst_csv_dir):
+                shutil.copytree(cand_csv_dir, dst_csv_dir, dirs_exist_ok=True)
+            break
+
+    # Sinh 2 mẫu ưu tú QLCL & Sơ đồ Tiến độ Trực quan As-Built
+    tan_suat_path = os.path.join(USER_DOWNLOAD_DIR, "Bang_Theo_Doi_Tan_Suat_Thi_Nghiem_Be_Tong_Va_Thep_Cau_Khai_Hoang_2.xlsx")
+    asbuilt_xlsx_path = os.path.join(USER_DOWNLOAD_DIR, "So_Do_Tien_Do_Truc_Quan_AsBuilt_Cau_Khai_Hoang_2.xlsx")
+    asbuilt_html_path = os.path.join(USER_DOWNLOAD_DIR, "So_Do_Tien_Do_Truc_Quan_AsBuilt_Cau_Khai_Hoang_2.html")
+    build_tan_suat_khai_hoang_2(tan_suat_path)
+    build_visual_asbuilt_khai_hoang_2(asbuilt_xlsx_path, asbuilt_html_path)
+
     dir_macro = os.path.join(USER_DOWNLOAD_DIR, "BO_HO_SO_01_MACRO_MASTER_14_SHEET")
     dir_micro = os.path.join(USER_DOWNLOAD_DIR, "BO_HO_SO_02_VI_MO_CHUYEN_SAU_14_BO")
     dir_hub = os.path.join(USER_DOWNLOAD_DIR, "03_HO_SO_THUC_CHIEN_HUB_AND_SPOKE_5_GOI_VE_TINH")
+    for d_clean in [dir_macro, dir_micro, dir_hub]:
+        if os.path.exists(d_clean):
+            shutil.rmtree(d_clean)
 
-    os.makedirs(dir_macro, exist_ok=True)
-    os.makedirs(dir_micro, exist_ok=True)
-    os.makedirs(dir_hub, exist_ok=True)
+    dispatcher = AECPackageDispatcher(base_output_dir=USER_DOWNLOAD_DIR)
 
-    # Chép vào Macro Master
-    shutil.copy2(master_excel_path, os.path.join(dir_macro, "Ho_So_KCS_QS_TienDo_Cau_Khai_Hoang_2.xlsx"))
-    shutil.copy2(xml_path, os.path.join(dir_macro, "Tien_Do_Thi_Cong_Cau_Khai_Hoang_2.xml"))
-    shutil.copy2(diesel_path, os.path.join(dir_macro, "TDTC_CaXe_CaMay_DauDiezel_Cau_Khai_Hoang_2.xlsx"))
-    shutil.copy2(docx_path, os.path.join(dir_macro, "Ho_So_Bien_Ban_Nghiem_Thu_KCS_Cau_Khai_Hoang_2.docx"))
+    bptc_md_path = os.path.join(USER_DOWNLOAD_DIR, "Thuyet_Minh_Bien_Phap_Thi_Cong_Cau_Khai_Hoang_2.md")
+    audit_md_path = os.path.join(USER_DOWNLOAD_DIR, "BAO_CAO_THAM_TRA_AEC_AUDIT.md")
+    cnc_d16_csv = os.path.join(rebarcut_dir_user, "LENH_CAT_CNC_CSV", "Lenh_Cat_CNC_D16_Suon_Dam_Ban_Mat_Cau.csv")
 
-    # Chép vào Vi mô
-    shutil.copy2(master_rebar_excel, os.path.join(dir_micro, "01_To_Hop_Cat_Thep_11m7_RebarCut.xlsx"))
-    shutil.copy2(os.path.join(rebarcut_dir_user, "LENH_CAT_CNC_CSV", "Lenh_Cat_CNC_D16_Suon_Dam_Ban_Mat_Cau.csv"),
-                 os.path.join(dir_micro, "01_Phieu_Cat_Thep_Xuong_CNC.csv"))
-    shutil.copy2(master_excel_path, os.path.join(dir_micro, "10_Tien_Do_Thi_Cong_CPM_Gantt_Chart.xlsx"))
-    shutil.copy2(docx_path, os.path.join(dir_micro, "Ho_So_Bien_Ban_Nghiem_Thu_KCS_Cau_Khai_Hoang_2.docx"))
-
-    # Hub & Spoke 5 gói
-    goi_a = os.path.join(dir_hub, "GOI_A_CO_GIOI_VA_DAU_DIEZEL")
-    goi_b = os.path.join(dir_hub, "GOI_B_XUONG_TIEN_CHE_COT_THEP")
-    goi_c = os.path.join(dir_hub, "GOI_C_HIEN_TRUONG_QLCL_KCS")
-    goi_d = os.path.join(dir_hub, "GOI_D_QS_DU_TOAN_THANH_TOAN")
-    goi_e = os.path.join(dir_hub, "GOI_E_EXECUTIVE_DASHBOARD")
-
-    for g in [goi_a, goi_b, goi_c, goi_d, goi_e]:
-        os.makedirs(g, exist_ok=True)
-
-    shutil.copy2(diesel_path, os.path.join(goi_a, "TDTC_CaXe_CaMay_DauDiezel_Cau_Khai_Hoang_2.xlsx"))
-    shutil.copy2(xml_path, os.path.join(goi_a, "Tien_Do_Thi_Cong_Cau_Khai_Hoang_2.xml"))
-
-    shutil.copy2(master_rebar_excel, os.path.join(goi_b, "01_To_Hop_Cat_Thep_11m7_RebarCut.xlsx"))
-    shutil.copy2(os.path.join(rebarcut_dir_user, "LENH_CAT_CNC_CSV", "Lenh_Cat_CNC_D16_Suon_Dam_Ban_Mat_Cau.csv"),
-                 os.path.join(goi_b, "01_Phieu_Cat_Thep_Xuong_CNC.csv"))
-
-    shutil.copy2(docx_path, os.path.join(goi_c, "Ho_So_Bien_Ban_Nghiem_Thu_KCS_Cau_Khai_Hoang_2.docx"))
-
-    shutil.copy2(master_excel_path, os.path.join(goi_d, "03_QS_Dien_Giai_Chi_Tiet_Takeoff.xlsx"))
-    shutil.copy2(master_excel_path, os.path.join(goi_d, "08_Du_Toan_GXD_Thong_Tu_36_2026.xlsx"))
-
-    shutil.copy2(master_excel_path, os.path.join(goi_e, "Ho_So_KCS_QS_TienDo_Cau_Khai_Hoang_2.xlsx"))
-    shutil.copy2(xml_path, os.path.join(goi_e, "Tien_Do_Thi_Cong_Cau_Khai_Hoang_2.xml"))
-    shutil.copy2(docx_path, os.path.join(goi_e, "Ho_So_Bien_Ban_Nghiem_Thu_KCS_Cau_Khai_Hoang_2.docx"))
-
-    # Manifest
-    manifest = {
-        "project": "Cầu thôn Khai Hoang 2, Km14+363.65",
-        "created_at": datetime.datetime.now().isoformat(),
-        "schedule": {
-            "start": "2026-10-20",
-            "finish": "2027-02-20",
-            "duration_days": 124
-        },
-        "rebar_cut_summary": {
-            "total_bars_design": tot_bars_bbs,
-            "total_weight_kg_design": tot_kg_bbs,
-            "total_stock_bars_11m7": sum(x["bars_11m7"] for x in summary_rows),
-            "total_purchased_kg": sum(x["weight_kg"] for x in summary_rows),
-            "total_scrap_waste_m": sum(x["waste_m"] for x in summary_rows),
-            "total_reusable_m": sum(x["reusable_m"] for x in summary_rows)
-        },
-        "packages": {
-            "01_HE_THONG_CAT_THEP_REBARCUT": len(os.listdir(os.path.join(rebarcut_dir_user, "THEO_TUNG_DUONG_KINH_PHI"))) + len(os.listdir(os.path.join(rebarcut_dir_user, "LENH_CAT_CNC_CSV"))) + 1,
-            "BO_HO_SO_01_MACRO_MASTER_14_SHEET": len(os.listdir(dir_macro)),
-            "BO_HO_SO_02_VI_MO_CHUYEN_SAU_14_BO": len(os.listdir(dir_micro)),
-            "03_HO_SO_THUC_CHIEN_HUB_AND_SPOKE_5_GOI_VE_TINH": 12
-        }
+    companion_files = {
+        "fleet_template": diesel_path,
+        "fleet_xml": xml_path,
+        "kcs_docx": docx_path,
+        "cnc_csv": cnc_d16_csv,
+        "bptc_md": bptc_md_path,
+        "audit_md": audit_md_path,
     }
-    with open(os.path.join(USER_DOWNLOAD_DIR, "DISPATCH_MANIFEST.json"), "w", encoding="utf-8") as f:
-        json.dump(manifest, f, indent=2, ensure_ascii=False)
+    if os.path.exists(pro_xlsm_path):
+        companion_files["pro_xlsm"] = pro_xlsm_path
+    if os.path.exists(pro_xml_path):
+        companion_files["pro_xml"] = pro_xml_path
 
-    # 7. Đồng bộ trực tiếp sang du_lieu_du_an
-    print("\n[BƯỚC 6/6] Đồng bộ toàn bộ cây thư mục sang workspace 23HG...")
-    shutil.copytree(USER_DOWNLOAD_DIR, SYSTEM_PROJECT_DIR, dirs_exist_ok=True)
-    print(f"  [V] Đã đồng bộ sang {SYSTEM_PROJECT_DIR}")
+    dispatcher.dispatch_full_industrial_dossier(
+        master_excel_path=master_excel_path,
+        project_name="Cầu thôn Khai Hoang 2, Km14+363.65",
+        target_dir=USER_DOWNLOAD_DIR,
+        companion_files=companion_files,
+    )
+
+    # Dọn các file CSV cũ (20261013_*) trong CSV_XUAT_XUONG trước khi gom vào 02_XUONG_TIEN_CHE_COT_THEP
+    csv_dir_user = os.path.join(rebarcut_dir_user, "CSV_XUAT_XUONG")
+    if os.path.exists(csv_dir_user):
+        for fn in os.listdir(csv_dir_user):
+            if "20261013" in fn:
+                os.remove(os.path.join(csv_dir_user, fn))
+
+    # Chuyển đổi sang kiến trúc DREAM TEAM 6 PHÂN HỆ (0% Trùng Lặp)
+    dream_manifest = dispatcher.reorganize_to_dream_team_6_folders(
+        root_dir=USER_DOWNLOAD_DIR,
+        project_name="Cầu thôn Khai Hoang 2, Km14+363.65",
+        extra_qlcl_files=[tan_suat_path, asbuilt_xlsx_path, asbuilt_html_path],
+    )
+    print(f"  [V] Đã thiết lập kiến trúc DREAM TEAM 6 PHÂN HỆ: {dream_manifest['total_files']} tệp duy nhất (0% trùng lặp)!")
+
+    # Dọn các file trung gian ở ngoài thư mục gốc sau khi đã nạp vào 6 phân hệ Dream Team
+    root_temp_files = [
+        "Ho_So_KCS_QS_TienDo_Cau_Khai_Hoang_2.xlsx",
+        "TDTC_CaXe_CaMay_DauDiezel_Cau_Khai_Hoang_2.xlsx",
+        "23HG_DU_AN_MAU_TIEN_DO_CAU_KHAI_HOANG_2_PRO.xlsm",
+        "23HG_DU_AN_MAU_TIEN_DO_CAU_KHAI_HOANG_2_PRO.xml",
+        "Tien_Do_Thi_Cong_Cau_Khai_Hoang_2_Pro.xml",
+        "Tien_Do_Thi_Cong_Cau_Khai_Hoang_2.xml",
+        "Tien_Do_MSProject_Cau_Khai_Hoang_2.xml",
+        "Ho_So_Bien_Ban_Nghiem_Thu_KCS_Cau_Khai_Hoang_2.docx",
+        "RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm",
+        "Ho_So_Cat_Thep_Toi_Uu_Cau_Khai_Hoang_2.xlsx",
+        "Thuyet_Minh_Bien_Phap_Thi_Cong_Cau_Khai_Hoang_2.md",
+        "BAO_CAO_THAM_TRA_AEC_AUDIT.md",
+        "Bang_Theo_Doi_Tan_Suat_Thi_Nghiem_Be_Tong_Va_Thep_Cau_Khai_Hoang_2.xlsx",
+        "So_Do_Tien_Do_Truc_Quan_AsBuilt_Cau_Khai_Hoang_2.xlsx",
+        "So_Do_Tien_Do_Truc_Quan_AsBuilt_Cau_Khai_Hoang_2.html",
+        "DISPATCH_MANIFEST.json",
+    ]
+    for dup_fn in root_temp_files:
+        p_dup = os.path.join(USER_DOWNLOAD_DIR, dup_fn)
+        if os.path.isfile(p_dup):
+            try:
+                os.remove(p_dup)
+            except OSError:
+                pass
+
+    # 7. Đồng bộ 100% cấu trúc DREAM TEAM 6 PHÂN HỆ sang du_lieu_du_an & Marker_2
+    print("\n[BƯỚC 6/6] Đồng bộ toàn bộ cây thư mục DREAM TEAM 6 PHÂN HỆ sang workspace 23HG...")
+    marker_2_dir = os.path.join(os.path.expanduser("~"), "Downloads", "Documents", "Cầu thôn Khai Hoang 2, Km 14+363.65_Marker_2")
+    sync_targets = [SYSTEM_PROJECT_DIR]
+    if os.path.isdir(marker_2_dir):
+        sync_targets.append(marker_2_dir)
+
+    dream_folder_names = {
+        "00_BAN_CHI_HUY_MASTER",
+        "01_HIEN_TRUONG_QLCL_KCS",
+        "02_XUONG_TIEN_CHE_COT_THEP",
+        "03_KINH_TE_QS_DU_TOAN_THANH_TOAN",
+        "04_CO_GIOI_THIET_BI_VA_DAU_DIEZEL",
+        "05_DU_LIEU_GOC_SCAN_MARKER",
+    }
+    for target_d in sync_targets:
+        # Xóa sạch mọi thư mục/file cũ ở target_d không thuộc 6 phân hệ Dream Team
+        for existing_item in os.listdir(target_d):
+            p_ex = os.path.join(target_d, existing_item)
+            if os.path.isdir(p_ex):
+                shutil.rmtree(p_ex)
+            elif os.path.isfile(p_ex):
+                os.remove(p_ex)
+        for df_name in sorted(dream_folder_names):
+            shutil.copytree(os.path.join(USER_DOWNLOAD_DIR, df_name), os.path.join(target_d, df_name), dirs_exist_ok=True)
+        print(f"  [V] Đã đồng bộ chuẩn DREAM TEAM 6 PHÂN HỆ sang: {target_d}")
 
     print("\n" + "=" * 80)
-    print("  HOÀN THÀNH XUẤT SẮC TOÀN BỘ HỆ THỐNG HỒ SƠ CẦU THÔN KHAI HOANG 2!")
+    print("  HOÀN THÀNH XUẤT SẮC TOÀN BỘ HỆ THỐNG HỒ SƠ CẦU THÔN KHAI HOANG 2 (CHUẨN DREAM TEAM)!")
     print("=" * 80)
 
 if __name__ == "__main__":

@@ -161,5 +161,26 @@ class A5ExamplesTest(unittest.TestCase):
         self.assertGreater(ev.value(t, 10, 11), 0.10)
 
 
+class GoldenMasterRegistryTest(unittest.TestCase):
+    """Đảm bảo mọi Engine trong Danh bạ Golden Master SSoT đều tồn tại và gọi được."""
+
+    def test_golden_master_engines_are_importable(self):
+        import importlib
+        from tools.golden_master_registry import DREAM_TEAM_6_FOLDERS, GOLDEN_MASTER_ENGINES
+
+        self.assertEqual(len(DREAM_TEAM_6_FOLDERS), 6)
+        for key, spec in GOLDEN_MASTER_ENGINES.items():
+            mod = importlib.import_module(spec["module"])
+            obj = mod
+            for attr in spec["entrypoint"].split("."):
+                self.assertTrue(
+                    hasattr(obj, attr),
+                    f"Golden Master [{key}] thiếu entrypoint {spec['entrypoint']} trong {spec['module']}",
+                )
+                obj = getattr(obj, attr)
+            self.assertTrue(callable(obj), f"Golden Master [{key}] entrypoint không phải hàm/method")
+
+
 if __name__ == "__main__":
     unittest.main()
+

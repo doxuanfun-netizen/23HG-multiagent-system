@@ -1632,7 +1632,7 @@ def create_ms_project_xml(wbs_tasks, output_xml_path):
     tree.write(output_xml_path, encoding="utf-8", xml_declaration=True)
 
 if __name__ == "__main__":
-    out_dir = project_path(r"Cầu thôn Khai Hoang 2, Km 14+363.65_Marker\Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
-    excel_p = os.path.join(out_dir, "Ho_So_KCS_QS_TienDo_Cau_Khai_Hoang_2_Km14+363.65.xlsx")
+    out_dir = project_path(r"Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
+    excel_p = os.path.join(out_dir, "Ho_So_KCS_QS_TienDo_Cau_Khai_Hoang_2.xlsx")
     xml_p = os.path.join(out_dir, "Tien_Do_Thi_Cong_Cau_Khai_Hoang_2.xml")
     generate_khai_hoang_2_master_package(excel_p, xml_p)

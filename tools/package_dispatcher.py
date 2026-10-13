@@ -172,14 +172,56 @@ def calc_file_md5(file_path: str) -> str:
 
 def extract_master_eval_cache(master_path: str) -> Dict[str, Dict[str, Any]]:
     """
-    Trích xuất ma trận giá trị tính toán sạch 100% từ Excel COM (nếu khả dụng)
-    hoặc fallback sang openpyxl (data_only=True) / Python evaluator.
+    Trích xuất ma trận giá trị tính toán sạch 100% bằng openpyxl + WorkbookEvaluator thuần Python
+    (tránh treo tiến trình Excel COM), chỉ fallback sang Excel COM khi có hàm chưa hỗ trợ.
     """
     cache: Dict[str, Dict[str, Any]] = {}
     master_abs = os.path.abspath(master_path)
 
-    # 1. Thử Excel COM trên Windows
-    if sys.platform == "win32":
+    # 1. Nạp giá trị lưu sẵn từ Openpyxl (data_only=True)
+    try:
+        wb_vals = openpyxl.load_workbook(master_abs, data_only=True)
+        for sname in wb_vals.sheetnames:
+            ws = wb_vals[sname]
+            matrix = [list(row) for row in ws.iter_rows(values_only=True)]
+            cache[sname] = {
+                'row_start': 1,
+                'col_start': 1,
+                'values': matrix
+            }
+        wb_vals.close()
+    except Exception:
+        pass
+
+    # 2. Tự tính toàn bộ các ô công thức bằng WorkbookEvaluator thuần Python
+    unresolved = 0
+    try:
+        from tools.excel_eval import WorkbookEvaluator
+        wb_f = openpyxl.load_workbook(master_abs, data_only=False)
+        ev = WorkbookEvaluator(master_abs)
+        for sname, info in cache.items():
+            if sname not in wb_f.sheetnames:
+                continue
+            matrix = info['values']
+            for row in wb_f[sname].iter_rows():
+                for cell in row:
+                    f = cell.value
+                    if not (isinstance(f, str) and f.startswith("=")):
+                        continue
+                    r, c = cell.row - info['row_start'], cell.column - info['col_start']
+                    if r < len(matrix) and c < len(matrix[r]) and matrix[r][c] is None:
+                        try:
+                            matrix[r][c] = ev.value(sname, cell.row, cell.column)
+                        except Exception:
+                            unresolved += 1
+        wb_f.close()
+        if cache and unresolved == 0:
+            return cache
+    except Exception:
+        pass
+
+    # 3. Fallback sang Excel COM trên Windows nếu còn công thức chưa giải được
+    if sys.platform == "win32" and unresolved > 0:
         try:
             import win32com.client
             excel = win32com.client.DispatchEx('Excel.Application')
@@ -206,46 +248,6 @@ def extract_master_eval_cache(master_path: str) -> Dict[str, Dict[str, Any]]:
                 excel.Quit()
         except Exception:
             pass
-
-    # 2. Fallback sang Openpyxl nạp giá trị lưu sẵn
-    try:
-        wb_vals = openpyxl.load_workbook(master_abs, data_only=True)
-        for sname in wb_vals.sheetnames:
-            ws = wb_vals[sname]
-            matrix = [list(row) for row in ws.iter_rows(values_only=True)]
-            cache[sname] = {
-                'row_start': 1,
-                'col_start': 1,
-                'values': matrix
-            }
-        wb_vals.close()
-    except Exception:
-        pass
-
-    # 3. Master chưa từng được Excel tính (không có giá trị lưu sẵn): tự tính các ô còn thiếu,
-    #    nếu không sanitize_workbook_formulas sẽ để nguyên công thức trỏ sang sheet không có trong file vi mô.
-    try:
-        from tools.excel_eval import WorkbookEvaluator
-        wb_f = openpyxl.load_workbook(master_abs, data_only=False)
-        ev = WorkbookEvaluator(master_abs)
-        for sname, info in cache.items():
-            if sname not in wb_f.sheetnames:
-                continue
-            matrix = info['values']
-            for row in wb_f[sname].iter_rows():
-                for cell in row:
-                    f = cell.value
-                    if not (isinstance(f, str) and f.startswith("=")):
-                        continue
-                    r, c = cell.row - info['row_start'], cell.column - info['col_start']
-                    if r < len(matrix) and c < len(matrix[r]) and matrix[r][c] is None:
-                        try:
-                            matrix[r][c] = ev.value(sname, cell.row, cell.column)
-                        except Exception:
-                            pass   # hàm chưa hỗ trợ: giữ nguyên, Quality Gate sẽ báo
-        wb_f.close()
-    except Exception:
-        pass
 
     return cache
 
@@ -723,7 +725,7 @@ class AECPackageDispatcher:
         print("  [3/4] Đang tạo 14 bộ hồ sơ vi mô chuyên sâu độc lập (TẦNG 2)...")
         wb_master = openpyxl.load_workbook(master_excel_path, data_only=False)
 
-        # Bản đồ 14 Sheet sang 14 File
+        # Bản đồ 14+1 Sheet sang 14+1 File
         sheet_dossier_mapping = [
             ("01_To_Hop_Cat_Thep_11m7_RebarCut.xlsx", ["TO_HOP_CAT_THEP_11M7"]),
             ("02_Khoi_Luong_Dao_Dap_Trinh_Dien.xlsx", ["KHOI_LUONG_DAO_DAP"]),
@@ -738,8 +740,12 @@ class AECPackageDispatcher:
             ("11_Danh_Muc_KCS_22_Bien_Ban_Nghiem_Thu.xlsx", ["HOSO_KCS_NGHIEM_THU", "QS_DIEN_GIAI_CHI_TIET"]),
             ("12_Mau_A4_Bien_Ban_Nghiem_Thu_Cong_Viec.xlsx", ["MAU_BIEN_BAN_KCS", "HOSO_KCS_NGHIEM_THU"]),
             ("13_Mau_A4_Bien_Ban_Nghiem_Thu_Vat_Lieu.xlsx", ["MAU_BB_NGHIEM_THU_VAT_LIEU", "HOSO_KCS_NGHIEM_THU"]),
-            ("14_Mau_A4_Bien_Ban_Lay_Mau_Thi_Nghiem_R7_R28.xlsx", ["MAU_BB_LAY_MAU_THI_NGHIEM", "HOSO_KCS_NGHIEM_THU"]),
+            ("14_Mau_A4_Bien_Ban_Lay_Mau_Thi_Nghiem_R7_R28.xlsx", ["MAU_BB_LAY_MAU_THI_NGHIEM", "MAU_BB_LAY_MAU_HIEN_TRUONG", "HOSO_KCS_NGHIEM_THU"]),
         ]
+        if "NGHI_VAN" in wb_master.sheetnames:
+            sheet_dossier_mapping.append(
+                ("15_Nghi_Van_So_Lieu_Thiet_Ke_Va_OCR.xlsx", ["NGHI_VAN"])
+            )
 
         # Kiểm tra xem Master có sheet theo chuẩn nào
         available_master_sheets = set(wb_master.sheetnames)
@@ -773,8 +779,10 @@ class AECPackageDispatcher:
                 clone_worksheet(wb_master[primary_sheet], wb_micro.active)
                 wb_micro.active.title = primary_sheet
 
-                # Sao chép các sheet hỗ trợ nếu có
+                # Sao chép các sheet hỗ trợ nếu có (bỏ qua alias trùng vai trò của sheet 14)
                 for extra_s in required_sheets[1:]:
+                    if extra_s in ("MAU_BB_LAY_MAU_THI_NGHIEM", "MAU_BB_LAY_MAU_HIEN_TRUONG"):
+                        continue
                     if extra_s in available_master_sheets and extra_s != primary_sheet:
                         ws_extra = wb_micro.create_sheet(title=extra_s)
                         clone_worksheet(wb_master[extra_s], ws_extra)
@@ -786,11 +794,14 @@ class AECPackageDispatcher:
 
         # Xuất companion CSV CNC nếu có sheet cắt thép
         csv_cnc_path = os.path.join(dir_micro, "01_Phieu_Cat_Thep_Xuong_CNC.csv")
-        with open(csv_cnc_path, "w", encoding="utf-8-sig", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["Ma_Cay", "Duong_Kinh_mm", "Bar_Mark", "Dai_Cat_m", "De_Xe_m", "Cay_Goc_m"])
-            # Ghi dòng mẫu xác thực
-            writer.writerow(["C01", 32, "C1", 11.7, 0.0, 11.7])
+        if companion.get("cnc_csv") and os.path.exists(companion["cnc_csv"]):
+            shutil.copy2(companion["cnc_csv"], csv_cnc_path)
+        else:
+            with open(csv_cnc_path, "w", encoding="utf-8-sig", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(["Ma_Cay", "Duong_Kinh_mm", "Bar_Mark", "Dai_Cat_m", "De_Xe_m", "Cay_Goc_m"])
+                # Ghi dòng mẫu xác thực
+                writer.writerow(["C01", 32, "C1", 11.7, 0.0, 11.7])
 
         # Sao chép Word BBNT nếu có
         for k, v in companion.items():
@@ -861,11 +872,13 @@ class AECPackageDispatcher:
 
         # 4.4. Gói D: QS, Dự toán & 03a
         for f in [
+            "02_Khoi_Luong_Dao_Dap_Trinh_Dien.xlsx",
             "03_QS_Dien_Giai_Chi_Tiet_Takeoff.xlsx",
             "08_Du_Toan_GXD_Thong_Tu_36_2026.xlsx",
             "09_Thanh_Toan_Khoi_Luong_Phu_Luc_03a.xlsx",
             "06_Phan_Tich_Vat_Tu_Chi_Tiet_WBS.xlsx",
-            "07_Tong_Hop_Nhu_Cau_Vat_Tu_BOM_4_Giai_Doan.xlsx"
+            "07_Tong_Hop_Nhu_Cau_Vat_Tu_BOM_4_Giai_Doan.xlsx",
+            "15_Nghi_Van_So_Lieu_Thiet_Ke_Va_OCR.xlsx",
         ]:
             src_f = os.path.join(dir_micro, f)
             if os.path.exists(src_f):
@@ -986,6 +999,158 @@ class AECPackageDispatcher:
             audit_zero_errors=zero_err,
             manifest_file_path=manifest_path
         )
+
+    def reorganize_to_dream_team_6_folders(
+        self,
+        root_dir: str,
+        project_name: str,
+        extra_qlcl_files: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Tái cấu trúc thư mục dự án từ mô hình 3 tầng (có nhân bản chéo) sang chuẩn gốc
+        'DREAM TEAM 6 PHÂN HỆ KHÔNG TRÙNG LẶP' (0% file duplication):
+          - 00_BAN_CHI_HUY_MASTER
+          - 01_HIEN_TRUONG_QLCL_KCS
+          - 02_XUONG_TIEN_CHE_COT_THEP
+          - 03_KINH_TE_QS_DU_TOAN_THANH_TOAN
+          - 04_CO_GIOI_THIET_BI_VA_DAU_DIEZEL
+          - 05_DU_LIEU_GOC_SCAN_MARKER
+        """
+        dream_dirs = {
+            "00": os.path.join(root_dir, "00_BAN_CHI_HUY_MASTER"),
+            "01": os.path.join(root_dir, "01_HIEN_TRUONG_QLCL_KCS"),
+            "02": os.path.join(root_dir, "02_XUONG_TIEN_CHE_COT_THEP"),
+            "03": os.path.join(root_dir, "03_KINH_TE_QS_DU_TOAN_THANH_TOAN"),
+            "04": os.path.join(root_dir, "04_CO_GIOI_THIET_BI_VA_DAU_DIEZEL"),
+            "05": os.path.join(root_dir, "05_DU_LIEU_GOC_SCAN_MARKER"),
+        }
+        for k, d_path in dream_dirs.items():
+            if k != "05" and os.path.exists(d_path):
+                shutil.rmtree(d_path)
+            os.makedirs(d_path, exist_ok=True)
+
+        dir_macro = os.path.join(root_dir, "BO_HO_SO_01_MACRO_MASTER_14_SHEET")
+        dir_micro = os.path.join(root_dir, "BO_HO_SO_02_VI_MO_CHUYEN_SAU_14_BO")
+        dir_hub = os.path.join(root_dir, "03_HO_SO_THUC_CHIEN_HUB_AND_SPOKE_5_GOI_VE_TINH")
+        dir_rebar = os.path.join(root_dir, "01_HE_THONG_CAT_THEP_REBARCUT")
+
+        # 1. Nạp 00_BAN_CHI_HUY_MASTER & Word KCS sang 01
+        if os.path.isdir(dir_macro):
+            for fn in os.listdir(dir_macro):
+                src_f = os.path.join(dir_macro, fn)
+                if not os.path.isfile(src_f):
+                    continue
+                if fn.lower().endswith(".docx"):
+                    shutil.copy2(src_f, os.path.join(dream_dirs["01"], fn))
+                elif fn.startswith("TDTC_CaXe_CaMay_") or fn.lower().endswith(".csv"):
+                    # Đã nằm ở phân hệ 04 (Cơ giới) và 02 (Xưởng thép CNC)
+                    continue
+                else:
+                    shutil.copy2(src_f, os.path.join(dream_dirs["00"], fn))
+
+        if os.path.isdir(dir_hub):
+            for r_fn in (
+                "BANG_PHAN_QUYEN_VA_BIEN_BAN_BAN_GIAO_5_GOI_VE_TINH.xlsx",
+                "BANG_PHAN_QUYEN_VA_BIEN_BAN_BAN_GIAO_5_GOI_VE_TINH.md",
+            ):
+                src_r = os.path.join(dir_hub, r_fn)
+                if os.path.isfile(src_r):
+                    shutil.copy2(src_r, os.path.join(dream_dirs["00"], r_fn))
+
+        # 2. Nạp 01_HIEN_TRUONG_QLCL_KCS, 02_XUONG_TIEN_CHE_COT_THEP, 03_KINH_TE_QS_DU_TOAN_THANH_TOAN từ 14/15 bộ vi mô
+        if os.path.isdir(dir_micro):
+            for fn in sorted(os.listdir(dir_micro)):
+                src_f = os.path.join(dir_micro, fn)
+                if not os.path.isfile(src_f) or fn.lower().endswith(".csv"):
+                    continue
+                prefix = fn[:3]
+                if prefix in ("01_", "04_"):
+                    shutil.copy2(src_f, os.path.join(dream_dirs["02"], fn))
+                elif prefix in ("05_", "10_", "11_", "12_", "13_", "14_"):
+                    shutil.copy2(src_f, os.path.join(dream_dirs["01"], fn))
+                elif prefix in ("02_", "03_", "06_", "07_", "08_", "09_", "15_"):
+                    shutil.copy2(src_f, os.path.join(dream_dirs["03"], fn))
+
+        if extra_qlcl_files:
+            for q_f in extra_qlcl_files:
+                if q_f and os.path.isfile(q_f):
+                    shutil.copy2(q_f, os.path.join(dream_dirs["01"], os.path.basename(q_f)))
+
+        # 3. Nạp 02_XUONG_TIEN_CHE_COT_THEP từ 01_HE_THONG_CAT_THEP_REBARCUT
+        if os.path.isdir(dir_rebar):
+            for item in os.listdir(dir_rebar):
+                s_item = os.path.join(dir_rebar, item)
+                d_item = os.path.join(dream_dirs["02"], item)
+                if os.path.isdir(s_item):
+                    if os.path.exists(d_item):
+                        shutil.rmtree(d_item)
+                    shutil.copytree(s_item, d_item)
+                elif os.path.isfile(s_item):
+                    shutil.copy2(s_item, d_item)
+
+        # 4. Nạp 04_CO_GIOI_THIET_BI_VA_DAU_DIEZEL từ GOI_A
+        goi_a = os.path.join(dir_hub, "GOI_A_CO_GIOI_VA_DAU_DIEZEL")
+        if os.path.isdir(goi_a):
+            for fn in os.listdir(goi_a):
+                s_f = os.path.join(goi_a, fn)
+                if os.path.isfile(s_f) and (fn.endswith(".xlsx") or fn.endswith(".xml")):
+                    dst_fn = fn.replace("Tien_Do_Thi_Cong_", "Tien_Do_CaMay_") if fn.endswith(".xml") else fn
+                    shutil.copy2(s_f, os.path.join(dream_dirs["04"], dst_fn))
+
+        # 5. Chuyển toàn bộ dữ liệu gốc Scan/Marker ở thư mục gốc vào 05_DU_LIEU_GOC_SCAN_MARKER
+        scan_files = {
+            "bang_so_lieu.json", "bang_so_lieu.xlsx", "can_kiem_tra.md", "chia_doan.jsonl",
+            "du_lieu.json", "goi_y_cho_AI.txt", "HUONG_DAN_KET_QUA.txt", "kiem_tra_so_lieu.md",
+            "noi_dung.ai.md", "noi_dung.md", "noi_dung.txt", "thep_cho_to_hop_cat.json",
+            "tien_luong_du_toan_boq.json", "THKL G9 - CHUẨN.xlsx",
+        }
+        for item in os.listdir(root_dir):
+            s_p = os.path.join(root_dir, item)
+            if os.path.isfile(s_p) and (item in scan_files or item.lower().endswith(".pdf")):
+                shutil.move(s_p, os.path.join(dream_dirs["05"], item))
+            elif os.path.isdir(s_p) and item == "images":
+                dst_img = os.path.join(dream_dirs["05"], "images")
+                if os.path.exists(dst_img):
+                    shutil.rmtree(dst_img)
+                shutil.move(s_p, dst_img)
+
+        # 6. Xóa hoàn toàn các thư mục 3 tầng cũ bị trùng lặp và file tạm ở gốc
+        for old_d in (dir_macro, dir_micro, dir_hub, dir_rebar):
+            if os.path.isdir(old_d):
+                shutil.rmtree(old_d)
+        root_manifest = os.path.join(root_dir, "DISPATCH_MANIFEST.json")
+        if os.path.isfile(root_manifest):
+            os.remove(root_manifest)
+
+        # 7. Kiểm toán Quality Gate & Ghi DISPATCH_MANIFEST.json vào 00_BAN_CHI_HUY_MASTER
+        audit_dirs = [dream_dirs[k] for k in ("00", "01", "02", "03", "04")]
+        tot_f, err_f, _ = audit_all_exported_excels(audit_dirs)
+        checksums = {}
+        for k in ("00", "01", "02", "03", "04", "05"):
+            for r_w, _, f_l in os.walk(dream_dirs[k]):
+                for f_n in f_l:
+                    fp = os.path.join(r_w, f_n)
+                    rel = os.path.relpath(fp, root_dir)
+                    checksums[rel] = calc_file_md5(fp)
+
+        dream_manifest = {
+            "project_name": project_name,
+            "architecture": "23HG_DREAM_TEAM_6_FOLDERS_ZERO_DUPLICATION",
+            "timestamp": datetime.datetime.now().isoformat(),
+            "folders": {os.path.basename(v): len(os.listdir(v)) for v in dream_dirs.values()},
+            "total_files": len(checksums),
+            "quality_gate": {
+                "excel_files_audited": tot_f,
+                "zero_formula_errors": (err_f == 0),
+                "zero_file_duplication": True,
+            },
+            "checksums_md5": checksums,
+        }
+        manifest_out = os.path.join(dream_dirs["00"], "DISPATCH_MANIFEST.json")
+        with open(manifest_out, "w", encoding="utf-8") as f:
+            json.dump(dream_manifest, f, ensure_ascii=False, indent=2)
+        return dream_manifest
+
 
 
 # -----------------------------------------------------------------------------

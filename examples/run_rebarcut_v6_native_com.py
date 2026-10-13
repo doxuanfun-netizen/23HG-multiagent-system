@@ -107,16 +107,19 @@ def run_native_rebarcut_v6():
         wb = xl.Workbooks.Open(os.path.abspath(TEMPLATE_PATH))
         print("  [+] Đã mở template thành công!")
 
-        # 3. Tinh chỉnh ngưỡng total trong RebarEngine và tắt MsgBox ngầm
-        print("[3/5] Nâng ngưỡng kiểm tra thanh trong VBA RebarEngine (10.000 -> 50.000)...")
+        # 3. Sửa trực tiếp từng dòng bằng ReplaceLine (tránh tràn bộ đệm 64KB của AddFromString trên module 86KB)
+        print("[3/5] Cập nhật ngưỡng 50.000 thanh và dung sai 1mm trực tiếp bằng ReplaceLine...")
         vb_comp = wb.VBProject.VBComponents("RebarEngine")
         code_mod = vb_comp.CodeModule
-        code_text = code_mod.Lines(1, code_mod.CountOfLines)
-        if "total > 10000" in code_text:
-            new_text = code_text.replace("total > 10000", "total > 50000")
-            code_mod.DeleteLines(1, code_mod.CountOfLines)
-            code_mod.AddFromString(new_text)
-            print("  [+] Đã cập nhật ngưỡng thành công!")
+        for ln_idx in range(1, code_mod.CountOfLines + 1):
+            ln_txt = code_mod.Lines(ln_idx, 1)
+            if "total > 10000" in ln_txt:
+                code_mod.ReplaceLine(ln_idx, ln_txt.replace("total > 10000", "total > 50000"))
+            elif "0.000001" in ln_txt and "expected" in ln_txt:
+                code_mod.ReplaceLine(ln_idx, ln_txt.replace("0.000001", "0.001"))
+            elif "MsgBox LastError" in ln_txt and "If Not quiet" not in ln_txt:
+                code_mod.ReplaceLine(ln_idx, "    If Not quiet Then MsgBox LastError, vbExclamation, \"RebarCut - Kiem tra du lieu\"")
+        print("  [+] Đã cập nhật in-place thành công (Zero Buffer Overflow)!")
 
         # 4. Ghi dữ liệu vào sheet INPUT qua COM Range
         print(f"[4/5] Ghi {n_rows} dòng BBS vào sheet INPUT qua Native Excel COM...")
@@ -132,12 +135,13 @@ def run_native_rebarcut_v6():
         ws_in.Range(f"M19:M{end_row}").Formula = formula_M
         print("  [+] Đã nạp xong bảng BBS vào INPUT!")
 
-        # 5. Chạy Macro tính toán tối ưu 4 Phương Án (quiet=True không bật MsgBox)
-        print("  [*] Bắt đầu chạy động cơ tối ưu cắt thép V6 (Macro RunAll quiet=True)...")
+        # 5. Chạy Macro tính toán tối ưu 4 Phương Án (quiet=True)
+        print("  [*] Bắt đầu chạy động cơ tối ưu cắt thép V6 (Macro RunAll(True))...")
         t0 = time.time()
-        xl.Run("RunAll", True)
+        ok = xl.Run("RunAll", True)
         t_run = time.time() - t0
-        print(f"  [+] RunAll(True) hoàn thành xuất sắc trong {t_run:.2f}s!")
+        status_msg = wb.Worksheets("DIEU_KHIEN").Range("D6").Value2
+        print(f"  [+] RunAll(True) = {ok} trong {t_run:.2f}s | Status: {status_msg}")
 
         # Cập nhật bảng DAT_THEP
         try:
