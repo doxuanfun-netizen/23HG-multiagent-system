@@ -329,7 +329,7 @@ Chức năng hiện có qua API Python [`tools/equipment_fleet_scheduler.py`](to
 #### a6. Xuất Hồ Sơ Công Nghiệp 3 Tầng & Đóng Gói Hub & Spoke (Industrial End-to-End Export Pipeline):
 ```powershell
 # 1. Xuất hàng loạt trọn bộ 25 dự án Trường Phổ Bảng (Chuẩn 3 tầng, Gói A 15 cột A..O):
-python tools/pho_bang_batch_exporter.py --all
+python tools/pho_bang_batch_exporter.py --all --base-dir "<thư mục Hồ sơ markdown>" --master-xlsm "<file Master .xlsm>"
 
 # 2. Xuất trọn bộ hệ thống công nghiệp cho Cầu thôn Khai Hoang 2, Km 14+363.65:
 python tools/export_cau_khai_hoang_2.py

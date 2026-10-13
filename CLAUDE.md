@@ -41,7 +41,8 @@ thanh toán 03a, tiến độ CPM, KCS, As-Built. Giữ file này dưới 200 d�
 ## Riêng tư và vệ sinh repo
 
 - Không đưa tên đơn vị/người bên thứ ba, đường dẫn máy cá nhân (`C:\Users\...`, `D:\...`) vào file
-  đã track. `tests/test_repo_hygiene.py` có kiểm tra.
+  đã track. `tests/test_repo_hygiene.py` có kiểm tra, kể cả bên trong file Office (absPath Excel tự ghi, liên kết
+  ngoài): sửa bằng `python -m tools.office_scrub <file>` (thêm `--lien-ket-ngoai` nếu cần).
 - File đã track ≤ 1 MB (ngoại lệ ghi trong `ALLOWED_LARGE*` của test vệ sinh); đường dẫn ≤ 190 ký tự
   (giới hạn Windows); các bản cùng tên trong một dự án `examples/<dự án>/` phải giống hệt nhau.
 - Không commit nguyên file mẫu của bên thứ ba; chỉ trích số liệu kỹ thuật đã ẩn danh.
