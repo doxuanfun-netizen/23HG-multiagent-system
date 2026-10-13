@@ -56,6 +56,11 @@ GOLDEN_MASTER_ENGINES = {
         "entrypoint": "generate_khai_hoang_2_master_package",
         "description": "Sổ cái Master 15 Sheet liên kết 100% công thức sống + Hồ sơ Word 22 Biên bản Nghiệm thu KCS",
     },
+    "WEB_PORTAL_1CLICK": {
+        "module": "tools.web_portal_1click",
+        "entrypoint": "serve_portal",
+        "description": "Giao diện Web 1-Click Command Center điều khiển 6 phân hệ Dream Team, mở file trực tiếp & quét công thức sống",
+    },
 }
 
 DEPRECATED_GENERATORS = {

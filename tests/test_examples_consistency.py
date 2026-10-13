@@ -180,7 +180,16 @@ class GoldenMasterRegistryTest(unittest.TestCase):
                 obj = getattr(obj, attr)
             self.assertTrue(callable(obj), f"Golden Master [{key}] entrypoint không phải hàm/method")
 
+    def test_web_portal_1click_state(self):
+        from tools.web_portal_1click import get_portal_state
+
+        state = get_portal_state("khai_hoang_2")
+        self.assertEqual(len(state["folders"]), 6)
+        self.assertEqual(state["active_project"]["duplication_rate"], "0.0%")
+        self.assertGreaterEqual(len(state["engines"]), 9)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
