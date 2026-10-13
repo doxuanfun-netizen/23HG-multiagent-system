@@ -10,6 +10,7 @@ thanh toán 03a, tiến độ CPM, KCS, As-Built. Giữ file này dưới 200 d�
 - Tự kiểm tra solver + CPM (như CI): `python run_state_graph.py --solver-test`
 - Khung đối chiếu hồ sơ duyệt: `python -m tests.golden.harness.runner` (còn FAIL có lý do, xem bên dưới)
 - Quét lỗi công thức Excel: `python -m tools.audit_excels_static <thư mục>`
+- Tra cứu nhanh mã nguồn / file: ưu tiên dùng ripgrep (`rg "từ_khóa"` hoặc `rg --files`) thay cho grep/findstr/Select-String.
 - Kiểm tra trước khi push (một lần cho mỗi bản clone): `git config core.hooksPath .githooks`
 
 ## Nguyên tắc số liệu (quan trọng nhất)

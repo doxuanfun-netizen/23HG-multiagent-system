@@ -93,10 +93,10 @@ def generate_khai_hoang_2_master_package(output_excel_path, output_xml_path):
         ("4", "Thép sườn dầm T15m C4/C5 chịu cắt và uốn", 16, 1.850, 1.578, "*Dầm chủ T15m*"),
         ("5", "Thép đai neo dầm T15m D1/E1/F1 liên kết bản", 10, 2.260, 0.617, "*Dầm chủ T15m*"),
         ("6", "Thép khoan cấy neo vào nền đá móng mố M1, M2", 32, 0.500, 6.313, "*Khoan cấy*"),
-        ("7", "Thép chịu lực chính thân mố M1, M2 W1/W1A", 25, 9.467, 3.853, "*Thân mố*"),
+        ("7", "Thép chịu lực chính thân mố M1, M2 W1/W1A", 25, 9.467, 3.853, "*Mố*"),
         ("8", "Thép chịu lực tường cánh mố M1, M2 K1-K6", 22, 9.496, 2.984, "*Tường cánh*"),
-        ("9", "Thép thân mố & bản quá độ W2/W3/A1 chịu lực", 20, 8.290, 2.466, "*Thân mố*"),
-        ("10", "Thép đai thân mố & tường cánh W4-W7/K8-K13", 16, 8.410, 1.578, "*Thân mố*"),
+        ("9", "Thép thân mố & bản quá độ W2/W3/A1 chịu lực", 20, 8.290, 2.466, "*Mố*"),
+        ("10", "Thép đai thân mố & tường cánh W4-W7/K8-K13", 16, 8.410, 1.578, "*Mố*"),
         ("11", "Thép chịu lực bản quá độ hai đầu cầu A2-A4", 14, 7.102, 1.208, "*Bản quá độ*"),
         ("12", "Thép gờ lan can dọc cầu L1/L2 trên nhịp & mố", 14, 2.180, 1.208, "*Gờ lan can*"),
         ("13", "Thép gờ lan can dọc nhịp L3/L3' L=15m", 12, 15.000, 0.888, "*Gờ lan can*"),
@@ -107,8 +107,8 @@ def generate_khai_hoang_2_master_package(output_excel_path, output_xml_path):
         ws1.cell(idx, 1, value=tt).alignment = align_center
         ws1.cell(idx, 2, value=name).alignment = align_left
         ws1.cell(idx, 3, value=dia).alignment = align_center
-        # Cột D: COUNTIFS từ BBS
-        ws1.cell(idx, 4, value=f'=COUNTIFS(THONG_KE_THEP_CHI_TIET!$E$6:$E$399,{dia},THONG_KE_THEP_CHI_TIET!$B$6:$B$399,"{kw}")').alignment = align_right
+        # Cột D: SUMIFS tổng số lượng thanh từ BBS
+        ws1.cell(idx, 4, value=f'=SUMIFS(THONG_KE_THEP_CHI_TIET!$I$6:$I$399,THONG_KE_THEP_CHI_TIET!$E$6:$E$399,{dia},THONG_KE_THEP_CHI_TIET!$B$6:$B$399,"{kw}")').alignment = align_right
         ws1.cell(idx, 4).number_format = "#,##0"
         ws1.cell(idx, 5, value=l_bar).alignment = align_right
         ws1.cell(idx, 5).number_format = "#,##0.00"
@@ -743,7 +743,7 @@ def generate_khai_hoang_2_master_package(output_excel_path, output_xml_path):
     ws_cpm["B2"].font = font_title
     ws_cpm["B3"] = "BẢNG TIẾN ĐỘ THI CÔNG CHI TIẾT WBS & PHÂN TÍCH ĐƯỜNG GĂNG (CPM GANTT CHART) - CẦU KM14+363.65"
     ws_cpm["B3"].font = font_sec
-    ws_cpm["B4"] = "Tổng tiến độ: 12 tháng (365 ngày) | Khởi công: 01/10/2026 - Hoàn thành: 30/09/2027"
+    ws_cpm["B4"] = "Tổng tiến độ: 4 tháng (124 ngày) | Khởi công: 20/10/2026 - Hoàn thành: 20/02/2027"
     ws_cpm["B4"].font = font_subtitle
 
     h_cpm = ["Mã WBS", "Tên công tác thi công", "Thời gian (ngày)", "Công tác trước",
@@ -758,28 +758,28 @@ def generate_khai_hoang_2_master_package(output_excel_path, output_xml_path):
     ws_cpm.row_dimensions[5].height = 28
 
     wbs_tasks = [
-        ("WBS.01", "Bàn giao cọc mốc tim tuyến và định vị công trình", 5, "-", 0.5, 6, "Tổ Trắc đạc", "Critical", "2026-10-01", "2026-10-05"),
-        ("WBS.02", "Thi công đường công vụ, lán trại và dọn dẹp mặt bằng", 15, "WBS.01", 1.2, 18, "Tổ Thi công nền", "Critical", "2026-10-06", "2026-10-20"),
-        ("WBS.03", "Kiểm định vật liệu đầu vào (Xi măng, cát, đá, thép)", 10, "WBS.01", 0.8, 4, "Tổ QA/QC & Lab", "Non-Critical", "2026-10-06", "2026-10-15"),
-        ("WBS.04", "Thi công bãi đúc dầm T15m và lắp đặt trạm trộn", 20, "WBS.02", 2.0, 16, "Tổ Xây dựng bãi", "Non-Critical", "2026-10-21", "2026-11-09"),
-        ("WBS.05", "Đào hố móng mố M1 và xử lý nền đá nứt nẻ", 20, "WBS.02", 1.5, 14, "Tổ Cơ giới móng", "Critical", "2026-10-21", "2026-11-09"),
-        ("WBS.06", "Khoan cấy cốt thép neo D32 vào nền đá hố móng M1", 10, "WBS.05", 2.5, 10, "Tổ Khoan cấy thép", "Critical", "2026-11-10", "2026-11-19"),
-        ("WBS.07", "Đổ bê tông đệm móng mố M1 C10 (M150)", 3, "WBS.06", 0.6, 8, "Tổ Bê tông móng", "Critical", "2026-11-20", "2026-11-22"),
-        ("WBS.08", "Gia công lắp dựng cốt thép và ván khuôn móng mố M1", 10, "WBS.07", 3.2, 16, "Tổ Cốt thép ván khuôn", "Critical", "2026-11-23", "2026-12-02"),
-        ("WBS.09", "Đổ bê tông móng mố M1 C30 (V = 110 m3)", 4, "WBS.08", 1.8, 20, "Tổ Bê tông thương phẩm", "Critical", "2026-12-03", "2026-12-06"),
-        ("WBS.10", "Đào hố móng và khoan cấy thép neo nền đá mố M2", 20, "WBS.05", 1.5, 14, "Tổ Cơ giới móng", "Critical", "2026-11-10", "2026-11-29"),
-        ("WBS.11", "Đổ bê tông đệm và bê tông móng mố M2 C30", 12, "WBS.10", 2.0, 18, "Tổ Bê tông móng", "Critical", "2026-11-30", "2026-12-11"),
-        ("WBS.12", "Thi công thân mố, tường ngực và tường cánh M1 C30", 25, "WBS.09", 3.5, 22, "Tổ Cốp pha thân", "Critical", "2026-12-07", "2026-12-31"),
-        ("WBS.13", "Thi công thân mố, tường ngực và tường cánh M2 C30", 25, "WBS.11", 3.5, 22, "Tổ Cốp pha thân", "Critical", "2026-12-12", "2027-01-05"),
-        ("WBS.14", "Đúc 4 phiến dầm chủ T15m C40 tại bãi đúc dầm", 40, "WBS.04", 4.0, 24, "Tổ Đúc dầm T", "Critical", "2026-12-15", "2027-01-23"),
-        ("WBS.15", "Bảo dưỡng dầm T15m và nghiệm thu xuất xưởng", 14, "WBS.14", 0.5, 6, "Tổ Bảo dưỡng", "Critical", "2027-01-24", "2027-02-06"),
-        ("WBS.16", "Lắp đặt đá kê gối và 8 gối cao su bản thép (350x500x84)", 6, "WBS.12,13", 1.5, 10, "Tổ Cơ điện cầu", "Critical", "2027-02-07", "2027-02-12"),
-        ("WBS.17", "Lao lắp 4 phiến dầm T15m vào vị trí mố M1-M2", 8, "WBS.15,16", 5.0, 20, "Tổ Lao lắp dầm", "Critical", "2027-02-13", "2027-02-20"),
-        ("WBS.18", "Thi công 3 dầm ngang C30 liên kết dầm chủ", 12, "WBS.17", 2.8, 16, "Tổ Bê tông nhịp", "Critical", "2027-02-21", "2027-03-04"),
-        ("WBS.19", "Lắp đặt ván khuôn, lưới thép D6 và đổ bê tông mặt cầu C35", 18, "WBS.18", 3.0, 22, "Tổ Mặt cầu", "Critical", "2027-03-05", "2027-03-22"),
-        ("WBS.20", "Thi công gờ lan can C25 và lắp đặt lan can thép mạ kẽm", 15, "WBS.19", 2.2, 14, "Tổ Lan can", "Critical", "2027-03-23", "2027-04-06"),
-        ("WBS.21", "Thi công bản quá độ hai đầu cầu và tường chắn đất C25", 20, "WBS.19", 2.5, 16, "Tổ Đường đầu cầu", "Critical", "2027-03-23", "2027-04-11"),
-        ("WBS.22", "Lắp khe co giãn, thảm BTNC 19, thử tải và bàn giao", 20, "WBS.20,21", 3.0, 25, "Tổ Hoàn thiện", "Critical", "2027-04-12", "2027-05-01"),
+        ("WBS.01", "Bàn giao cọc mốc tim tuyến và định vị công trình", 5, "-", 0.5, 6, "Tổ Trắc đạc", "Critical", "2026-10-20", "2026-10-24"),
+        ("WBS.02", "Thi công đường công vụ, lán trại và dọn dẹp mặt bằng", 10, "WBS.01", 1.2, 18, "Tổ Thi công nền", "Critical", "2026-10-23", "2026-11-01"),
+        ("WBS.03", "Kiểm định vật liệu đầu vào (Xi măng, cát, đá, thép)", 7, "WBS.01", 0.8, 4, "Tổ QA/QC & Lab", "Non-Critical", "2026-10-22", "2026-10-28"),
+        ("WBS.04", "Thi công bãi đúc dầm T15m và lắp đặt trạm trộn", 12, "WBS.02", 2.0, 16, "Tổ Xây dựng bãi", "Non-Critical", "2026-10-28", "2026-11-08"),
+        ("WBS.05", "Đào hố móng mố M1 và xử lý nền đá nứt nẻ", 12, "WBS.02", 1.5, 14, "Tổ Cơ giới móng", "Critical", "2026-10-29", "2026-11-09"),
+        ("WBS.06", "Khoan cấy cốt thép neo D32 vào nền đá hố móng M1", 6, "WBS.05", 2.5, 10, "Tổ Khoan cấy thép", "Critical", "2026-11-10", "2026-11-15"),
+        ("WBS.07", "Đổ bê tông đệm móng mố M1 C10 (M150)", 2, "WBS.06", 0.6, 8, "Tổ Bê tông móng", "Critical", "2026-11-16", "2026-11-17"),
+        ("WBS.08", "Gia công lắp dựng cốt thép và ván khuôn móng mố M1", 7, "WBS.07", 3.2, 16, "Tổ Cốt thép ván khuôn", "Critical", "2026-11-18", "2026-11-24"),
+        ("WBS.09", "Đổ bê tông móng mố M1 C30 (V = 110 m3)", 4, "WBS.08", 1.8, 20, "Tổ Bê tông thương phẩm", "Critical", "2026-11-25", "2026-11-28"),
+        ("WBS.10", "Đào hố móng và khoan cấy thép neo nền đá mố M2", 14, "WBS.05", 1.5, 14, "Tổ Cơ giới móng", "Non-Critical", "2026-11-05", "2026-11-18"),
+        ("WBS.11", "Đổ bê tông đệm và bê tông móng mố M2 C30", 10, "WBS.10", 2.0, 18, "Tổ Bê tông móng", "Non-Critical", "2026-11-19", "2026-11-28"),
+        ("WBS.12", "Thi công thân mố, tường ngực và tường cánh M1 C30", 18, "WBS.09", 3.5, 22, "Tổ Cốp pha thân", "Critical", "2026-11-29", "2026-12-16"),
+        ("WBS.13", "Thi công thân mố, tường ngực và tường cánh M2 C30", 18, "WBS.11", 3.5, 22, "Tổ Cốp pha thân", "Non-Critical", "2026-11-29", "2026-12-16"),
+        ("WBS.14", "Đúc 4 phiến dầm chủ T15m C40 tại bãi đúc dầm", 25, "WBS.04", 4.0, 24, "Tổ Đúc dầm T", "Non-Critical", "2026-11-10", "2026-12-04"),
+        ("WBS.15", "Bảo dưỡng dầm T15m và nghiệm thu xuất xưởng", 14, "WBS.14", 0.5, 6, "Tổ Bảo dưỡng", "Non-Critical", "2026-12-05", "2026-12-18"),
+        ("WBS.16", "Lắp đặt đá kê gối và 8 gối cao su bản thép (350x500x84)", 5, "WBS.12,13", 1.5, 10, "Tổ Cơ điện cầu", "Critical", "2026-12-17", "2026-12-21"),
+        ("WBS.17", "Lao lắp 4 phiến dầm T15m vào vị trí mố M1-M2", 6, "WBS.15,16", 5.0, 20, "Tổ Lao lắp dầm", "Critical", "2026-12-22", "2026-12-27"),
+        ("WBS.18", "Thi công 3 dầm ngang C30 liên kết dầm chủ", 8, "WBS.17", 2.8, 16, "Tổ Bê tông nhịp", "Critical", "2026-12-28", "2027-01-04"),
+        ("WBS.19", "Lắp đặt ván khuôn, lưới thép D6 và đổ bê tông mặt cầu C35", 12, "WBS.18", 3.0, 22, "Tổ Mặt cầu", "Critical", "2027-01-05", "2027-01-16"),
+        ("WBS.20", "Thi công gờ lan can C25 và lắp đặt lan can thép mạ kẽm", 10, "WBS.19", 2.2, 14, "Tổ Lan can", "Non-Critical", "2027-01-17", "2027-01-26"),
+        ("WBS.21", "Thi công bản quá độ hai đầu cầu và tường chắn đất C25", 14, "WBS.19", 2.5, 16, "Tổ Đường đầu cầu", "Non-Critical", "2027-01-17", "2027-01-30"),
+        ("WBS.22", "Lắp khe co giãn, thảm BTNC 19, thử tải và bàn giao", 21, "WBS.20,21", 3.0, 25, "Tổ Hoàn thiện", "Critical", "2027-01-31", "2027-02-20"),
     ]
 
     for idx, (wbs, name, dur, pred, norm, work, crew, cpm, d_start, d_finish) in enumerate(wbs_tasks, start=6):
@@ -1456,10 +1456,10 @@ def generate_khai_hoang_2_master_package(output_excel_path, output_xml_path):
     ws_lm["B6"].alignment = align_center
     ws_lm.merge_cells("B6:G6")
 
-    ws_bb["B8"] = "BIÊN BẢN LẤY MẪU THÍ NGHIỆM TẠI HIỆN TRƯỜNG"
-    ws_bb["B8"].font = Font(name="Times New Roman", size=13, bold=True, color="1F497D")
-    ws_bb["B8"].alignment = align_center
-    ws_bb.merge_cells("B8:G8")
+    ws_lm["B8"] = "BIÊN BẢN LẤY MẪU THÍ NGHIỆM TẠI HIỆN TRƯỜNG"
+    ws_lm["B8"].font = Font(name="Times New Roman", size=13, bold=True, color="1F497D")
+    ws_lm["B8"].alignment = align_center
+    ws_lm.merge_cells("B8:G8")
 
     ws_lm["B9"] = '="Số: " & TEXT(C2, "00") & "/BBLM-HT/KHAI-HOANG-2"'
     ws_lm["B9"].font = font_it
@@ -1520,6 +1520,47 @@ def generate_khai_hoang_2_master_package(output_excel_path, output_xml_path):
     ws_lm["E29"].alignment = align_center
     ws_lm.merge_cells("E29:G29")
 
+    # =========================================================================
+    # 15. SHEET: NGHI_VAN (BẢNG ĐỐI CHIẾU SAI KHÁC BẢN VẼ GỐC & OCR - CHUẨN CLAUDE.MD)
+    # =========================================================================
+    ws_nv = wb.create_sheet(title="NGHI_VAN")
+    ws_nv.views.sheetView[0].showGridLines = True
+    ws_nv["B2"] = "BẢNG TỔNG HỢP CÁC MỤC NGHI VẤN & SAI KHÁC GIỮA BẢN VẼ THIẾT KẾ GỐC VÀ TÍNH TOÁN TCVN"
+    ws_nv["B2"].font = font_title
+    ws_nv["B3"] = "Tuân thủ quy tắc CLAUDE.md: Không bỏ dữ liệu im lặng, ghi rõ [Trang N] và lý do chênh lệch để Chủ dự án soát"
+    ws_nv["B3"].font = font_subtitle
+
+    h_nv = ["STT", "Trang bản vẽ", "Hạng mục / Bảng", "Ký hiệu thanh", "Số liệu Bản vẽ / OCR", "Số liệu Tính đúng (TCVN)", "Chênh lệch (kg)", "Nguyên nhân gốc rễ & Xử lý", "Đã soát / Ghim"]
+    for c_idx, text in enumerate(h_nv, start=1):
+        cell = ws_nv.cell(row=5, column=c_idx, value=text)
+        cell.font = font_hdr
+        cell.fill = fill_hdr
+        cell.alignment = align_center
+        cell.border = thin_border
+    ws_nv.row_dimensions[5].height = 28
+
+    nv_rows = [
+        (1, "[Trang 18]", "Thân mố + tường đỉnh (1 mố)", "W3 (D20)", "OCR chiều dài '7,900,00'", "L = 7,900 mm, SL = 34x2 = 68 thanh (1,324.74 kg)", 1324.74, "Dấu phẩy OCR làm bản cũ bỏ sót; đã khôi phục khớp tổng bảng 4,951.72 kg", "Đã khôi phục"),
+        (2, "[Trang 18]", "Thân mố + tường đỉnh (1 mố)", "W6 (D16)", "OCR chiều dài '7,900,00'", "L = 7,900 mm, SL = 6x2 = 12 thanh (149.59 kg)", 149.59, "Dấu phẩy OCR làm bản cũ bỏ sót; đã khôi phục khớp tổng bảng 4,951.72 kg", "Đã khôi phục"),
+        (3, "[Trang 18]", "Thân mố + tường đỉnh (1 mố)", "A4 (D16)", "OCR chiều dài '7,900,00'", "L = 7,900 mm, SL = 15x2 = 30 thanh (373.99 kg)", 373.99, "Dấu phẩy OCR làm bản cũ bỏ sót; đã khôi phục khớp tổng bảng 4,951.72 kg", "Đã khôi phục"),
+        (4, "[Trang 18]", "Thân mố + tường đỉnh (1 mố)", "A9 (D10)", "OCR chiều dài '1,153,00'", "L = 1,153 mm, SL = 7x2 = 14 thanh (9.96 kg)", 9.96, "Dấu phẩy OCR làm bản cũ bỏ sót; đã khôi phục khớp tổng bảng 4,951.72 kg", "Đã khôi phục"),
+        (5, "[Trang 28]", "Dầm T L=15m - dầm biên (1 dầm)", "D1 (D10)", "OCR chiều dài '2.260.00'", "L = 2,260 mm, SL = 102x2 = 204 thanh (284.46 kg)", 284.46, "Dấu chấm OCR làm bản cũ bỏ sót; đã khôi phục khớp tổng bảng 3,447.15 kg", "Đã khôi phục"),
+        (6, "[Trang 21]", "Tường cánh mố (1 tường x 4)", "K1, K1A, K8, K8A, K19, K19A", "Bản vẽ ghi Cộng = 2,900.11 kg/tường", "Tính theo L x SL x kg/m = 3,747.29 kg/tường", 3388.72, "Bản vẽ gốc nhân thiếu 50% khối lượng ở 6 vị trí thanh này (lệch 847.18 kg/tường x 4)", "Chờ Chủ DA chốt"),
+        (7, "[Trang 39-47]", "Tường chắn 4 đốt (L=5.2m..13.5m)", "Thanh số 1 (Thân tường Φ20)", "Bản vẽ ghi đơn trọng 1.980 kg/m (của Φ18)", "Đơn trọng chuẩn Φ20 = 2.466 kg/m", 290.15, "Bản vẽ gốc gõ nhầm đơn trọng Φ18 (1.980) cho thanh Φ20 ở phần Thân tường", "Chờ Chủ DA chốt"),
+    ]
+    for idx_nv, r_nv in enumerate(nv_rows, start=6):
+        for c_i, val in enumerate(r_nv, start=1):
+            cell = ws_nv.cell(row=idx_nv, column=c_i, value=val)
+            cell.font = font_reg
+            cell.border = thin_border
+            if c_i in (1, 2, 4, 9):
+                cell.alignment = align_center
+            elif c_i == 7:
+                cell.alignment = align_right
+                cell.number_format = "#,##0.00"
+            else:
+                cell.alignment = align_left
+
     if default_sheet in wb.worksheets:
         wb.remove(default_sheet)
 
@@ -1557,8 +1598,8 @@ def create_ms_project_xml(wbs_tasks, output_xml_path):
     ET.SubElement(root, "Title").text = "TIẾN ĐỘ THI CÔNG CẦU THÔN KHAI HOANG 2, KM14+363.65"
     ET.SubElement(root, "Company").text = "BAN QLDA DTXD HUYEN DONG VAN"
     ET.SubElement(root, "Author").text = "Multi-Agent AEC System"
-    ET.SubElement(root, "StartDate").text = "2026-10-01T08:00:00"
-    ET.SubElement(root, "FinishDate").text = "2027-05-01T17:00:00"
+    ET.SubElement(root, "StartDate").text = "2026-10-20T08:00:00"
+    ET.SubElement(root, "FinishDate").text = "2027-02-20T17:00:00"
     ET.SubElement(root, "ScheduleFromStart").text = "1"
 
     calendars = ET.SubElement(root, "Calendars")
