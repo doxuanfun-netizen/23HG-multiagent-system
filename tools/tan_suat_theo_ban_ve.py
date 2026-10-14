@@ -586,6 +586,13 @@ def apply_ban_ve(wb, config: str = DEFAULT_CONFIG, ngay: Optional[str] = None,
     if "Danh mục công việc" in wb.sheetnames:
         apply_dmcv(wb["Danh mục công việc"], conc_ev, steel_ev, cfg)
     if "BBLM" in wb.sheetnames:
+        ws_b = wb["BBLM"]
+        for r_off, r_b in ((1, 16), (2, 17)):
+            if isinstance(ws_b.cell(r_b, 3).value, str) and "[12]" in ws_b.cell(r_b, 3).value:
+                ws_b.cell(r_b, 3, f"=+_xlfn.XLOOKUP(N4+{r_off},DM!$A$14:$A$1000,DM!$D$14:$D$1000)")
+                ws_b.cell(r_b, 4, f"=+_xlfn.XLOOKUP(N4+{r_off},DM!$A$14:$A$1000,DM!$G$14:$G$1000)")
+                ws_b.cell(r_b, 5, f"=+_xlfn.XLOOKUP(N4+{r_off},DM!$A$14:$A$1000,DM!$C$14:$C$1000)")
+                ws_b.cell(r_b, 9, f"=+_xlfn.XLOOKUP(N4+{r_off},DM!$A$14:$A$1000,DM!$L$14:$L$1000)")
         flags.append(NghiVan("BBLM", 4, "Nút chọn phiếu", "Nút xoay (spinner) chọn số phiếu không giữ được khi công cụ lưu "
                                                           "file — nhập số thứ tự phiếu vào ô N4, hoặc chép sheet BBLM từ "
                                                           "file gốc sang."))

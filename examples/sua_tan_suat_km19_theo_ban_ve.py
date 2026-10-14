@@ -29,14 +29,26 @@ from tools.tan_suat_theo_ban_ve import DEFAULT_CONFIG, apply_ban_ve  # noqa: E40
 
 
 def run(vao: str, ra: str, config: str = DEFAULT_CONFIG, ngay: str = None) -> dict:
+    from tools.office_scrub import scrub
     wb = openpyxl.load_workbook(vao)
+    cached_wb = openpyxl.load_workbook(vao, data_only=True)
     # ngày đổ bê tông (giá trị Excel lưu sẵn trong file — nhiều ô lấy từ sheet tiến độ) để xếp thép theo thời gian
     with open(config, encoding="utf-8") as f:
         sheet_bt = json.load(f)["sheet_be_tong"]
-    cached = openpyxl.load_workbook(vao, data_only=True)[sheet_bt]
+    cached = cached_wb[sheet_bt]
     bt_dates = {r: cached.cell(r, 3).value for r in range(1, cached.max_row + 1)}
     stats = apply_ban_ve(wb, config, ngay, bt_dates)
+    for sh in wb.sheetnames:
+        if sh not in cached_wb.sheetnames:
+            continue
+        ws_f, ws_v = wb[sh], cached_wb[sh]
+        for r in range(1, ws_f.max_row + 1):
+            for c in range(1, ws_f.max_column + 1):
+                v = ws_f.cell(r, c).value
+                if isinstance(v, str) and v.startswith("=") and "[" in v and "]" in v:
+                    ws_f.cell(r, c).value = ws_v.cell(r, c).value
     wb.save(ra)
+    scrub(ra, lien_ket_ngoai=True)
     return stats
 
 
