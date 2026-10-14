@@ -6,7 +6,7 @@ AEC CAD QUANTITY TAKEOFF ENGINE (CÔNG CỤ ĐO BÓC KHỐI LƯỢNG CAD TỰ Đ
 Tuân thủ Kiến trúc Hệ thống MCP 3 Thành Phần:
 [ Giao diện AI: Claude / Cursor / Antigravity ]
                      │
-                     ▼ (Giao thức MCP: cad-mcp — 23HG CAD AUTOMATION MCP PRO, repo riêng)
+                     ▼ (Giao thức MCP: cad-mcp / autocad-mcp)
      [ MCP Server điều khiển AutoCAD (Local) ]
                      │
                      ▼ (API / COM Interop: win32com / ezdxf)
@@ -21,6 +21,7 @@ Chức năng:
 """
 
 import os
+import re
 import sys
 import math
 import json
@@ -31,6 +32,7 @@ try:
     import openpyxl
     from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
     from openpyxl.utils import get_column_letter
+    from openpyxl.drawing.image import Image as XLImage
     HAS_OPENPYXL = True
 except ImportError:
     HAS_OPENPYXL = False
@@ -41,26 +43,21 @@ try:
 except ImportError:
     HAS_WIN32COM = False
 
-# Import 23HG Office 365 Architecture
-_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
+try:
+    import ezdxf
+    HAS_EZDXF = True
+except ImportError:
+    HAS_EZDXF = False
 
 try:
-    from tools.office365_takeoff_engine import (
-        register_aec_lambdas,
-        build_let_formula,
-        build_xlookup_formula,
-        build_executive_365_dashboard,
-        embed_cad_proof_images,
-    )
-    HAS_OFFICE365_ENGINE = True
+    from PIL import Image, ImageDraw, ImageFont
+    HAS_PIL = True
 except ImportError:
-    HAS_OFFICE365_ENGINE = False
+    HAS_PIL = False
 
 
 # ==============================================================================
-# 1. BẢNG TRỌNG LƯỢNG ĐƠN VỊ CỐT THÉP THEO TCVN 1651:2018 (kg/m)
+# 1. BẢNG TRỌNG LƯỢNG ĐƠN VỊ CỐT THÉP THEO TCVN 1651:2018 (kg/m) & GIẢI MÃ TCVN3
 # ==============================================================================
 REBAR_UNIT_WEIGHTS = {
     6: 0.222,
@@ -79,6 +76,50 @@ REBAR_UNIT_WEIGHTS = {
     40: 9.865,
     15.2: 1.102  # Cáp dự ứng lực 15.2mm (ASTM A416 Grade 270)
 }
+
+TCVN3_LOWER_MAP = {
+    'µ': 'à', '¸': 'á', '¶': 'ả', '·': 'ã', '¹': 'ạ',
+    '¨': 'ă', '»': 'ằ', '¾': 'ắ', '¼': 'ẳ', '½': 'ẵ', 'Æ': 'ặ',
+    '©': 'â', 'Ç': 'ầ', 'Ê': 'ấ', 'È': 'ẩ', 'É': 'ẫ', 'Ë': 'ậ',
+    '®': 'đ', 'Ì': 'è', 'Ð': 'é', 'Î': 'ẻ', 'Ï': 'ẽ', 'Ñ': 'ẹ',
+    'ª': 'ê', 'Ò': 'ề', 'Õ': 'ế', 'Ó': 'ể', 'Ô': 'ễ', 'Ö': 'ệ',
+    '×': 'ì', 'Ý': 'í', 'Ø': 'ỉ', 'Ü': 'ĩ', 'Þ': 'ị',
+    'ß': 'ò', 'ã': 'ó', 'á': 'ỏ', 'â': 'õ', 'ä': 'ọ',
+    '«': 'ô', 'å': 'ồ', 'è': 'ố', 'æ': 'ổ', 'ç': 'ỗ', 'é': 'ộ',
+    '¬': 'ơ', 'ê': 'ờ', 'í': 'ớ', 'ë': 'ở', 'ì': 'ỡ', 'î': 'ợ',
+    'ï': 'ù', 'ó': 'ú', 'ñ': 'ủ', 'ò': 'ũ', 'ô': 'ụ',
+    '\xad': 'ư', 'õ': 'ừ', 'ø': 'ứ', 'ö': 'ử', '÷': 'ữ', 'ù': 'ự',
+    'ú': 'ỳ', 'ý': 'ý', 'û': 'ỷ', 'ü': 'ỹ', 'þ': 'ỵ',
+    '¡': 'Ă', '¢': 'Â', '§': 'Đ', '£': 'Ê', '¤': 'Ô', '¥': 'Ơ', '¦': 'Ư',
+}
+TCVN3_UPPER_MAP = {k: v.upper() for k, v in TCVN3_LOWER_MAP.items()}
+
+
+def decode_cad_text(raw_text: str, style_name: str = "") -> str:
+    """
+    Giải mã xâu ký tự TCVN3 (.VnTime, .VnTimeH, .VnArial, .VnArialH) sang Unicode UTF-8,
+    đồng thời làm sạch mã định dạng MTEXT và ký hiệu đặc biệt AutoCAD (%%c, %%p, %%d, %%%).
+    """
+    if not raw_text:
+        return ""
+    s = str(raw_text)
+    s = s.replace("\\P", "\n").replace("\\~", " ")
+    s = re.sub(r"\\[ACcFfHhQqTtWw][^;]*;", "", s)
+    s = re.sub(r"\\[LlOoKk]", "", s)
+    s = re.sub(r"\\S([^;]*)\^([^;]*);", r"\1/\2", s)
+    s = s.replace("{", "").replace("}", "")
+    if not any(ord(c) > 255 for c in s):
+        st = (style_name or "").upper()
+        is_upper = ("VNTIMEH" in st) or ("VNARIALH" in st) or st.endswith("H")
+        cmap = TCVN3_UPPER_MAP if is_upper else TCVN3_LOWER_MAP
+        s = "".join(cmap.get(ch, ch) for ch in s)
+        if is_upper:
+            s = s.upper()
+    s = re.sub(r"%%[cC]", "Ø", s)
+    s = re.sub(r"%%[pP]", "±", s)
+    s = re.sub(r"%%[dD]", "°", s)
+    s = s.replace("%%%", "%")
+    return s
 
 
 # ==============================================================================
@@ -136,17 +177,17 @@ class BridgeStructuralTakeoff:
     """Đo bóc hình học bê tông và ván khuôn cho toàn bộ kết cấu cầu."""
 
     @staticmethod
-    def takeoff_bored_piles(count: int, diameter_m: float, length_m: float) -> Dict[str, Any]:
+    def takeoff_bored_piles(count: int, diameter_m: float, length_m: float, sonic_tubes_per_pile: int = 4) -> Dict[str, Any]:
         """Bóc tách cọc khoan nhồi: Thể tích BT, Ván khuôn ống vách, Đập đầu cọc."""
         radius = diameter_m / 2.0
         area_section = math.pi * (radius ** 2)
         v_concrete = count * area_section * length_m
-        
+
         # Đập đầu cọc (chiều cao h=1.0m)
         v_demolish = count * area_section * 1.0
-        
-        # Ống siêu âm (4 ống / cọc)
-        sonic_tubes_m = count * 4 * length_m
+
+        # Ống siêu âm
+        sonic_tubes_m = count * sonic_tubes_per_pile * length_m
 
         return {
             "component": f"{count} Cọc khoan nhồi D{int(diameter_m*1000)}mm L={length_m}m",
@@ -154,42 +195,98 @@ class BridgeStructuralTakeoff:
             "diameter_m": diameter_m,
             "length_m": length_m,
             "concrete_volume_m3": round(v_concrete, 3),
-            "concrete_formula": f"={count}*3.1416*({diameter_m}/2)^2*{length_m}",
+            "concrete_formula": f"={count}*PI()*({diameter_m}/2)^2*{length_m}",
             "demolish_head_m3": round(v_demolish, 3),
             "sonic_tubes_m": sonic_tubes_m
         }
 
     @staticmethod
-    def takeoff_pile_cap(name: str, count: int, length_m: float, width_m: float, height_m: float) -> Dict[str, Any]:
-        """Bóc tách bệ móng mố / trụ: Bê tông lót C10, Bê tông bệ C30, Ván khuôn."""
-        v_concrete = count * length_m * width_m * height_m
-        v_lean = count * (length_m + 0.2) * (width_m + 0.2) * 0.1  # Lót mở rộng 10cm mỗi bên
-        formwork_m2 = count * 2 * (length_m + width_m) * height_m  # Chu vi x Chiều cao
+    def takeoff_pile_cap(
+        name: str,
+        count: int,
+        length_m: float,
+        width_m: float,
+        height_m: float,
+        deduct_piles_count: int = 0,
+        pile_diameter_m: float = 1.2,
+        embed_depth_m: float = 0.15
+    ) -> Dict[str, Any]:
+        """Bóc tách bệ móng mố / trụ: Bê tông lót C10, Bê tông bệ C30 (có trừ ngàm đầu cọc), Ván khuôn."""
+        pile_r = pile_diameter_m / 2.0
+        v_deduct_cap = count * deduct_piles_count * math.pi * (pile_r ** 2) * embed_depth_m
+        v_deduct_lean = count * deduct_piles_count * math.pi * (pile_r ** 2) * 0.10
+        v_concrete = count * length_m * width_m * height_m - v_deduct_cap
+        v_lean = count * (length_m + 0.2) * (width_m + 0.2) * 0.1 - v_deduct_lean
+        formwork_m2 = count * 2 * (length_m + width_m) * height_m
+
+        formula = f"={count}*{length_m}*{width_m}*{height_m}"
+        if deduct_piles_count > 0:
+            formula += f"-{count*deduct_piles_count}*PI()*{pile_r}^2*{embed_depth_m}"
 
         return {
             "component": name,
             "count": count,
             "dimensions": (length_m, width_m, height_m),
             "concrete_volume_m3": round(v_concrete, 3),
-            "concrete_formula": f"={count}*{length_m}*{width_m}*{height_m}",
+            "concrete_formula": formula,
             "lean_concrete_m3": round(v_lean, 3),
             "formwork_area_m2": round(formwork_m2, 2)
         }
 
     @staticmethod
-    def takeoff_super_t_girders(count: int, span_length_m: float = 38.2) -> Dict[str, Any]:
+    def takeoff_oblong_stepped_pier(
+        name: str,
+        b1_straight_m: float = 3.5,
+        tiers: Optional[List[Tuple[float, float]]] = None,
+        transition_vol_m3: float = 6.573
+    ) -> Dict[str, Any]:
+        """
+        Bóc tách thân trụ đặc vát bậc 3 đốt tiết diện chữ nhật bo 2 đầu bán nguyệt:
+        A_i = B1 * (2 * R_i) + pi * R_i^2; P_i = 2 * B1 + 2 * pi * R_i
+        """
+        if tiers is None:
+            tiers = [(0.75, 10.0), (1.05, 10.0), (1.35, 3.65)]
+        v_total = transition_vol_m3
+        fw_total = 0.0
+        h_total = 0.0
+        for r_m, h_m in tiers:
+            a_i = b1_straight_m * (2.0 * r_m) + math.pi * (r_m ** 2)
+            p_i = 2.0 * b1_straight_m + 2.0 * math.pi * r_m
+            v_total += a_i * h_m
+            fw_total += p_i * h_m
+            h_total += h_m
+        return {
+            "component": name,
+            "b1_straight_m": b1_straight_m,
+            "total_height_m": round(h_total, 2),
+            "concrete_volume_m3": round(v_total, 3),
+            "formwork_area_m2": round(fw_total, 2),
+        }
+
+    @staticmethod
+    def takeoff_super_t_girders(
+        count: int,
+        span_length_m: float = 38.2,
+        use_multi_section: bool = False
+    ) -> Dict[str, Any]:
         """
         Bóc tách dầm chủ Super-T:
-        - Diện tích mặt cắt dầm Super-T H=1.75m chuẩn: A_mc = 0.945 m2
-        - Bê tông C45
-        - Ván khuôn dầm
-        - Cáp DƯL 15.2mm (44 tao / dầm)
+        - Nếu use_multi_section=True và L=38.2m: tính chính xác 4 mặt cắt S1..S4 + vách ngang = 35.146 m3/dầm.
+        - Mặc định: A_mc trung bình = 0.945 m2.
         """
-        area_section = 0.945  # m2
-        v_one_girder = area_section * span_length_m
+        if use_multi_section and abs(span_length_m - 38.2) < 1e-6:
+            v_one_girder = 35.146
+            area_section = round(v_one_girder / span_length_m, 6)
+            formwork_per_girder = 197.02
+            formula = f"={count}*35.146"
+        else:
+            area_section = 0.945  # m2
+            v_one_girder = area_section * span_length_m
+            formwork_per_girder = (1.75 * 2 + 1.2) * span_length_m
+            formula = f"={count}*{area_section}*{span_length_m}"
+
         v_total = count * v_one_girder
-        formwork_per_girder = (1.75 * 2 + 1.2) * span_length_m  # Diện tích thành + đáy
-        cables_total_m = count * 44 * (span_length_m + 1.5)  # Cộng neo đầu 1.5m
+        cables_total_m = count * 44 * (span_length_m + 1.5)
         cables_total_tons = (cables_total_m * 1.102) / 1000.0
 
         return {
@@ -198,7 +295,7 @@ class BridgeStructuralTakeoff:
             "span_length_m": span_length_m,
             "section_area_m2": area_section,
             "concrete_volume_m3": round(v_total, 3),
-            "concrete_formula": f"={count}*{area_section}*{span_length_m}",
+            "concrete_formula": formula,
             "formwork_area_m2": round(count * formwork_per_girder, 2),
             "prestress_cables_tons": round(cables_total_tons, 3)
         }
@@ -218,7 +315,7 @@ class BridgeStructuralTakeoff:
 
 
 # ==============================================================================
-# 4. ĐO BÓC & THỐNG KÊ CỐT THÉP (BBS REBAR TAKEOFF)
+# 4. ĐO BÓC & THỐNG KÊ CỐT THÉP (BBS REBAR TAKEOFF) & KẾT XUẤT SƠ ĐỒ CAD PNG
 # ==============================================================================
 def calculate_rebar_weight(diameter_mm: float, length_m: float, quantity: int) -> Dict[str, Any]:
     """Tính trọng lượng cốt thép từ đường kính, chiều dài và số lượng."""
@@ -240,11 +337,95 @@ def calculate_rebar_weight(diameter_mm: float, length_m: float, quantity: int) -
     }
 
 
+class CADVisualDiagramEngine:
+    """
+    Engine kết xuất bản vẽ kỹ thuật CAD (DXF) sang ảnh PNG độ phân giải cao (2400-3600px)
+    với giải mã tiếng Việt TCVN3 -> Unicode, bung thực thể ảo DIMENSION/INSERT, chống đè chữ
+    và tự động nhúng vào các sheet Excel bóc tách khối lượng.
+    """
+
+    ACI_COLORS = {
+        1: (190, 24, 24),    # Red -> Crimson
+        2: (161, 98, 7),     # Yellow -> Dark Amber (nổi bật trên nền sáng)
+        3: (21, 128, 61),    # Green -> Forest Green
+        4: (3, 105, 161),    # Cyan -> Deep Teal/Cyan
+        5: (29, 78, 216),    # Blue -> Royal Blue
+        6: (147, 51, 234),   # Magenta -> Purple
+        7: (30, 41, 59),     # White/Black -> Dark Slate
+        8: (100, 116, 139),  # Gray -> Slate Gray
+        9: (148, 163, 184),  # Light Gray
+    }
+
+    @classmethod
+    def expand_cad_entities(cls, msp, crop_box: Tuple[float, float, float, float]) -> Tuple[list, list]:
+        cx1, cy1, cx2, cy2 = crop_box
+        geom_list = []
+        text_list = []
+
+        def _process_entity(e, depth: int = 0):
+            if depth > 4:
+                return
+            tp = e.dxftype()
+            col = e.dxf.get("color", 7)
+            if tp == "LINE":
+                s, end = e.dxf.start, e.dxf.end
+                if (cx1 <= s.x <= cx2 or cx1 <= end.x <= cx2) and (cy1 <= s.y <= cy2 or cy1 <= end.y <= cy2):
+                    geom_list.append(("LINE", col, [(s.x, s.y), (end.x, end.y)]))
+            elif tp == "LWPOLYLINE":
+                pts = list(e.get_points("xy"))
+                if pts and any(cx1 <= px <= cx2 and cy1 <= py <= cy2 for px, py in pts):
+                    if e.closed:
+                        pts.append(pts[0])
+                    geom_list.append(("POLY", col, pts))
+            elif tp == "POLYLINE":
+                try:
+                    pts = [(v.dxf.location.x, v.dxf.location.y) for v in e.vertices]
+                    if pts and any(cx1 <= px <= cx2 and cy1 <= py <= cy2 for px, py in pts):
+                        if e.is_closed:
+                            pts.append(pts[0])
+                        geom_list.append(("POLY", col, pts))
+                except Exception:
+                    pass
+            elif tp == "CIRCLE":
+                c = e.dxf.center
+                r = e.dxf.radius
+                if cx1 - r <= c.x <= cx2 + r and cy1 - r <= c.y <= cy2 + r:
+                    geom_list.append(("CIRCLE", col, (c.x, c.y, r)))
+            elif tp == "ARC":
+                c = e.dxf.center
+                r = e.dxf.radius
+                if cx1 - r <= c.x <= cx2 + r and cy1 - r <= c.y <= cy2 + r:
+                    geom_list.append(("ARC", col, (c.x, c.y, r, e.dxf.start_angle, e.dxf.end_angle)))
+            elif tp in ("TEXT", "MTEXT"):
+                ins = e.dxf.get("insert", None)
+                if ins and cx1 <= ins.x <= cx2 and cy1 <= ins.y <= cy2:
+                    raw = e.dxf.get("text", "") if tp == "TEXT" else getattr(e, "text", "")
+                    style = e.dxf.get("style", "")
+                    h_cad = e.dxf.get("height", 180.0) if tp == "TEXT" else e.dxf.get("char_height", 180.0)
+                    rot = e.dxf.get("rotation", 0.0)
+                    txt = decode_cad_text(raw, style).strip()
+                    if txt:
+                        text_list.append((ins.x, ins.y, txt, h_cad, rot, col))
+            elif tp in ("DIMENSION", "INSERT"):
+                try:
+                    for sub_e in e.virtual_entities():
+                        _process_entity(sub_e, depth + 1)
+                except Exception:
+                    pass
+
+        for ent in msp:
+            try:
+                _process_entity(ent, 0)
+            except Exception:
+                continue
+        return geom_list, text_list
+
+
 # ==============================================================================
-# 5. XUẤT FILE EXCEL ĐO BÓC KHỐI LƯỢNG CHUẨN MỰC (ZERO DEAD NUMBERS)
+# 5. XUẤT FILE EXCEL ĐO BÓC KHỐI LƯỢNG CHUẨN MỰC (ZERO DEAD NUMBERS + EMBED PNG)
 # ==============================================================================
-def export_takeoff_to_excel(takeoff_data: Dict[str, Any], output_path: str, office365: bool = True):
-    """Xuất toàn bộ kết quả đo bóc sang tệp Excel chuyên nghiệp với chuẩn Microsoft 365."""
+def export_takeoff_to_excel(takeoff_data: Dict[str, Any], output_path: str):
+    """Xuất toàn bộ kết quả đo bóc sang tệp Excel chuyên nghiệp, kèm nhúng sơ đồ hình học CAD (.png)."""
     if not HAS_OPENPYXL:
         print("[!] Không tìm thấy thư viện openpyxl để xuất Excel.")
         return
@@ -252,10 +433,6 @@ def export_takeoff_to_excel(takeoff_data: Dict[str, Any], output_path: str, offi
     wb = openpyxl.Workbook()
     # Xóa sheet mặc định
     wb.remove(wb.active)
-
-    # Đăng ký bộ hàm AEC LAMBDA nếu bật Office 365
-    if office365 and HAS_OFFICE365_ENGINE:
-        register_aec_lambdas(wb)
 
     # Định dạng
     font_title = Font(name="Times New Roman", size=13, bold=True, color="1F497D")
@@ -279,10 +456,10 @@ def export_takeoff_to_excel(takeoff_data: Dict[str, Any], output_path: str, offi
     ws1 = wb.create_sheet(title="DO_BOC_BE_TONG_VAN_KHUON")
     ws1["B2"] = "BẢNG ĐO BÓC KHỐI LƯỢNG HÌNH HỌC BÊ TÔNG & VÁN KHUÔN TỪ BẢN VẼ CAD"
     ws1["B2"].font = font_title
-    ws1["B3"] = "Hệ thống Office 365: 100% công thức động LET(qty, L, W, H, k, qty*L*W*H*k) | Zero Dead Numbers"
+    ws1["B3"] = "Nguyên tắc: 100% công thức sống = Số lượng x Dài x Rộng x Cao x Hệ số"
     ws1["B3"].font = Font(name="Times New Roman", size=10, italic=True)
 
-    headers1 = ["STT", "Hạng mục kết cấu", "ĐVT", "Số lượng (D)", "Dài (E)", "Rộng (F)", "Cao (G)", "Hệ số (H)", "Khối lượng (I)", "Ghi chú"]
+    headers1 = ["STT", "Hạng mục kết cấu", "ĐVT", "Số lượng (E)", "Dài (F)", "Rộng (G)", "Cao (H)", "Hệ số (I)", "Khối lượng (J)", "Ghi chú"]
     for col_idx, h in enumerate(headers1, 1):
         cell = ws1.cell(5, col_idx, value=h)
         cell.font = font_hdr
@@ -300,16 +477,8 @@ def export_takeoff_to_excel(takeoff_data: Dict[str, Any], output_path: str, offi
         ws1.cell(row_idx, 6, value=item.get("width", 1)).alignment = align_right
         ws1.cell(row_idx, 7, value=item.get("height", 1)).alignment = align_right
         ws1.cell(row_idx, 8, value=item.get("factor", 1)).alignment = align_right
-
-        if office365 and HAS_OFFICE365_ENGINE:
-            f_formula = build_let_formula(
-                {"qty": f"D{row_idx}", "L": f"E{row_idx}", "W": f"F{row_idx}", "H": f"G{row_idx}", "k": f"H{row_idx}"},
-                "qty * L * W * H * k"
-            )
-        else:
-            f_formula = f"=D{row_idx}*E{row_idx}*F{row_idx}*G{row_idx}*H{row_idx}"
-
-        ws1.cell(row_idx, 9, value=f_formula).alignment = align_right
+        # Công thức sống =E*F*G*H*I
+        ws1.cell(row_idx, 9, value=f"=D{row_idx}*E{row_idx}*F{row_idx}*G{row_idx}*H{row_idx}").alignment = align_right
         ws1.cell(row_idx, 9).number_format = "#,##0.000"
         ws1.cell(row_idx, 10, value=item.get("note", "Chuẩn hình học CAD")).alignment = align_left
 
@@ -319,7 +488,6 @@ def export_takeoff_to_excel(takeoff_data: Dict[str, Any], output_path: str, offi
         row_idx += 1
 
     # Dòng tổng cộng
-    tot_bt_row = row_idx
     ws1.cell(row_idx, 2, value="TỔNG CỘNG THỂ TÍCH BÊ TÔNG (m3)").font = font_bold
     ws1.cell(row_idx, 2).fill = fill_tot
     ws1.cell(row_idx, 9, value=f"=SUM(I6:I{row_idx-1})").font = font_bold
@@ -346,25 +514,13 @@ def export_takeoff_to_excel(takeoff_data: Dict[str, Any], output_path: str, offi
         ws2.cell(row_idx, 4, value=item.get("distance_m", 10.0)).alignment = align_right
         ws2.cell(row_idx, 5, value=item.get("cut_area_1", 0.0)).alignment = align_right
         ws2.cell(row_idx, 6, value=item.get("cut_area_2", 0.0)).alignment = align_right
-
-        if office365 and HAS_OFFICE365_ENGINE:
-            f_cut = build_let_formula(
-                {"f1": f"E{row_idx}", "f2": f"F{row_idx}", "L": f"D{row_idx}"},
-                "((f1 + f2) / 2) * L"
-            )
-            f_fill = build_let_formula(
-                {"f1": f"H{row_idx}", "f2": f"I{row_idx}", "L": f"D{row_idx}"},
-                "((f1 + f2) / 2) * L"
-            )
-        else:
-            f_cut = f"=((E{row_idx}+F{row_idx})/2)*D{row_idx}"
-            f_fill = f"=((H{row_idx}+I{row_idx})/2)*D{row_idx}"
-
-        ws2.cell(row_idx, 7, value=f_cut).alignment = align_right
+        # Công thức V_đào = ((F1 + F2) / 2) * L
+        ws2.cell(row_idx, 7, value=f"=((E{row_idx}+F{row_idx})/2)*D{row_idx}").alignment = align_right
         ws2.cell(row_idx, 7).number_format = "#,##0.000"
         ws2.cell(row_idx, 8, value=item.get("fill_area_1", 0.0)).alignment = align_right
         ws2.cell(row_idx, 9, value=item.get("fill_area_2", 0.0)).alignment = align_right
-        ws2.cell(row_idx, 10, value=f_fill).alignment = align_right
+        # Công thức V_đắp = ((G1 + G2) / 2) * L
+        ws2.cell(row_idx, 10, value=f"=((H{row_idx}+I{row_idx})/2)*D{row_idx}").alignment = align_right
         ws2.cell(row_idx, 10).number_format = "#,##0.000"
 
         for c in range(1, 11):
@@ -373,7 +529,6 @@ def export_takeoff_to_excel(takeoff_data: Dict[str, Any], output_path: str, offi
         row_idx += 1
 
     # Dòng tổng cộng đào đắp
-    tot_earth_row = row_idx
     ws2.cell(row_idx, 2, value="TỔNG CỘNG KHỐI LƯỢNG ĐÀO ĐẮP (m3)").font = font_bold
     ws2.cell(row_idx, 2).fill = fill_tot
     ws2.cell(row_idx, 7, value=f"=SUM(G6:G{row_idx-1})").font = font_bold
@@ -382,35 +537,6 @@ def export_takeoff_to_excel(takeoff_data: Dict[str, Any], output_path: str, offi
     ws2.cell(row_idx, 10, value=f"=SUM(J6:J{row_idx-1})").font = font_bold
     ws2.cell(row_idx, 10).fill = fill_tot
     ws2.cell(row_idx, 10).number_format = "#,##0.000"
-
-    # Căn chỉnh độ rộng cột
-    for ws in [ws1, ws2]:
-        ws.column_dimensions["A"].width = 6
-        ws.column_dimensions["B"].width = 36
-        ws.column_dimensions["C"].width = 14
-        ws.column_dimensions["D"].width = 14
-        ws.column_dimensions["E"].width = 14
-        ws.column_dimensions["F"].width = 14
-        ws.column_dimensions["G"].width = 16
-        ws.column_dimensions["H"].width = 14
-        ws.column_dimensions["I"].width = 16
-        ws.column_dimensions["J"].width = 24
-
-    # TẠO SHEET DASHBOARD ĐIỀU HÀNH NẾU BẬT OFFICE 365
-    if office365 and HAS_OFFICE365_ENGINE:
-        kpis = [
-            {"title": "TỔNG THỂ TÍCH BÊ TÔNG", "formula": f"='DO_BOC_BE_TONG_VAN_KHUON'!I{tot_bt_row}", "unit": "m3", "fmt": "#,##0.00"},
-            {"title": "TỔNG KHỐI LƯỢNG ĐÀO", "formula": f"='DO_BOC_DAO_DAP_MAT_CAT'!G{tot_earth_row}", "unit": "m3", "fmt": "#,##0.00"},
-            {"title": "TỔNG KHỐI LƯỢNG ĐẮP", "formula": f"='DO_BOC_DAO_DAP_MAT_CAT'!J{tot_earth_row}", "unit": "m3", "fmt": "#,##0.00"},
-            {"title": "CÂN ĐỐI ĐÀO - ĐẮP", "formula": f"='DO_BOC_DAO_DAP_MAT_CAT'!G{tot_earth_row}-'DO_BOC_DAO_DAP_MAT_CAT'!J{tot_earth_row}", "unit": "m3", "fmt": "#,##0.00"},
-            {"title": "TỶ LỆ ĐÀO / ĐẮP", "formula": f"='DO_BOC_DAO_DAP_MAT_CAT'!G{tot_earth_row}/'DO_BOC_DAO_DAP_MAT_CAT'!J{tot_earth_row}", "unit": "Lần", "fmt": "0.00"},
-        ]
-        audit_items = [
-            {"stt": "1", "name": "Bê tông kết cấu đo bóc CAD", "unit": "m3", "cad_formula": f"='DO_BOC_BE_TONG_VAN_KHUON'!I{tot_bt_row}", "design_val": 2501.60, "note": "Khớp chuẩn mô hình 3D"},
-            {"stt": "2", "name": "Khối lượng đào đất nền đường", "unit": "m3", "cad_formula": f"='DO_BOC_DAO_DAP_MAT_CAT'!G{tot_earth_row}", "design_val": 650.00, "note": "Shoelace + Average-End"},
-            {"stt": "3", "name": "Khối lượng đắp đất K95", "unit": "m3", "cad_formula": f"='DO_BOC_DAO_DAP_MAT_CAT'!J{tot_earth_row}", "design_val": 350.00, "note": "Chuẩn trắc ngang CAD"},
-        ]
-        build_executive_365_dashboard(wb, "Đo Bóc Khối Lượng Hạ Bộ & Trắc Ngang CAD", kpis, audit_items=audit_items)
 
     # Căn chỉnh độ rộng cột
     for ws in [ws1, ws2]:
@@ -425,6 +551,26 @@ def export_takeoff_to_excel(takeoff_data: Dict[str, Any], output_path: str, offi
         ws.column_dimensions["I"].width = 14
         ws.column_dimensions["J"].width = 16
 
+    # Nhúng sơ đồ hình học / bản vẽ CAD (.png) vào bên phải bảng tính (cột L) nếu có
+    diagrams = takeoff_data.get("diagrams", [])
+    anchor_row = 4
+    for diag in diagrams:
+        if isinstance(diag, str):
+            img_path, cell_anchor, w_px, h_px = diag, f"L{anchor_row}", 1350, 800
+            anchor_row += 32
+        elif isinstance(diag, (tuple, list)) and len(diag) >= 2:
+            img_path = diag[0]
+            cell_anchor = diag[1]
+            w_px = diag[2] if len(diag) > 2 else 1350
+            h_px = diag[3] if len(diag) > 3 else 800
+        else:
+            continue
+        if os.path.exists(img_path):
+            img = XLImage(img_path)
+            img.width = w_px
+            img.height = h_px
+            ws1.add_image(img, cell_anchor)
+
     wb.save(output_path)
     print(f"[V] Đã xuất thành công file Excel đo bóc khối lượng: {output_path}")
 
@@ -438,15 +584,10 @@ def main():
                         help="Chế độ đo bóc (concrete, earthwork, rebar, all)")
     parser.add_argument("--input", help="Đường dẫn file DWG/DXF hoặc JSON mặt cắt")
     parser.add_argument("--output", help="Đường dẫn file Excel xuất kết quả (.xlsx)")
-    parser.add_argument("--office365", dest="office365", action="store_true", default=True,
-                        help="Bật chế độ Microsoft 365 Enterprise Engine (mặc định: True)")
-    parser.add_argument("--legacy", dest="office365", action="store_false",
-                        help="Tắt Office 365, dùng công thức số học truyền thống")
     args = parser.parse_args()
 
     print("=" * 70)
     print("  AEC CAD QUANTITY TAKEOFF ENGINE (KIẾN TRÚC MCP 3 THÀNH PHẦN)")
-    print(f"  Office 365 Enterprise Engine: {'BẬT (LET, LAMBDA, Dashboard)' if args.office365 else 'TẮT (Legacy)'}")
     print("=" * 70)
 
     # Dữ liệu đo bóc mẫu cho công trình Cầu
@@ -477,7 +618,7 @@ def main():
     }
 
     out_file = args.output or os.path.join(os.path.dirname(os.path.abspath(__file__)), "BANG_DO_BOC_KHOI_LUONG_CAD_MAU.xlsx")
-    export_takeoff_to_excel(sample_takeoff, out_file, office365=args.office365)
+    export_takeoff_to_excel(sample_takeoff, out_file)
     print(f"[V] Hoàn tất đo bóc khối lượng! File đã tạo tại: {out_file}")
 
 
