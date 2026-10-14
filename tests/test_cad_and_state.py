@@ -137,5 +137,28 @@ class CheckInputsCliTest(unittest.TestCase):
         self.assertEqual(self.run_cli().returncode, 1)
 
 
+class TCVN3DecoderAndDiagramTest(unittest.TestCase):
+
+    def test_tcvn3_single_pass_no_collision_and_uppercase_style(self):
+        # 'ó' trong TCVN3 là 'ú', 'ú' trong TCVN3 là 'ỳ' -> không được va chạm thành 'ỳ'
+        decoded_lower = cad.TCVN3Decoder.decode("Bè trÝ chung trô T1 & T2 %%c1200 %%p0.00", ".VnTime")
+        self.assertEqual(decoded_lower, "Bố trí chung trụ T1 & T2 Ø1200 ±0.00")
+
+        decoded_upper = cad.TCVN3Decoder.decode("mÆt c¾t ngang dÇm super-t", ".VnTimeH")
+        self.assertEqual(decoded_upper, "MẶT CẮT NGANG DẦM SUPER-T")
+
+    @unittest.skipUnless(cad.HAS_EZDXF, "ezdxf chưa cài")
+    def test_expand_cad_entities_handles_text_and_dimension(self):
+        doc = cad.ezdxf.new("R2000")
+        msp = doc.modelspace()
+        msp.add_line((0, 0), (100, 0))
+        msp.add_text("DÇm Super-T %%c15.2", dxfattribs={"insert": (10, 10), "height": 25.0, "style": "Standard"})
+        geoms, texts = cad.AECCadExtractor.expand_cad_entities(msp, (-10, -10, 200, 200))
+        self.assertEqual(len(geoms), 1)
+        self.assertEqual(len(texts), 1)
+        self.assertEqual(texts[0][2], "Dầm Super-T Ø15.2")
+
+
 if __name__ == "__main__":
     unittest.main()
+

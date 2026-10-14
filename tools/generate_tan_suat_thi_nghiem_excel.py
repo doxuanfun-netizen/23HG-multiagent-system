@@ -1072,9 +1072,13 @@ def build_tan_suat_master_workbook(output_path: str, theo_ban_ve: bool = True, n
     bsl_path = os.path.join(base_marker, "05_DU_LIEU_GOC_SCAN_MARKER", "bang_so_lieu.json")
     if not os.path.exists(bsl_path):
         bsl_path = os.path.join(base_marker, "bang_so_lieu.json")
+    if not os.path.exists(bsl_path):
+        bsl_path = os.path.join(REPO_HSTK, "05_DU_LIEU_GOC_SCAN_MARKER", "bang_so_lieu.json")
     thep_cat_path = os.path.join(base_marker, "05_DU_LIEU_GOC_SCAN_MARKER", "thep_cho_to_hop_cat.json")
     if not os.path.exists(thep_cat_path):
         thep_cat_path = os.path.join(base_marker, "thep_cho_to_hop_cat.json")
+    if not os.path.exists(thep_cat_path):
+        thep_cat_path = os.path.join(REPO_HSTK, "05_DU_LIEU_GOC_SCAN_MARKER", "thep_cho_to_hop_cat.json")
     tmpl_path = os.path.join(REPO_ROOT, "templates", "Ho_So_KCS_QS_TienDo_Cau_Km19+529.080.xlsx")
 
     wb = openpyxl.Workbook()

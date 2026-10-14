@@ -160,6 +160,38 @@ class TestCivilAndBridgeTakeoffEngine(unittest.TestCase):
         self.assertIn(sol.status, ("OPTIMAL", "FEASIBLE"))
         self.assertLessEqual(sol.waste_ratio_pct, 1.5)
 
+    def test_stepped_oblong_pier_and_super_t_multi_section(self):
+        """Kiểm thử bóc tách chính xác Thân trụ đặc 3 đốt vát bậc (T1, T2) và Dầm Super-T 4 vùng mặt cắt."""
+        from tools.civil_and_bridge_takeoff_engine import (
+            calc_stepped_oblong_pier_shaft,
+            calc_super_t_multi_section,
+        )
+
+        # Trụ T1 (H=23.65m): 234.922 m3, 309.607 m2
+        t1 = calc_stepped_oblong_pier_shaft(
+            b1_straight_m=3.5,
+            tiers=[(0.75, 10.0), (1.05, 10.0), (1.35, 3.65)],
+        )
+        self.assertEqual(t1["total_height_m"], 23.65)
+        self.assertAlmostEqual(t1["concrete_m3"], 234.922, places=2)
+        self.assertAlmostEqual(t1["formwork_m2"], 309.607, places=2)
+
+        # Trụ T2 (H=25.75m): 266.791 m3, 342.120 m2
+        t2 = calc_stepped_oblong_pier_shaft(
+            b1_straight_m=3.5,
+            tiers=[(0.75, 10.0), (1.05, 10.0), (1.35, 5.75)],
+        )
+        self.assertEqual(t2["total_height_m"], 25.75)
+        self.assertAlmostEqual(t2["concrete_m3"], 266.791, places=2)
+        self.assertAlmostEqual(t2["formwork_m2"], 342.120, places=2)
+
+        # 15 dầm Super-T L=38.2m: 35.146 m3/dầm -> 527.19 m3
+        st = calc_super_t_multi_section(girder_count=15, span_length_m=38.2)
+        self.assertEqual(st["single_girder_concrete_m3"], 35.146)
+        self.assertEqual(st["total_concrete_m3"], 527.19)
+        self.assertEqual(st["total_formwork_m2"], 2955.3)
+
 
 if __name__ == "__main__":
     unittest.main()
+

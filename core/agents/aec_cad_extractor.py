@@ -44,33 +44,60 @@ except ImportError:
 
 
 class TCVN3Decoder:
-    """Bộ giải mã font tiếng Việt TCVN3 (.VnTime, .VnArial) trong bản vẽ AutoCAD sang Unicode UTF-8."""
-    
-    CHAR_MAP = {
+    """
+    Bộ giải mã font tiếng Việt TCVN3 (.VnTime, .VnTimeH, .VnArial, .VnArialH)
+    trong bản vẽ AutoCAD sang Unicode UTF-8 chuẩn, kết hợp làm sạch mã định dạng
+    MTEXT và ký hiệu đặc biệt AutoCAD (%%c -> Ø, %%p -> ±, %%d -> °, %%% -> %).
+    Dùng ánh xạ đơn ký tự (single-pass lookup) để tránh lỗi chồng lấp chuỗi.
+    """
+
+    LOWER_MAP = {
         'µ': 'à', '¸': 'á', '¶': 'ả', '·': 'ã', '¹': 'ạ',
-        '¨': 'ă', '¾': 'ắ', '»': 'ằ', '¼': 'ẳ', '½': 'ẵ', 'Æ': 'ặ',
-        '©': 'â', 'Ê': 'ấ', 'Ç': 'ầ', 'È': 'ẩ', 'É': 'ẫ', 'Ë': 'ậ',
-        'e': 'e', 'Ì': 'è', 'Ð': 'é', 'Î': 'ẻ', 'Ï': 'ẽ', 'Ñ': 'ẹ',
-        'ª': 'ê', 'Õ': 'ế', 'Ò': 'ề', 'Ó': 'ể', 'Ô': 'ễ', 'Ö': 'ệ',
-        'i': 'i', '×': 'ì', 'Ý': 'í', 'Ø': 'ỉ', 'Ü': 'ĩ', 'Þ': 'ị',
-        'o': 'o', 'ß': 'ò', 'ã': 'ó', 'á': 'ỏ', 'â': 'õ', 'ä': 'ọ',
-        '«': 'ô', 'è': 'ố', 'å': 'ồ', 'æ': 'ổ', 'ç': 'ỗ', 'é': 'ộ',
-        '¬': 'ơ', 'í': 'ớ', 'ê': 'ờ', 'ë': 'ở', 'ì': 'ỡ', 'î': 'ợ',
-        'u': 'u', 'ï': 'ù', 'ó': 'ú', 'ñ': 'ủ', 'ò': 'ũ', 'ô': 'ụ',
-        '®': 'ư', 'ứ': 'ứ', 'ừ': 'ừ', 'ử': 'ử', 'ữ': 'ữ', 'ự': 'ự',
-        'y': 'y', 'ú': 'ỳ', 'ý': 'ý', 'û': 'ỷ', 'ü': 'ỹ', 'þ': 'ỵ',
-        '®': 'đ', '§': 'Đ'
+        '¨': 'ă', '»': 'ằ', '¾': 'ắ', '¼': 'ẳ', '½': 'ẵ', 'Æ': 'ặ',
+        '©': 'â', 'Ç': 'ầ', 'Ê': 'ấ', 'È': 'ẩ', 'É': 'ẫ', 'Ë': 'ậ',
+        '®': 'đ', 'Ì': 'è', 'Ð': 'é', 'Î': 'ẻ', 'Ï': 'ẽ', 'Ñ': 'ẹ',
+        'ª': 'ê', 'Ò': 'ề', 'Õ': 'ế', 'Ó': 'ể', 'Ô': 'ễ', 'Ö': 'ệ',
+        '×': 'ì', 'Ý': 'í', 'Ø': 'ỉ', 'Ü': 'ĩ', 'Þ': 'ị',
+        'ß': 'ò', 'ã': 'ó', 'á': 'ỏ', 'â': 'õ', 'ä': 'ọ',
+        '«': 'ô', 'å': 'ồ', 'è': 'ố', 'æ': 'ổ', 'ç': 'ỗ', 'é': 'ộ',
+        '¬': 'ơ', 'ê': 'ờ', 'í': 'ớ', 'ë': 'ở', 'ì': 'ỡ', 'î': 'ợ',
+        'ï': 'ù', 'ó': 'ú', 'ñ': 'ủ', 'ò': 'ũ', 'ô': 'ụ',
+        '\xad': 'ư', 'õ': 'ừ', 'ø': 'ứ', 'ö': 'ử', '÷': 'ữ', 'ù': 'ự',
+        'ú': 'ỳ', 'ý': 'ý', 'û': 'ỷ', 'ü': 'ỹ', 'þ': 'ỵ',
+        '¡': 'Ă', '¢': 'Â', '§': 'Đ', '£': 'Ê', '¤': 'Ô', '¥': 'Ơ', '¦': 'Ư',
     }
 
+    UPPER_MAP = {k: v.upper() for k, v in LOWER_MAP.items()}
+
+    # Giữ tương thích ngược cho thuộc tính CHAR_MAP
+    CHAR_MAP = LOWER_MAP
+
     @classmethod
-    def decode(cls, text: str) -> str:
-        """Chuyển đổi xâu ký tự TCVN3 sang Unicode tiếng Việt chuẩn."""
+    def decode(cls, text: str, style_name: str = "") -> str:
+        """Chuyển đổi xâu ký tự TCVN3 & mã MTEXT AutoCAD sang Unicode tiếng Việt chuẩn."""
         if not text:
             return ""
-        result = text
-        for k, v in cls.CHAR_MAP.items():
-            result = result.replace(k, v)
-        return result
+        s = str(text)
+        # 1. Làm sạch mã định dạng MTEXT (\P, \f...;, \H...;, \S...\^...;)
+        s = s.replace("\\P", "\n").replace("\\~", " ")
+        s = re.sub(r"\\[ACcFfHhQqTtWw][^;]*;", "", s)
+        s = re.sub(r"\\[LlOoKk]", "", s)
+        s = re.sub(r"\\S([^;]*)\^([^;]*);", r"\1/\2", s)
+        s = s.replace("{", "").replace("}", "")
+        # 2. Giải mã đơn ký tự (single-pass) theo bảng mã TCVN3 nếu chưa phải Unicode dựng sẵn
+        if not any(ord(c) > 255 for c in s):
+            st = (style_name or "").upper()
+            is_upper_font = ("VNTIMEH" in st) or ("VNARIALH" in st) or st.endswith("H")
+            cmap = cls.UPPER_MAP if is_upper_font else cls.LOWER_MAP
+            s = "".join(cmap.get(ch, ch) for ch in s)
+            if is_upper_font:
+                s = s.upper()
+        # 3. Chuyển đổi ký hiệu đặc biệt của AutoCAD SAU khi giải mã TCVN3 (tránh 'Ø' trùng mã TCVN3 của 'ỉ')
+        s = re.sub(r"%%[cC]", "Ø", s)
+        s = re.sub(r"%%[pP]", "±", s)
+        s = re.sub(r"%%[dD]", "°", s)
+        s = s.replace("%%%", "%")
+        return s
 
 
 class AutoCADCOMConnector:
@@ -519,3 +546,105 @@ class AECCadExtractor:
                 cls_info["dxf_error"] = str(e)
         cls_info["status"] = "PROCESSED"
         return cls_info
+
+    @staticmethod
+    def expand_cad_entities(msp, crop_box: Tuple[float, float, float, float]) -> Tuple[list, list]:
+        """
+        Bung đệ quy toàn bộ thực thể hình học và chữ (bao gồm DIMENSION và INSERT virtual_entities)
+        trong vùng cắt (xmin, ymin, xmax, ymax), đồng thời giải mã TCVN3 sang Unicode UTF-8.
+        """
+        cx1, cy1, cx2, cy2 = crop_box
+        geom_list = []
+        text_list = []
+
+        def _process_entity(e, depth: int = 0):
+            if depth > 4:
+                return
+            tp = e.dxftype()
+            col = e.dxf.get("color", 7)
+            if tp == "LINE":
+                s, end = e.dxf.start, e.dxf.end
+                if (cx1 <= s.x <= cx2 or cx1 <= end.x <= cx2) and (cy1 <= s.y <= cy2 or cy1 <= end.y <= cy2):
+                    geom_list.append(("LINE", col, [(s.x, s.y), (end.x, end.y)]))
+            elif tp == "LWPOLYLINE":
+                pts = list(e.get_points("xy"))
+                if pts and any(cx1 <= px <= cx2 and cy1 <= py <= cy2 for px, py in pts):
+                    if e.closed:
+                        pts.append(pts[0])
+                    geom_list.append(("POLY", col, pts))
+            elif tp == "POLYLINE":
+                try:
+                    pts = [(v.dxf.location.x, v.dxf.location.y) for v in e.vertices]
+                    if pts and any(cx1 <= px <= cx2 and cy1 <= py <= cy2 for px, py in pts):
+                        if e.is_closed:
+                            pts.append(pts[0])
+                        geom_list.append(("POLY", col, pts))
+                except Exception:
+                    pass
+            elif tp == "CIRCLE":
+                c = e.dxf.center
+                r = e.dxf.radius
+                if cx1 - r <= c.x <= cx2 + r and cy1 - r <= c.y <= cy2 + r:
+                    geom_list.append(("CIRCLE", col, (c.x, c.y, r)))
+            elif tp == "ARC":
+                c = e.dxf.center
+                r = e.dxf.radius
+                if cx1 - r <= c.x <= cx2 + r and cy1 - r <= c.y <= cy2 + r:
+                    geom_list.append(("ARC", col, (c.x, c.y, r, e.dxf.start_angle, e.dxf.end_angle)))
+            elif tp in ("TEXT", "MTEXT"):
+                ins = e.dxf.get("insert", None)
+                if ins and cx1 <= ins.x <= cx2 and cy1 <= ins.y <= cy2:
+                    raw = e.dxf.get("text", "") if tp == "TEXT" else getattr(e, "text", "")
+                    style = e.dxf.get("style", "")
+                    h_cad = e.dxf.get("height", 180.0) if tp == "TEXT" else e.dxf.get("char_height", 180.0)
+                    rot = e.dxf.get("rotation", 0.0)
+                    txt = TCVN3Decoder.decode(raw, style).strip()
+                    if txt:
+                        text_list.append((ins.x, ins.y, txt, h_cad, rot, col))
+            elif tp in ("DIMENSION", "INSERT"):
+                try:
+                    for sub_e in e.virtual_entities():
+                        _process_entity(sub_e, depth + 1)
+                except Exception:
+                    pass
+
+        for ent in msp:
+            try:
+                _process_entity(ent, 0)
+            except Exception:
+                continue
+        return geom_list, text_list
+
+    @staticmethod
+    def embed_diagrams_to_excel(
+        excel_path: str,
+        sheet_images: Dict[str, List[Tuple[str, str, int, int]]]
+    ) -> bool:
+        """
+        Nhúng danh sách sơ đồ hình học / bản vẽ CAD (.png) trực tiếp vào các sheet của tệp Excel (.xlsx).
+        sheet_images = {"TEN_SHEET": [(duong_dan_png, o_neo_anchor, chieu_rong_px, chieu_cao_px), ...]}
+        """
+        try:
+            import openpyxl
+            from openpyxl.drawing.image import Image as XLImage
+        except ImportError:
+            return False
+
+        if not os.path.exists(excel_path):
+            return False
+
+        wb = openpyxl.load_workbook(excel_path)
+        for sheet_name, items in sheet_images.items():
+            if sheet_name not in wb.sheetnames:
+                continue
+            ws = wb[sheet_name]
+            ws._images.clear()
+            for img_path, anchor_cell, w_px, h_px in items:
+                if os.path.exists(img_path):
+                    img = XLImage(img_path)
+                    img.width = w_px
+                    img.height = h_px
+                    ws.add_image(img, anchor_cell)
+        wb.save(excel_path)
+        return True
+
