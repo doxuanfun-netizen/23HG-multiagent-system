@@ -160,6 +160,10 @@ def apply_concrete(ws, cfg: dict, pages, flags: List[NghiVan]) -> List[int]:
     src = {17: 14, 18: 15, 19: 16}
     prev = None
     for r in rows:
+        c_val = ws.cell(r, 3).value
+        if isinstance(c_val, str) and c_val.startswith("=") and "Danh mục công việc" in c_val and "IF(" not in c_val:
+            ref = c_val[1:].lstrip("+")
+            ws.cell(r, 3).value = f'=IF({ref}="","",{ref})'
         for col, step in steps.items():
             c = get_column_letter(C(src[col]))
             cur, before = f"{c}{r}", (f"{c}{prev}" if prev else None)
@@ -330,7 +334,7 @@ def apply_steel(ws, groups: List[Tuple[str, List[SteelRow]]], cfg: dict, flags: 
                 ws.cell(r, c, v)
             ws.cell(r, 11, f"=ROUND(H{r}*I{r}*J{r}, 2)")
             ws.cell(r, 12, f"=ROUND(K{r}/1000, 3)")
-            ws.cell(r, 13, f'=IF(AO{r}="","",IF(INDEX({bt_sheet}!$C:$C,AO{r})="","",'
+            ws.cell(r, 13, f'=IF(AO{r}="","",IF(N(INDEX({bt_sheet}!$C:$C,AO{r}))<=0,"",'
                            f'INDEX({bt_sheet}!$C:$C,AO{r})-VLOOKUP(AN{r},$AQ$2:$AR$7,2,FALSE)))')
             ws.cell(r, 13).number_format = fmt_data.get(13, "dd/mm/yyyy")
             for key, col in STEEL_COLS.items():
@@ -510,7 +514,9 @@ def apply_dm(ws, bt_sheet: str, steel_sheet: str, conc_events, steel_events, fla
             ws.cell(r, 3, f'="Lấy mẫu tần suất: "&Tong_Hop_Tan_Suat_Vat_Lieu!B{TONG_HOP_ROW[col]}')
             ws.cell(r, 7, f"={steel_sheet}!M{src}")
             ws.cell(r, 11, f'="Lần {n} - "&{steel_sheet}!B{src}&" - "&{steel_sheet}!C{src}')
-        ws.cell(r, 6, f'=IF(G{r}="","",G{r}-1)')
+        ws.cell(r, 6, f'=IF(N(G{r})<=0,"",G{r}-1)')
+        ws.cell(r, 8, f'=IF(N(F{r})<=0,"","PYC/09-XL-307HG/TS/"&TEXT(F{r},"d.m.yyyy")&"/"&TEXT(N{r},"00"))')
+        ws.cell(r, 9, f'=IF(N(G{r})<=0,"","NTCV/09-XL-307HG/TS/"&TEXT(G{r},"d.m.yyyy")&"/"&TEXT(N{r},"00"))')
         r += 1
     flags.append(NghiVan(ws.title, None, "Danh mục lấy mẫu", f"Sinh lại theo các lần lấy mẫu mới: {len(events)} dòng "
                                                              f"(cũ {old_n}). Ngày lấy mẫu trống khi đợt đổ chưa có ngày "
@@ -519,12 +525,44 @@ def apply_dm(ws, bt_sheet: str, steel_sheet: str, conc_events, steel_events, fla
     return len(events)
 
 
+def apply_dmcv(ws, conc_events, steel_events, cfg: dict):
+    """Đồng bộ cột AX (GHI CHÚ lượt mẫu theo dõi BT/Thép) trên sheet Danh mục công việc."""
+    ts = cfg["tan_suat"]
+    xm = [f"Lần {n} [BT {r}]" for r, col, n in conc_events if col == 17]
+    cat = [f"Lần {n} [BT {r}]" for r, col, n in conc_events if col == 18]
+    da = [f"Lần {n} [BT {r}]" for r, col, n in conc_events if col == 19]
+    thep = [f"{'Cáp 15.2' if k == 'cap' else f'Ø{k}'} Lần {n} [Thép {r}]" for r, k, n in steel_events]
+    if ws.max_row >= 18:
+        ws.cell(15, 50, f"Xi măng ({ts['xi_mang_tan']} tấn): " + " → ".join(xm))
+        ws.cell(16, 50, f"Cát ({ts['cat_m3']} m³): " + " → ".join(cat))
+        ws.cell(17, 50, f"Đá ({ts['da_m3']} m³): " + " → ".join(da))
+        ws.cell(18, 50, f"Thép (riêng từng Ø, {ts['thep_tan']} tấn): " + " → ".join(thep))
+    by_bt: Dict[int, List[str]] = {}
+    col_names = {17: "xi măng", 18: "cát", 19: "đá"}
+    for r_bt, col, n in conc_events:
+        by_bt.setdefault(r_bt, []).append(f"{col_names[col]} Lần {n}")
+    for r in range(19, ws.max_row + 1):
+        ax = ws.cell(r, 50).value
+        if not isinstance(ax, str) or "[BT" not in ax:
+            continue
+        bt_nums = [int(m) for m in re.findall(r"\[BT(?:\s+dòng)?\s+(\d+)\]", ax)]
+        if len(bt_nums) == 1:
+            btr = bt_nums[0]
+            prefix = ax.split(":")[0].split("[BT")[0].strip()
+            ev_txt = "; ".join(by_bt.get(btr, []))
+            if ev_txt:
+                ws.cell(r, 50, f"{prefix}: {ev_txt} [BT dòng {btr}].")
+            else:
+                ws.cell(r, 50, f"{prefix} [BT dòng {btr}]: chưa đến ngưỡng phát sinh lượt mẫu xi măng/cát/đá; "
+                               f"mẫu bê tông cấu kiện vẫn theo F{r}.")
+
+
 def apply_ban_ve(wb, config: str = DEFAULT_CONFIG, ngay: Optional[str] = None,
                  bt_dates: Optional[Dict[int, object]] = None) -> dict:
     """Sửa cả workbook tần suất theo bản vẽ: bê tông, thép từ BBS, TH_Thep_BQD_GLC/Bang_Nhap_Thep (nếu có), tổng hợp,
-    DM (nếu có) và sheet NGHI_VAN. Dùng chung cho bộ sinh (tools/generate_tan_suat_thi_nghiem_excel.py) và script sửa
-    file của đơn vị (examples/sua_tan_suat_km19_theo_ban_ve.py). bt_dates: {dòng bê tông: ngày đổ} để xếp thép theo
-    thời gian; không có thì giữ thứ tự hạng mục."""
+    DM (nếu có), Danh mục công việc (nếu có) và sheet NGHI_VAN. Dùng chung cho bộ sinh
+    (tools/generate_tan_suat_thi_nghiem_excel.py) và script sửa file của đơn vị (examples/sua_tan_suat_km19_theo_ban_ve.py).
+    bt_dates: {dòng bê tông: ngày đổ} để xếp thép theo thời gian; không có thì giữ thứ tự hạng mục."""
     from tools.bbs_reconcile import load_pages, read_bbs
 
     with open(config, encoding="utf-8") as f:
@@ -545,7 +583,16 @@ def apply_ban_ve(wb, config: str = DEFAULT_CONFIG, ngay: Optional[str] = None,
     cap_ban_ve = resolve_f(cfg["cap_dul_ban_ve_tan"], pages)[0]
     apply_tong_hop(wb[cfg["sheet_tong_hop"]], cfg["sheet_thep"], steel_total, cfg, flags, cap_ban_ve, cap_bbs)
     n_dm = apply_dm(wb["DM"], cfg["sheet_be_tong"], cfg["sheet_thep"], conc_ev, steel_ev, flags) if "DM" in wb.sheetnames else 0
+    if "Danh mục công việc" in wb.sheetnames:
+        apply_dmcv(wb["Danh mục công việc"], conc_ev, steel_ev, cfg)
     if "BBLM" in wb.sheetnames:
+        ws_b = wb["BBLM"]
+        for r_off, r_b in ((1, 16), (2, 17)):
+            if isinstance(ws_b.cell(r_b, 3).value, str) and "[12]" in ws_b.cell(r_b, 3).value:
+                ws_b.cell(r_b, 3, f"=+_xlfn.XLOOKUP(N4+{r_off},DM!$A$14:$A$1000,DM!$D$14:$D$1000)")
+                ws_b.cell(r_b, 4, f"=+_xlfn.XLOOKUP(N4+{r_off},DM!$A$14:$A$1000,DM!$G$14:$G$1000)")
+                ws_b.cell(r_b, 5, f"=+_xlfn.XLOOKUP(N4+{r_off},DM!$A$14:$A$1000,DM!$C$14:$C$1000)")
+                ws_b.cell(r_b, 9, f"=+_xlfn.XLOOKUP(N4+{r_off},DM!$A$14:$A$1000,DM!$L$14:$L$1000)")
         flags.append(NghiVan("BBLM", 4, "Nút chọn phiếu", "Nút xoay (spinner) chọn số phiếu không giữ được khi công cụ lưu "
                                                           "file — nhập số thứ tự phiếu vào ô N4, hoặc chép sheet BBLM từ "
                                                           "file gốc sang."))

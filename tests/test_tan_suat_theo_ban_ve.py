@@ -70,6 +70,12 @@ def build_workbook(path):
         dm.cell(13, c, v)
     dm["A14"], dm["B14"], dm["C14"], dm["G14"] = 1, "Phần cầu", f'="Lấy mẫu: "&{TH}!B6', f"={BT}!C4"
     dm["N14"] = '=IFERROR(VALUE(MID(K14,FIND("Lần ",K14)+4,FIND(" -",K14)-FIND("Lần ",K14)-4)),"")'
+    dmcv = wb.create_sheet("Danh mục công việc", 0)
+    for r in range(15, 19):
+        dmcv.cell(r, 1, "LMDV")
+    dmcv.cell(25, 1, "LMHT")
+    dmcv.cell(25, 50, "Thân trụ T1 Đốt 1 [BT dòng 5]: cũ")
+    bt["C5"] = "='Danh mục công việc'!S25"
     wb.save(path)
 
 
@@ -121,6 +127,16 @@ class FrequencyWorkbookTest(unittest.TestCase):
         self.assertTrue(all(str(dm.cell(r, 11).value).startswith('="Lần ') for r in rows))
         self.assertNotIn("K14", dm["N15"].value)                       # công thức dòng mẫu đổi theo dòng mới
         self.assertIn("K15", dm["N15"].value)
+
+    def test_dm_and_dmcv_no_1900_or_value_error(self):
+        bt, dm, dmcv = self.wb[BT], self.wb[DM], self.wb["Danh mục công việc"]
+        self.assertEqual(bt["C5"].value, "=IF('Danh mục công việc'!S25=\"\",'','Danh mục công việc'!S25)".replace("''", '""'))
+        self.assertIn("N(G14)<=0", dm["F14"].value)
+        self.assertIn("N(F14)<=0", dm["H14"].value)
+        self.assertIn("N(G14)<=0", dm["I14"].value)
+        self.assertIn("Xi măng (50 tấn): Lần 1 [BT 4]", dmcv.cell(15, 50).value)
+        self.assertIn("Thép (riêng từng Ø, 20 tấn):", dmcv.cell(18, 50).value)
+        self.assertIn("[BT dòng 5]", dmcv.cell(25, 50).value)
 
     def test_review_sheet(self):
         nv = self.wb["NGHI_VAN"]

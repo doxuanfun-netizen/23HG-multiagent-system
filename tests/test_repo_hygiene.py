@@ -27,6 +27,8 @@ MAX_TRACKED_BYTES = 1024 * 1024            # 1 MB
 ALLOWED_LARGE_PREFIXES = {
     "examples/HO_SO_CAU_KM19_529/02_XUONG_TIEN_CHE_COT_THEP/":
         "bộ cắt thép giao xưởng theo từng Ø: một RebarCut + một lệnh cắt CNC cho mỗi Ø, Master và bảng tổng hợp",
+    "examples/HO_SO_CAU_KM19_529/03_KINH_TE_QS_DU_TOAN_THANH_TOAN/":
+        "bộ bóc tách tiên lượng cầu Km19 kèm hình ảnh sơ đồ hình học CAD nhúng trực tiếp trong Excel",
     "examples/HO_SO_CAU_KM19_529/05_DU_LIEU_GOC_SCAN_MARKER/":
         "dữ liệu gốc scan marker của cầu Km19 (du_lieu.json, bang_so_lieu.json)",
 }

@@ -18,7 +18,7 @@
 - **Đọc được file thật:** BBS (Excel/CSV/JSON), tiến độ MS Project XML/Excel/CSV, bảng QS/BOQ, phiếu thí nghiệm, IFC (qua `ifcopenshell`), DXF (qua `ezdxf`).
 
 ### Những gì đã được kiểm chứng
-- `python -m unittest discover -s tests -t .`: 340 test đạt (4 test bỏ qua khi thiếu thư viện tùy chọn), gồm các phép tính tay độc lập cho tiền, đo bóc và hồ sơ mẫu; CI chạy trên Ubuntu (Python 3.10, 3.12) và Windows (Python 3.11). Test chưa phủ hết: ví dụ lỗi cú pháp trong `tools/qs_export.py` (làm `--qs-out` hỏng) tồn tại từ commit `8a90ad4` mà không test nào bắt được, đến nay mới sửa và bổ sung test.
+- `python -m unittest discover -s tests -t .`: 473 test đạt (4 test bỏ qua khi thiếu thư viện tùy chọn), gồm các phép tính tay độc lập cho tiền, đo bóc hình học CAD (Super-T 8 mặt cắt, trụ đặc có loe 3 đốt), giải mã TCVN3/VNI, nhúng sơ đồ PNG vào Excel, tần suất lấy mẫu 11 sheet và hồ sơ mẫu; CI chạy trên Ubuntu (Python 3.10, 3.12) và Windows (Python 3.11).
 - Chạy `--demo` đủ 8 pha (CAD → cắt thép → QS → QA/QC → Human Gate → CPM → ca máy → As-Built) không lỗi.
 - Solver cắt thép tách theo từng Ø và mác thép, tính lưỡi cắt, báo **cận dưới** số cây (`OPTIMAL` nghĩa là đã chứng minh không dùng ít hơn được cho các thanh đã lập kế hoạch; thanh dài hơn cây mà chưa có vùng cho phép nối được liệt kê riêng là "chưa lập kế hoạch").
 - Quét tĩnh các file Excel mẫu bằng `python -m tools.audit_excels_static <thư_mục>` (không cần Excel): không có mã lỗi công thức, không có tham chiếu tới sheet không tồn tại. Quality Gate khi xuất hồ sơ cũng kiểm tra điều này.
@@ -320,6 +320,17 @@ python examples/sua_du_toan_03a_km19_theo_ban_ve.py  # 08 dự toán + 09 Phụ 
 > - Tr.40 (Mố M2): **chính bản vẽ ghi 0 kg** cho W6, W7, W9 dù có dài và số lượng (237,05 kg). Chủ dự án quyết định (11/10/2026) tính các thanh này: BBS gia công, dự toán = 19,649 + 0,237 t, harness đối chiếu với 19.885,78 kg (cấu hình `tinh_dong_ban_ve_ghi_0`).
 > - Còn mở: nhiều hạng mục có trên bản vẽ nhưng dự toán chưa có (thép bản quá độ, dầm ngang, gờ lan can, khe co giãn...). Xem sheet `NGHI_VAN`.
 > - **Lưu ý:** các script đóng gói cũ (`examples/build_km19_529_*`, `tools/reorganize_dream_team_km19.py`) có thể chép đè các file này từ `templates/` (bản chưa sửa). Chạy lại hai script trên sau khi đóng gói.
+
+#### a4f. Chuẩn hóa Sổ Theo dõi Tần suất Thí nghiệm 11 Sheet & Bóc tách CAD kèm Sơ đồ Nhúng Excel (Km19):
+```powershell
+# 1. Chuẩn hóa sổ theo dõi tần suất thí nghiệm 10-11 sheet của đơn vị thi công theo bản vẽ thẩm định:
+python examples/sua_tan_suat_km19_theo_ban_ve.py --vao "Bang_Theo_Doi_Tan_Suat_Goc.xlsx" --ra "Bang_Theo_Doi_Tan_Suat_Chuan.xlsx"
+
+# 2. Sinh mới sổ tần suất từ dữ liệu HSTK & đồng bộ vào repo:
+python tools/generate_tan_suat_thi_nghiem_excel.py
+```
+> - **Sổ theo dõi tần suất 11 sheet thực tế** ([`Bang_Theo_Doi_Tan_Suat_Thi_Nghiem_Km19_theo_ban_ve.xlsx`](examples/HO_SO_CAU_KM19_529/01_HIEN_TRUONG_QLCL_KCS/Bang_Theo_Doi_Tan_Suat_Thi_Nghiem_Km19_theo_ban_ve.xlsx)): Đồng bộ xuyên suốt `Danh mục công việc` (cột `AX` truy vết lượt mẫu `LMDV`/`LMHT`), `Theo_Doi_Tan_Suat_Be_Tong`, `Theo_Doi_Tan_Suat_Cot_Thep` (781 dòng thép tách riêng từng cọc CKN kèm thanh treo lồng `P11`), `Tong_Hop_Tan_Suat_Vat_Lieu`, `DM` (78 sự kiện lấy mẫu), `BBLM` (Phiếu yêu cầu + Biên bản lấy mẫu tra cứu `XLOOKUP`), `TH_Thep_BQD_GLC`, `Bang_Nhap_Thep PA1/PA4` và `NGHI_VAN`. Tự động chặn lỗi ngày `0.1.1900`/`#VALUE!` khi đợt đổ chưa có ngày và làm sạch liên kết ngoài (`tools/office_scrub.py`).
+> - **Bộ 6 file Excel bóc tách hình học CAD kèm sơ đồ nhúng trực tiếp** (`examples/HO_SO_CAU_KM19_529/03_KINH_TE_QS_DU_TOAN_THANH_TOAN/`): Tích hợp bộ giải mã `TCVN3Decoder` (single-pass lookup, hỗ trợ chữ hoa `.VnTimeH` và ký hiệu CAD `%%c`/`%%p`/`%%d`), bung đệ quy `DIMENSION`/`INSERT` (`virtual_entities()`), tích phân đa mặt cắt dầm Super-T (8 mặt cắt `MC1..MC5`), công thức thân trụ đặc vát loe 3 đốt (`234,92 m³` T1 và `266,79 m³` T2) và nhúng trực tiếp 10 sơ đồ hình học CAD độ phân giải cao (`300 DPI`) vào từng sheet Excel.
 
 #### a5. Điều phối Ca xe, Ca máy & Kế hoạch Nhiên liệu Dầu Diezel:
 Chức năng hiện có qua API Python [`tools/equipment_fleet_scheduler.py`](tools/equipment_fleet_scheduler.py); xem cách tạo `FleetTask`, tính lịch và xuất Excel/XML trong [`tests/test_equipment_fleet_scheduler.py`](tests/test_equipment_fleet_scheduler.py). Supervisor chưa có pha `fleet`.
