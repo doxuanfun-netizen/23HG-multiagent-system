@@ -35,17 +35,16 @@ EXAMPLES_DIR = os.path.join(ROOT_DIR, "examples")
 if EXAMPLES_DIR not in sys.path:
     sys.path.insert(0, EXAMPLES_DIR)
 
+from examples._paths import project_path
 from tools.cutting_stock_solver import CuttingStockSolver, CutDemand, rebar_unit_weight_kg_m, STANDARD_BAR_LENGTH_MM
 from tools.rebarcut_export import write_rebarcut_workbook
 from generate_khai_hoang_2_project import generate_khai_hoang_2_master_package
 
-USER_DOWNLOAD_DIR = os.path.join(os.path.expanduser("~"), "Downloads", r"Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
-SYSTEM_PROJECT_DIR = os.path.join(ROOT_DIR, "du_lieu_du_an", "Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
-_SCAN_JSON_USER = os.path.join(USER_DOWNLOAD_DIR, "05_DU_LIEU_GOC_SCAN_MARKER", "bang_so_lieu.json")
+USER_DOWNLOAD_DIR = project_path("Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
+SYSTEM_PROJECT_DIR = USER_DOWNLOAD_DIR
 _SCAN_JSON_SYS = os.path.join(SYSTEM_PROJECT_DIR, "05_DU_LIEU_GOC_SCAN_MARKER", "bang_so_lieu.json")
-_ROOT_JSON_USER = os.path.join(USER_DOWNLOAD_DIR, "bang_so_lieu.json")
 _ROOT_JSON_SYS = os.path.join(SYSTEM_PROJECT_DIR, "bang_so_lieu.json")
-SOURCE_JSON = next((p for p in (_SCAN_JSON_USER, _ROOT_JSON_USER, _SCAN_JSON_SYS, _ROOT_JSON_SYS) if os.path.exists(p)), _ROOT_JSON_USER)
+SOURCE_JSON = next((p for p in (_SCAN_JSON_SYS, _ROOT_JSON_SYS) if os.path.exists(p)), _ROOT_JSON_SYS)
 
 # Unit weights (TCVN 1651:2018)
 UNIT_WEIGHT = {
@@ -109,8 +108,9 @@ def clean_dia(text):
     m = re.search(r'(\d{1,2})', str(text or '').replace('Φ', '').replace('Ø', '').replace('D', ''))
     return int(m.group(1)) if m and int(m.group(1)) in UNIT_WEIGHT else None
 
-def load_all_bbs():
-    with open(SOURCE_JSON, encoding='utf-8') as f:
+def load_all_bbs(json_path: str = None):
+    src = json_path or SOURCE_JSON
+    with open(src, encoding='utf-8') as f:
         tables = json.load(f)
 
     BBS_TABLES = [
@@ -258,20 +258,30 @@ def create_master_rebar_dashboard(path: str, summary_rows: list) -> None:
         tot_reusable += item["reusable_m"]
         row += 1
 
-    # Dòng Tổng cộng
+    # Dòng Tổng cộng (tính từ dữ liệu thực và công thức sống Excel)
+    first_r = 7
+    last_r = max(first_r, row - 1)
+    n_total = len(summary_rows)
+    n_opt = sum(1 for x in summary_rows if str(x.get("status", "")).upper() == "OPTIMAL")
+    computed_status = (
+        f"OPTIMAL ({n_opt}/{n_total})"
+        if n_total > 0 and n_opt == n_total
+        else f"FEASIBLE ({n_opt}/{n_total} OPTIMAL)" if n_total > 0 else "EMPTY"
+    )
+
     ws.cell(row, 2, "TỔNG CỘNG").alignment = Alignment(horizontal="center")
     ws.cell(row, 3, "")
     ws.cell(row, 4, "TOÀN BỘ CÔNG TRÌNH CẦU KHAI HOANG 2 (KM14+363.65)")
-    ws.cell(row, 5, tot_qty).number_format = "#,##0"
-    ws.cell(row, 6, tot_len).number_format = "#,##0.00"
-    ws.cell(row, 7, tot_bars).number_format = "#,##0"
-    ws.cell(row, 8, tot_weight).number_format = "#,##0.0"
-    ws.cell(row, 9, tot_waste).number_format = "#,##0.00"
-    ws.cell(row, 10, (tot_waste / (tot_bars * 11.7)) if tot_bars else 0).number_format = "0.00%"
-    ws.cell(row, 11, sum(x["patterns_count"] for x in summary_rows)).alignment = Alignment(horizontal="center")
-    ws.cell(row, 12, tot_reusable).number_format = "#,##0.00"
-    ws.cell(row, 13, "Đồng bộ bãi gia công 10 trạm CNC")
-    ws.cell(row, 14, "HOÀN TẤT TỐI ƯU").alignment = Alignment(horizontal="center")
+    ws.cell(row, 5, f"=SUM(E{first_r}:E{last_r})" if n_total else 0).number_format = "#,##0"
+    ws.cell(row, 6, f"=SUM(F{first_r}:F{last_r})" if n_total else 0).number_format = "#,##0.00"
+    ws.cell(row, 7, f"=SUM(G{first_r}:G{last_r})" if n_total else 0).number_format = "#,##0"
+    ws.cell(row, 8, f"=SUM(H{first_r}:H{last_r})" if n_total else 0).number_format = "#,##0.0"
+    ws.cell(row, 9, f"=SUM(I{first_r}:I{last_r})" if n_total else 0).number_format = "#,##0.00"
+    ws.cell(row, 10, f"=IF(G{row}>0,I{row}/(G{row}*11.7),0)" if n_total else 0).number_format = "0.00%"
+    ws.cell(row, 11, f"=SUM(K{first_r}:K{last_r})" if n_total else 0).alignment = Alignment(horizontal="center")
+    ws.cell(row, 12, f"=SUM(L{first_r}:L{last_r})" if n_total else 0).number_format = "#,##0.00"
+    ws.cell(row, 13, f"Đồng bộ bãi gia công {n_total} nhóm đường kính")
+    ws.cell(row, 14, computed_status).alignment = Alignment(horizontal="center")
 
     for c in range(2, last_col + 1):
         cell = ws.cell(row, c)
@@ -821,10 +831,8 @@ def run_pipeline():
 
     # 7. Đồng bộ 100% cấu trúc DREAM TEAM 6 PHÂN HỆ sang du_lieu_du_an & Marker_2
     print("\n[BƯỚC 6/6] Đồng bộ toàn bộ cây thư mục DREAM TEAM 6 PHÂN HỆ sang workspace 23HG...")
-    marker_2_dir = os.path.join(os.path.expanduser("~"), "Downloads", "Documents", "Cầu thôn Khai Hoang 2, Km 14+363.65_Marker_2")
-    sync_targets = [SYSTEM_PROJECT_DIR]
-    if os.path.isdir(marker_2_dir):
-        sync_targets.append(marker_2_dir)
+    marker_2_dir = project_path("Cầu thôn Khai Hoang 2, Km 14+363.65_Marker_2")
+    sync_targets = [t for t in (SYSTEM_PROJECT_DIR, marker_2_dir) if os.path.isdir(t) and os.path.abspath(t) != os.path.abspath(USER_DOWNLOAD_DIR)]
 
     dream_folder_names = {
         "00_BAN_CHI_HUY_MASTER",

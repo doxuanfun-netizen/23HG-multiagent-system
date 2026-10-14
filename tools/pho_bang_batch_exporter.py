@@ -34,9 +34,11 @@ from tools.pho_bang_master_builder import (
 from tools.package_dispatcher import AECPackageDispatcher
 
 
+from examples._paths import project_path
+
 # Đường dẫn dữ liệu trên máy người chạy: lấy từ tham số dòng lệnh hoặc biến môi trường, không ghi cứng trong repo.
 BASE_MARKDOWN_DIR = os.environ.get("AEC_PHO_BANG_DIR", "")            # thư mục "Hồ sơ markdown" của 25 dự án
-DL_DIR = os.environ.get("AEC_DL_DIR", os.path.join(os.path.expanduser("~"), "Downloads", "Documents", "Trường liên cấp phố bảng_Marker"))
+DL_DIR = os.environ.get("AEC_DL_DIR", project_path("Trường liên cấp phố bảng_Marker"))
 MASTER_XLSM_PATH = os.environ.get("AEC_PHO_BANG_MASTER_XLSM", "")    # file Master .xlsm của dự án
 
 

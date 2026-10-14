@@ -1780,8 +1780,8 @@ def run_all_builders(target_dir: str):
 
 if __name__ == "__main__":
     import sys
-    target = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
-        os.path.expanduser("~"), "Downloads", "Documents", "Trường liên cấp phố bảng_Marker",
-        "5. Cải tạo Nhà bếp ăn (Nhà 17và 17A) ok_Marker"
+    from examples._paths import project_path
+    target = sys.argv[1] if len(sys.argv) > 1 else project_path(
+        "Trường liên cấp phố bảng_Marker/5. Cải tạo Nhà bếp ăn (Nhà 17và 17A) ok_Marker"
     )
     run_all_builders(target)

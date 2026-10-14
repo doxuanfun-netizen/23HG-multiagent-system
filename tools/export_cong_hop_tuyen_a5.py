@@ -37,8 +37,9 @@ def get_project_def() -> ProjectDefinition:
     )
 
 def export_cong_hop():
+    from examples._paths import project_path
     proj = get_project_def()
-    target_dir = os.environ.get("AEC_PROJECTS_DIR", os.path.join(os.path.expanduser("~"), "Downloads", "Documents", "2026.09.12.OLP_SD_HT_ChiTietCongHop+TamGiamTai Model (1)_Marker"))
+    target_dir = project_path("2026.09.12.OLP_SD_HT_ChiTietCongHop+TamGiamTai Model (1)_Marker")
     
     d_st = proj.start_date
     

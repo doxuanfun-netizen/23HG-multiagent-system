@@ -1,9 +1,15 @@
-# -*- coding: utf-8 -*-
 import os
 import shutil
+import sys
 
-USER_DIR = os.path.join(os.path.expanduser("~"), "Downloads", r"Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
-SYS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), r"du_lieu_du_an\Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
+from examples._paths import project_path
+
+USER_DIR = project_path("Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
+SYS_DIR = USER_DIR
 
 THUYET_MINH_MD = r"""# THUYẾT MINH BIỆN PHÁP TỔ CHỨC THI CÔNG KỸ THUẬT
 ## CÔNG TRÌNH: CẦU THÔN KHAI HOANG 2, KM 14+363.65 (LÝ TRÌNH KM14+363.35)

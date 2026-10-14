@@ -1296,10 +1296,10 @@ def build_bep_an_3tier_fleet_workbook(
 
 if __name__ == "__main__":
     import sys
-    target = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
-        os.path.expanduser("~"), "Downloads", "Documents", "Trường liên cấp phố bảng_Marker",
-        "5. Cải tạo Nhà bếp ăn (Nhà 17và 17A) ok_Marker",
-        "03_HO_SO_THUC_CHIEN_HUB_AND_SPOKE_5_GOI_VE_TINH", "GOI_A_CO_GIOI_VA_DAU_DIEZEL",
+    from examples._paths import project_path
+    target = sys.argv[1] if len(sys.argv) > 1 else project_path(
+        "Trường liên cấp phố bảng_Marker/5. Cải tạo Nhà bếp ăn (Nhà 17và 17A) ok_Marker/"
+        "03_HO_SO_THUC_CHIEN_HUB_AND_SPOKE_5_GOI_VE_TINH/GOI_A_CO_GIOI_VA_DAU_DIEZEL/"
         "TDTC_CaXe_CaMay_DauDiezel_5._Cải_tạo_Nhà_bếp_ăn_(Nhà_17và_17A).xlsx"
     )
     build_bep_an_3tier_fleet_workbook(target)

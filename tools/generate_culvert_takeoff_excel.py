@@ -8,11 +8,20 @@ Tự động xuất bảng tính Excel Bóc tách khối lượng 1 đốt (1m d
 """
 
 import os
+import sys
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 
-output_file = os.environ.get("AEC_OUTPUT_FILE", os.path.join(os.path.expanduser("~"), "Downloads", "Documents", "2026.09.12.OLP_SD_HT_ChiTietCongHop+TamGiamTai Model (1)_Marker", "Boc_Tach_Khoi_Luong_1m_Dot_Cong_A5.xlsx"))
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+from examples._paths import project_path
+
+output_file = os.environ.get(
+    "AEC_OUTPUT_FILE",
+    project_path("2026.09.12.OLP_SD_HT_ChiTietCongHop+TamGiamTai Model (1)_Marker/Boc_Tach_Khoi_Luong_1m_Dot_Cong_A5.xlsx"),
+)
 
 wb = openpyxl.Workbook()
 wb.remove(wb.active)  # Remove default sheet
