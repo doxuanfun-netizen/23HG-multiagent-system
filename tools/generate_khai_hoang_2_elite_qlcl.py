@@ -991,7 +991,8 @@ if __name__ == "__main__":
     ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if ROOT not in sys.path:
         sys.path.insert(0, ROOT)
-    out_dir = os.path.join(ROOT, "du_lieu_du_an", "Cầu thôn Khai Hoang 2, Km 14+363.65_Marker", "01_HIEN_TRUONG_QLCL_KCS")
+    from examples._paths import project_path
+    out_dir = project_path("Cầu thôn Khai Hoang 2, Km 14+363.65_Marker/01_HIEN_TRUONG_QLCL_KCS")
     build_tan_suat_khai_hoang_2(os.path.join(out_dir, "Bang_Theo_Doi_Tan_Suat_Thi_Nghiem_Be_Tong_Va_Thep_Cau_Khai_Hoang_2.xlsx"))
     build_visual_asbuilt_khai_hoang_2(
         os.path.join(out_dir, "So_Do_Tien_Do_Truc_Quan_AsBuilt_Cau_Khai_Hoang_2.xlsx"),

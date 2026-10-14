@@ -1060,7 +1060,8 @@ REPO_OUT = os.path.join(REPO_HSTK, "01_HIEN_TRUONG_QLCL_KCS", "Bang_Theo_Doi_Tan
 def _base_marker() -> str:
     if os.environ.get("AEC_PROJECTS_DIR"):
         return os.environ["AEC_PROJECTS_DIR"]
-    local = os.path.join(os.path.expanduser("~"), "Downloads", "HSTK Cầu Km19+529.080_Marker")
+    from examples._paths import project_path
+    local = project_path("HSTK Cầu Km19+529.080_Marker")
     return local if os.path.isdir(local) else REPO_HSTK
 
 

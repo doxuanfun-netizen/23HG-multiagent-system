@@ -4,21 +4,29 @@
 """
 import os
 import shutil
-import win32com.client
+import sys
 
-CODE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-SRC_XLSM = os.path.join(CODE_ROOT, r"RebarCut_V6\RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm")
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
+from examples._paths import project_path
+
+REBARCUT_DIR = os.environ.get("AEC_REBARCUT_DIR", project_path("RebarCut_V6"))
+SRC_XLSM = os.path.join(REBARCUT_DIR, "RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm")
+PROJ_DIR = project_path("Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
 
 TARGETS = [
-    os.path.join(os.path.expanduser("~"), "Downloads", r"Cầu thôn Khai Hoang 2, Km 14+363.65_Marker\RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm"),
-    os.path.join(os.path.expanduser("~"), "Downloads", r"Cầu thôn Khai Hoang 2, Km 14+363.65_Marker\01_HE_THONG_CAT_THEP_REBARCUT\RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm"),
-    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), r"du_lieu_du_an\Cầu thôn Khai Hoang 2, Km 14+363.65_Marker\RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm")
+    os.path.join(PROJ_DIR, "RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm"),
+    os.path.join(PROJ_DIR, "02_XUONG_TIEN_CHE_COT_THEP", "RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm"),
 ]
 
-CSV_FOLDER = os.path.join(os.path.expanduser("~"), "Downloads", r"Cầu thôn Khai Hoang 2, Km 14+363.65_Marker\01_HE_THONG_CAT_THEP_REBARCUT\CSV_XUAT_XUONG")
-CSV_FOLDER_PROJECT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), r"du_lieu_du_an\Cầu thôn Khai Hoang 2, Km 14+363.65_Marker\01_HE_THONG_CAT_THEP_REBARCUT\CSV_XUAT_XUONG")
+CSV_FOLDER = os.path.join(PROJ_DIR, "02_XUONG_TIEN_CHE_COT_THEP", "CSV_XUAT_XUONG")
+CSV_FOLDER_PROJECT = CSV_FOLDER
 
 def sync_all():
+    import win32com.client
+
     print("[1] Sao chép file RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm đến các thư mục đích...")
     for tgt in TARGETS:
         os.makedirs(os.path.dirname(tgt), exist_ok=True)

@@ -79,7 +79,7 @@ Tiêu chí kiểm tra nghiêm ngặt:
 - Mọi tiêu chuẩn viện dẫn phải ghi rõ mã hiệu (ví dụ: `TCVN 4453:1995`, `TCVN 8859:2011`) và xác định rõ nguồn áp dụng trong hồ sơ dự án.
 
 ## 5. Bàn đạp Suy luận KCS Thực chiến (Kè & Cầu đường)
-Chi tiết xem tại [`kcs_reasoning_engine.json`](file:///d:/Code/23HG-multiagent-system-main/23HG-multiagent-system-main/knowledge/kcs_reasoning_engine.json).
+Chi tiết xem tại [`kcs_reasoning_engine.json`](../../knowledge/kcs_reasoning_engine.json).
 Bộ 6 bất biến bắt buộc tuân thủ:
 1. **Bảo toàn hình học & Khối lượng sống:** Kích thước thực tế $A \times B \times C \implies V_{\text{bê tông}} \implies$ Số xe trạm trộn $\implies$ Phụ lục KCS $\implies$ Khối lượng thanh toán. Khớp nhau 100% bằng công thức sống.
 2. **Đồ thị thời gian kết cấu (DAG):** Đào móng $\to$ Cốt thép chờ $\to$ Ván khuôn + Cốt thép móng $\to$ Đổ bê tông & Lấy mẫu $\xrightarrow{+2\text{ ngày}}$ Tháo dỡ ván khuôn móng & Kiểm tra bề mặt $\to$ Quét bitum khe co giãn $\to$ Thi công tường $\xrightarrow{+28\text{ ngày từ ngày đổ}}$ Nghiệm thu hoàn thành cấu kiện có phiếu $R_{28}$.

@@ -32,13 +32,18 @@ class NoPersonalPathsTest(unittest.TestCase):
 
     def test_no_personal_machine_paths(self):
         import re
-        pat = re.compile(r"[A-Za-z]:\\Users\\(?!<)[^\\\s\"']+\\|[A-Za-z]:\\Code\\\w", re.I)
+        pat = re.compile(
+            r"[A-Za-z]:\\Users\\(?!<)[^\\\s\"']+\\|[A-Za-z]:\\Code\\\w|file:///[A-Za-z]:/|expanduser\([^)]*\)\s*,\s*[\"']Downloads[\"']",
+            re.I,
+        )
         hits = []
         for dp, dirs, files in os.walk(ROOT):
-            dirs[:] = [d for d in dirs if d not in (".git", "__pycache__", "du_lieu_du_an")]
+            dirs[:] = [d for d in dirs if d not in (".git", "__pycache__", "du_lieu_du_an", "build", "dist")]
             for fn in files:
                 if fn.endswith((".py", ".md", ".txt", ".json", ".toml", ".yml", ".cfg")):
                     path = os.path.join(dp, fn)
+                    if os.path.relpath(path, ROOT).replace("\\", "/") == "tests/test_examples_consistency.py":
+                        continue
                     with open(path, encoding="utf-8", errors="ignore") as f:
                         for no, line in enumerate(f, 1):
                             if pat.search(line):

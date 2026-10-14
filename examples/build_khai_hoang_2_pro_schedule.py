@@ -24,11 +24,17 @@ import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 
-CODE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-TEMPLATE_PATH = os.path.join(CODE_ROOT, r"23HG_TIEN_DO_THI_CONG_PRO\23HG_TIEN_DO_THI_CONG_PRO\23HG_DU_AN_MAU_TIEN_DO_CHUAN_G1_PRO.xlsm")
-OUT_USER_DIR = os.path.join(os.path.expanduser("~"), "Downloads", r"Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
-OUT_PRO_DIR = os.path.join(CODE_ROOT, r"23HG_TIEN_DO_THI_CONG_PRO\23HG_TIEN_DO_THI_CONG_PRO")
-OUT_SYS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), r"du_lieu_du_an\Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
+from examples._paths import project_path
+
+PRO_SCHEDULE_DIR = os.environ.get("AEC_PRO_SCHEDULE_DIR", project_path("23HG_TIEN_DO_THI_CONG_PRO"))
+TEMPLATE_PATH = os.path.join(PRO_SCHEDULE_DIR, "23HG_DU_AN_MAU_TIEN_DO_CHUAN_G1_PRO.xlsm")
+OUT_USER_DIR = project_path("Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
+OUT_PRO_DIR = PRO_SCHEDULE_DIR
+OUT_SYS_DIR = OUT_USER_DIR
 
 FILE_NAME = "23HG_DU_AN_MAU_TIEN_DO_CAU_KHAI_HOANG_2_PRO.xlsm"
 

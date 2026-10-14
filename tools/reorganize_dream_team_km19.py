@@ -7,8 +7,14 @@ Xóa bỏ hoàn toàn các thư mục lồng đúp và các file copy trùng l�
 import os
 import shutil
 import glob
+import sys
 
-BASE_DIR = os.environ.get("AEC_PROJECTS_DIR", os.path.join(os.path.expanduser("~"), "Downloads", "HSTK Cầu Km19+529.080_Marker"))
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+from examples._paths import project_path
+
+BASE_DIR = project_path("HSTK Cầu Km19+529.080_Marker")
 
 DREAM_TEAM_STRUCTURE = {
     "00_BAN_CHI_HUY_MASTER": [

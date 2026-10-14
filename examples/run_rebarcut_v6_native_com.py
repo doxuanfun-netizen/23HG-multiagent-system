@@ -8,16 +8,24 @@ import os
 import sys
 import shutil
 import time
-import win32com.client
 
-sys.path.insert(0, 'examples')
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+EXAMPLES_DIR = os.path.join(ROOT_DIR, "examples")
+if EXAMPLES_DIR not in sys.path:
+    sys.path.insert(0, EXAMPLES_DIR)
+
+from examples._paths import project_path
 from build_khai_hoang_2_full_pipeline import load_all_bbs, UNIT_WEIGHT
 
-CODE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-TEMPLATE_PATH = os.path.join(CODE_ROOT, r"RebarCut_V6\RebarCut_Pro_Excel_V6.xlsm")
-WORK_PATH = os.path.join(CODE_ROOT, r"RebarCut_V6\RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm")
+REBARCUT_DIR = os.environ.get("AEC_REBARCUT_DIR", project_path("RebarCut_V6"))
+TEMPLATE_PATH = os.path.join(REBARCUT_DIR, "RebarCut_Pro_Excel_V6.xlsm")
+WORK_PATH = os.path.join(REBARCUT_DIR, "RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm")
 
 def run_native_rebarcut_v6():
+    import win32com.client
+
     print("=" * 80)
     print("   23HG SYSTEM - TỐI ƯU CẮT THÉP V6.0 CHO CẦU THÔN KHAI HOANG 2 (KM 14+363.65)   ")
     print("   Mẫu áp dụng: RebarCut_Pro_Excel_V6.xlsm (Thực thi Native Excel COM)         ")
@@ -180,11 +188,11 @@ def run_native_rebarcut_v6():
         xl.Quit()
 
     # 6. Đồng bộ sang các thư mục xuất bản
-    print("[5/5] Đồng bộ hóa hồ sơ sang thư mục dự án và tải về...")
+    print("[5/5] Đồng bộ hóa hồ sơ sang thư mục dự án...")
+    proj_dir = project_path("Cầu thôn Khai Hoang 2, Km 14+363.65_Marker")
     targets = [
-        os.path.join(os.path.expanduser("~"), "Downloads", r"Cầu thôn Khai Hoang 2, Km 14+363.65_Marker\RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm"),
-        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), r"du_lieu_du_an\Cầu thôn Khai Hoang 2, Km 14+363.65_Marker\RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm"),
-        os.path.join(os.path.expanduser("~"), "Downloads", r"Cầu thôn Khai Hoang 2, Km 14+363.65_Marker\01_HE_THONG_CAT_THEP_REBARCUT\RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm")
+        os.path.join(proj_dir, "RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm"),
+        os.path.join(proj_dir, "02_XUONG_TIEN_CHE_COT_THEP", "RebarCut_Pro_Excel_V6_Cau_Khai_Hoang_2.xlsm"),
     ]
     for tgt in targets:
         os.makedirs(os.path.dirname(tgt), exist_ok=True)
