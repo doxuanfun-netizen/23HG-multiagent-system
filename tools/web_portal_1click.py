@@ -213,6 +213,10 @@ def get_portal_state(project_key: str = "khai_hoang_2") -> dict:
         for k, v in GOLDEN_MASTER_ENGINES.items()
     ]
 
+    all_file_names = [f["name"] for fd in folders_data for f in fd["files"]]
+    dup_count = len(all_file_names) - len(set(all_file_names))
+    dup_rate_str = f"{(dup_count / len(all_file_names) * 100.0):.1f}%" if all_file_names else "0.0%"
+
     return {
         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "active_project": {
@@ -227,7 +231,7 @@ def get_portal_state(project_key: str = "khai_hoang_2") -> dict:
             "formula_errors": proj["highlights"]["formula_errors"],
             "bbs_rows": proj["highlights"]["bbs_rows"],
             "kcs_reports": proj["highlights"]["kcs_reports"],
-            "duplication_rate": "0.0%",
+            "duplication_rate": dup_rate_str,
         },
         "projects": [
             {"id": k, "name": v["name"], "category": v["category"]}

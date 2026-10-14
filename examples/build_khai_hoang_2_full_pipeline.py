@@ -108,8 +108,9 @@ def clean_dia(text):
     m = re.search(r'(\d{1,2})', str(text or '').replace('Φ', '').replace('Ø', '').replace('D', ''))
     return int(m.group(1)) if m and int(m.group(1)) in UNIT_WEIGHT else None
 
-def load_all_bbs():
-    with open(SOURCE_JSON, encoding='utf-8') as f:
+def load_all_bbs(json_path: str = None):
+    src = json_path or SOURCE_JSON
+    with open(src, encoding='utf-8') as f:
         tables = json.load(f)
 
     BBS_TABLES = [
@@ -257,20 +258,30 @@ def create_master_rebar_dashboard(path: str, summary_rows: list) -> None:
         tot_reusable += item["reusable_m"]
         row += 1
 
-    # Dòng Tổng cộng
+    # Dòng Tổng cộng (tính từ dữ liệu thực và công thức sống Excel)
+    first_r = 7
+    last_r = max(first_r, row - 1)
+    n_total = len(summary_rows)
+    n_opt = sum(1 for x in summary_rows if str(x.get("status", "")).upper() == "OPTIMAL")
+    computed_status = (
+        f"OPTIMAL ({n_opt}/{n_total})"
+        if n_total > 0 and n_opt == n_total
+        else f"FEASIBLE ({n_opt}/{n_total} OPTIMAL)" if n_total > 0 else "EMPTY"
+    )
+
     ws.cell(row, 2, "TỔNG CỘNG").alignment = Alignment(horizontal="center")
     ws.cell(row, 3, "")
     ws.cell(row, 4, "TOÀN BỘ CÔNG TRÌNH CẦU KHAI HOANG 2 (KM14+363.65)")
-    ws.cell(row, 5, tot_qty).number_format = "#,##0"
-    ws.cell(row, 6, tot_len).number_format = "#,##0.00"
-    ws.cell(row, 7, tot_bars).number_format = "#,##0"
-    ws.cell(row, 8, tot_weight).number_format = "#,##0.0"
-    ws.cell(row, 9, tot_waste).number_format = "#,##0.00"
-    ws.cell(row, 10, (tot_waste / (tot_bars * 11.7)) if tot_bars else 0).number_format = "0.00%"
-    ws.cell(row, 11, sum(x["patterns_count"] for x in summary_rows)).alignment = Alignment(horizontal="center")
-    ws.cell(row, 12, tot_reusable).number_format = "#,##0.00"
-    ws.cell(row, 13, "Đồng bộ bãi gia công 10 trạm CNC")
-    ws.cell(row, 14, "HOÀN TẤT TỐI ƯU").alignment = Alignment(horizontal="center")
+    ws.cell(row, 5, f"=SUM(E{first_r}:E{last_r})" if n_total else 0).number_format = "#,##0"
+    ws.cell(row, 6, f"=SUM(F{first_r}:F{last_r})" if n_total else 0).number_format = "#,##0.00"
+    ws.cell(row, 7, f"=SUM(G{first_r}:G{last_r})" if n_total else 0).number_format = "#,##0"
+    ws.cell(row, 8, f"=SUM(H{first_r}:H{last_r})" if n_total else 0).number_format = "#,##0.0"
+    ws.cell(row, 9, f"=SUM(I{first_r}:I{last_r})" if n_total else 0).number_format = "#,##0.00"
+    ws.cell(row, 10, f"=IF(G{row}>0,I{row}/(G{row}*11.7),0)" if n_total else 0).number_format = "0.00%"
+    ws.cell(row, 11, f"=SUM(K{first_r}:K{last_r})" if n_total else 0).alignment = Alignment(horizontal="center")
+    ws.cell(row, 12, f"=SUM(L{first_r}:L{last_r})" if n_total else 0).number_format = "#,##0.00"
+    ws.cell(row, 13, f"Đồng bộ bãi gia công {n_total} nhóm đường kính")
+    ws.cell(row, 14, computed_status).alignment = Alignment(horizontal="center")
 
     for c in range(2, last_col + 1):
         cell = ws.cell(row, c)

@@ -763,10 +763,11 @@ def _build_sheet_nghi_van_kh2(ws):
                 c.number_format = "#,##0.00"
 
 
-def build_tan_suat_khai_hoang_2(output_path: str):
+def build_tan_suat_khai_hoang_2(output_path: str, bbs_rows=None):
     """Sinh file Bang_Theo_Doi_Tan_Suat_Thi_Nghiem_Be_Tong_Va_Thep_Cau_Khai_Hoang_2.xlsx."""
-    from examples.build_khai_hoang_2_full_pipeline import load_all_bbs
-    bbs_rows = load_all_bbs()
+    if bbs_rows is None:
+        from examples.build_khai_hoang_2_full_pipeline import load_all_bbs
+        bbs_rows = load_all_bbs()
 
     wb = openpyxl.Workbook()
     ws1 = wb.active
